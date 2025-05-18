@@ -20,27 +20,54 @@ export default function Signup() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
-    // Basic validation
+  
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
       return;
     }
-
+  
     try {
-      // Here you would typically make an API call to your backend
-      // For demo purposes, we'll just simulate a delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Redirect to dashboard or show success message
-      window.location.href = '/dashboard';
-    } catch (err) {
-      setError('An error occurred during signup. Please try again.');
+      const response = await fetch('http://localhost:8080/api/v1/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstname: formData.firstName,
+          lastname: formData.lastName,
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+  
+      console.log("Response status:", response.status);
+  
+      let data: any;
+      try {
+        data = await response.clone().json(); // safe parse
+      } catch (jsonErr) {
+        const fallbackText = await response.text();
+        console.error("❌ Failed to parse JSON. Response text:", fallbackText);
+        throw new Error(fallbackText || 'Unknown server error.');
+      }
+  
+      console.log("✅ Parsed response body:", data);
+  
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        window.location.href = '/dashboard';
+      } else {
+        setError(data.error || 'Signup failed. Try again.');
+      }
+  
+    } catch (err: any) {
+      console.error("❌ Signup error:", err);
+      setError(err.message || 'Server error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+  
+  
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
