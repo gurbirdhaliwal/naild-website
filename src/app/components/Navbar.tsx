@@ -57,11 +57,17 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link href="/" className="text-2xl font-bold text-blue-600">
-              Naild
+          
+          <div className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center space-x-2">
+                <img
+                src="/naild_logo.png"
+                alt="Naild Logo"
+                className="h-12 w-12 object-contain"
+                />
+                <span className="text-2xl font-semibold text-black tracking-tight font-naild">Naild</span>
             </Link>
-          </div>
+            </div>
 
           {/* Navigation Links */}
           <div className="hidden sm:flex sm:space-x-8">
@@ -93,7 +99,7 @@ export default function Navbar() {
                 onClick={() => setDropdownOpen((prev) => !prev)}
                 className="flex items-center space-x-2 text-sm text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md font-medium cursor-pointer hover:bg-gray-100 transition"
                 >
-                <VscAccount className="text-xl text-blue-600" />
+                <VscAccount className="text-xl text-green-600" />
                 <span>Hi {user.firstname}</span>
                 </button>
                 <AnimatePresence>
@@ -109,14 +115,14 @@ export default function Navbar() {
                     href="/profile"
                     className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                    <MdOutlinePersonPin className="text-lg text-blue-600" />
+                    <MdOutlinePersonPin className="text-lg text-green-600" />
                     Profile
                     </Link>
                     <Link
                     href="/settings"
                     className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                    <IoSettingsOutline className="text-lg text-blue-600" />
+                    <IoSettingsOutline className="text-lg text-green-600" />
                     Settings
                     </Link>
                     <button
@@ -141,7 +147,7 @@ export default function Navbar() {
                 </Link>
                 <Link
                   href="/signup"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+                  className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700"
                 >
                   Sign up
                 </Link>
