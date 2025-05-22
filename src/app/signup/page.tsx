@@ -54,7 +54,7 @@ export default function Signup() {
   
       if (response.ok) {
         localStorage.setItem('token', data.token);
-        window.location.href = '/dashboard';
+        window.location.href = '/';
       } else {
         setError(data.error || 'Signup failed. Try again.');
       }

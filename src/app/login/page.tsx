@@ -47,7 +47,7 @@ export default function Login() {
   
       if (response.ok) {
         localStorage.setItem('token', data.token);
-        window.location.href = '/dashboard';
+        window.location.href = '/';
       } else {
         setError('Login failed. Check your credentials.');
       }
