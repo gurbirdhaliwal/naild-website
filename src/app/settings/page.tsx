@@ -118,7 +118,7 @@ export default function Settings() {
                   type="text"
                   value={formData.firstname}
                   onChange={handleChange}
-                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
 
@@ -129,7 +129,7 @@ export default function Settings() {
                   type="text"
                   value={formData.lastname}
                   onChange={handleChange}
-                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
 
@@ -140,7 +140,7 @@ export default function Settings() {
                   type="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
 
@@ -152,7 +152,7 @@ export default function Settings() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Leave blank to keep current password"
-                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
 
@@ -164,19 +164,19 @@ export default function Settings() {
                     type="password"
                     value={formData.currentpassword}
                     onChange={handleChange}
-                    className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
                   />
                 </div>
               )}
             </div>
 
-            {message && <p className="text-sm text-center text-blue-600">{message}</p>}
+            {message && <p className="text-sm text-center text-green-600">{message}</p>}
 
             <div>
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full py-3 px-4 text-white font-medium rounded-md shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none ${
+                className={`w-full py-3 px-4 text-white font-medium rounded-md shadow-sm bg-green-600 hover:bg-green-700 focus:outline-none ${
                   loading ? 'opacity-75 cursor-not-allowed' : ''
                 }`}
               >

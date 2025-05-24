@@ -124,6 +124,17 @@ export default function Login() {
           </form>
 
           <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600 mb-2">Or log in with</p>
+          <a
+            href="http://localhost:8080/oauth2/authorization/google"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <img src="/google-icon.svg" alt="Google" className="w-5 h-5" />
+            Log in with Google
+          </a>
+        </div>
+
+          <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Don’t have an account?{' '}
               <Link href="/signup" className="font-medium text-green-600 hover:text-green-500">
