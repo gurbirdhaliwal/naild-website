@@ -53,46 +53,46 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white shadow-sm">
+    <nav className="bg-white shadow-sm sticky top-0 z-50 backdrop-blur bg-white/90 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 -ml-20">
             <Link href="/" className="flex items-center space-x-2">
                 <img
                 src="/naild_logo.png"
                 alt="Naild Logo"
-                className="h-12 w-12 object-contain"
+                className="h-10 w-10 object-contain mr-0 mb-1"
                 />
-                <span className="text-2xl font-semibold text-black tracking-tight font-naild">Naild</span>
+                <span className="text-2xl font-regular text-black tracking-tight font-naild">naild.</span>
             </Link>
             </div>
 
           {/* Navigation Links */}
-          <div className="hidden sm:flex sm:space-x-8">
+          <div className="hidden sm:flex sm:space-x-8 -ml-170 mt-1">
             <Link
               href="/features"
-              className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium tracking-widest"
             >
               Features
             </Link>
             <Link
               href="/pricing"
-              className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium tracking-widest"
             >
               Pricing
             </Link>
             <Link
               href="/about"
-              className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium tracking-widest"
             >
               About
             </Link>
           </div>
 
           {/* Auth Section */}
-          <div className="hidden sm:flex sm:items-center sm:space-x-4 relative" ref={dropdownRef}>
+          <div className="hidden sm:flex sm:items-center sm:space-x-4 relative -mr-20" ref={dropdownRef}>
             {user ? (
               <div className="relative">
                 <button
@@ -147,7 +147,7 @@ export default function Navbar() {
                 </Link>
                 <Link
                   href="/signup"
-                  className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700"
+                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Sign up
                 </Link>

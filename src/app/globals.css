@@ -24,3 +24,47 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes gradientBackground {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+.animated-gradient {
+  background: linear-gradient(70deg, #b4fbb8, #88e198, #cefff8, #6eefbc, #cefff8);
+  background-size: 400%;
+  background-position: 0% 0%;
+  animation: gradientBackground 30s ease-in-out infinite alternate; 
+  color: white;
+  will-change: background-position;
+  background-image: linear-gradient();
+}
+
+.button-gradient {
+  background: linear-gradient(90deg, #cbf5cd, #c9fbe4, #d6edfc, #75a2e6);
+  background-size: 400% 100%;
+  background-position: 0% 0%;
+  transition: background-position 0.5s ease, color 0.5s ease, transform 1s ease, box-shadow 1s ease;
+  color: #000000;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0); 
+}
+
+.button-gradient:hover {
+  background-position: 100% 0%;
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 178, 222, 0.4); /* soft blue glow */
+}
+
+.fade-to-white {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, #ffffff 100%);
+}
+
+
