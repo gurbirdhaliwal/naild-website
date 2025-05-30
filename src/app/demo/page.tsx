@@ -102,7 +102,7 @@ export default function Demo() {
           <div className="h-full w-full lg:w-1/2 relative">
             <Webcam
               ref={webcamRef}
-              audio={true}
+              audio={false}
               className="w-full h-full rounded-lg object-cover"
               videoConstraints={{
                 width: 1280,
@@ -159,6 +159,7 @@ export default function Demo() {
             </button>
           )}
         </div>
+        
       </div>
     </div>
   );
