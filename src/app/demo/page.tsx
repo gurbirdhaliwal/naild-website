@@ -22,6 +22,8 @@ export default function Demo() {
   ]);
   const [currentQuestion, setCurrentQuestion] = useState('');
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingDots, setLoadingDots] = useState('');
 
   const questions = [
     'Tell me about a time when you faced a challenging situation at work or school.',
@@ -31,37 +33,35 @@ export default function Demo() {
   ];
 
   useEffect(() => {
-    if (recordedChunks.length > 0) {
-      const blob = new Blob(recordedChunks, { type: 'video/webm' });
-      simulateInterviewProcessing();
-    }
-  }, [recordedChunks]);
+    const interval = setInterval(() => {
+      setLoadingDots((prev) => (prev.length < 3 ? prev + '.' : ''));
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-      });
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [messages]);
 
   const startInterview = () => {
-    const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
-    setCurrentQuestion(randomQuestion);
-    setMessages((prev) => [...prev, { sender: 'ai', text: randomQuestion }]);
     setIsRecording(true);
     setRecordedChunks([]);
 
-    if (webcamRef.current?.stream) {
-      mediaRecorderRef.current = new MediaRecorder(webcamRef.current.stream);
-      mediaRecorderRef.current.addEventListener('dataavailable', handleDataAvailable);
-      mediaRecorderRef.current.start();
-    }
+    const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+    setMessages((prev) => [...prev, { sender: 'ai', text: randomQuestion }]);
+    setCurrentQuestion(randomQuestion);
+
+    // Start auto-fetch loop
+    setTimeout(() => {
+      fetchAIResponse();
+    }, 500);
   };
 
   const stopInterview = () => {
-    mediaRecorderRef.current?.stop();
+    // For testing purposes, we won't use MediaRecorder
+    // mediaRecorderRef.current?.stop();
     setIsRecording(false);
   };
 
@@ -71,21 +71,29 @@ export default function Demo() {
     }
   };
 
-  const simulateInterviewProcessing = () => {
-    setTimeout(() => {
-      const fakeTranscript =
-        'Sure, in my final year project we had to migrate a legacy system to a modern stack...';
-      const followUpQuestion =
-        'That sounds interesting. What was the biggest challenge your team faced during the migration?';
+  const fetchAIResponse = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('http://localhost:8000/app/interview');
+      const data = await res.json();
+      setIsLoading(false);
 
-      setMessages((prev) => [
-        ...prev,
-        { sender: 'user', text: fakeTranscript },
-        { sender: 'ai', text: followUpQuestion },
-      ]);
+      if (data.user_input && data.ai_response) {
+        setMessages((prev) => [
+          ...prev,
+          { sender: 'user', text: data.user_input },
+          { sender: 'ai', text: data.ai_response },
+        ]);
 
-      setCurrentQuestion(followUpQuestion);
-    }, 2000);
+        setCurrentQuestion(data.ai_response);
+        setTimeout(() => {
+          fetchAIResponse();
+        }, 500);
+      }
+    } catch (err) {
+      console.error('Error fetching response:', err);
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -96,19 +104,13 @@ export default function Demo() {
           <p className="mt-1 text-gray-600">Speak your answers out loud. The AI will listen and ask follow-ups.</p>
         </div>
 
-        {/* Layout: Webcam + Chat Side-by-Side */}
         <div className="flex flex-col lg:flex-row gap-4 items-stretch h-[400px]">
-          {/* Webcam Feed */}
           <div className="h-full w-full lg:w-1/2 relative">
             <Webcam
               ref={webcamRef}
               audio={false}
               className="w-full h-full rounded-lg object-cover"
-              videoConstraints={{
-                width: 1280,
-                height: 720,
-                facingMode: 'user',
-              }}
+              videoConstraints={{ width: 1280, height: 720, facingMode: 'user' }}
             />
             {isRecording && (
               <div className="absolute top-4 right-4 flex items-center">
@@ -118,7 +120,6 @@ export default function Demo() {
             )}
           </div>
 
-          {/* Chat Panel */}
           <div className="h-full w-full lg:w-1/2 p-4 bg-white rounded-lg shadow flex flex-col">
             <h3 className="text-lg font-semibold mb-3 text-gray-800">Interview Chat</h3>
             <div className="overflow-y-auto pr-2 space-y-4 flex-1">
@@ -136,12 +137,16 @@ export default function Demo() {
                   {msg.text}
                 </motion.div>
               ))}
+              {isLoading && (
+                <div className="text-sm text-gray-500 mt-2 ml-2 animate-pulse">
+                  AI is thinking{loadingDots}
+                </div>
+              )}
               <div ref={chatEndRef} />
             </div>
           </div>
         </div>
 
-        {/* Controls */}
         <div className="flex justify-center mt-2 gap-4">
           {!isRecording ? (
             <button
@@ -159,7 +164,6 @@ export default function Demo() {
             </button>
           )}
         </div>
-        
       </div>
     </div>
   );
