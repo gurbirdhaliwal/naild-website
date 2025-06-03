@@ -3,8 +3,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 export default function Signup() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectPath = searchParams.get('redirect');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -31,6 +35,7 @@ export default function Signup() {
       const response = await fetch('http://localhost:8080/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: "include",
         body: JSON.stringify({
           firstname: formData.firstName,
           lastname: formData.lastName,
@@ -53,8 +58,7 @@ export default function Signup() {
       console.log("✅ Parsed response body:", data);
   
       if (response.ok) {
-        localStorage.setItem('token', data.token);
-        window.location.href = '/';
+        window.location.href = redirectPath || '/';
       } else {
         setError(data.error || 'Signup failed. Try again.');
       }

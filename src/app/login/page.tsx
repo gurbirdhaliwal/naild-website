@@ -3,8 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useSearchParams, useRouter } from 'next/navigation';
+
 
 export default function Login() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectPath = searchParams.get('redirect');
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -30,6 +36,7 @@ export default function Login() {
       const response = await fetch('http://localhost:8080/api/v1/auth/authenticate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: "include",
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
@@ -44,10 +51,9 @@ export default function Login() {
       });
   
       console.log("Server login response body:", data);
-  
       if (response.ok) {
-        localStorage.setItem('token', data.token);
-        window.location.href = '/';
+        window.location.href = redirectPath || '/';
+
       } else {
         setError('Login failed. Check your credentials.');
       }
@@ -137,7 +143,7 @@ export default function Login() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Don’t have an account?{' '}
-              <Link href="/signup" className="font-medium text-green-600 hover:text-green-500">
+              <Link href={`/signup?redirect=${redirectPath || '/'}`} className="font-medium text-green-600 hover:text-green-500">
                 Sign up
               </Link>
             </p>

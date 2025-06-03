@@ -1,36 +1,17 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { VscAccount } from "react-icons/vsc";
 import { MdOutlinePersonPin, MdLogout } from "react-icons/md";
 import { IoSettingsOutline } from "react-icons/io5";
+import { useAuth } from "../context/AuthContext";
 
 export default function Navbar() {
-  const [user, setUser] = useState<{ firstname: string } | null>(null);
+  const { user, loading, setUser } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    fetch("http://localhost:8080/api/v1/auth/me", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Unauthorized");
-        const userData = await res.json();
-        setUser(userData);
-      })
-      .catch(() => {
-        localStorage.removeItem("token");
-        setUser(null);
-      });
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -46,10 +27,17 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-    window.location.href = "/";
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:8080/api/v1/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      setUser(null);
+      window.location.href = "/";
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
   };
 
   return (
@@ -57,50 +45,36 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
-          
           <div className="flex items-center space-x-2 -ml-20">
             <Link href="/" className="flex items-center space-x-2">
-                <img
+              <img
                 src="/naild_logo.png"
                 alt="Naild Logo"
                 className="h-10 w-10 object-contain mr-0 mb-1"
-                />
-                <span className="text-2xl font-regular text-black tracking-tight font-naild">naild.</span>
+              />
+              <span className="text-2xl font-regular text-black tracking-tight font-naild">
+                naild.
+              </span>
             </Link>
-            </div>
+          </div>
 
           {/* Navigation Links */}
           <div className="hidden sm:flex sm:space-x-8 -ml-170 mt-1">
-            <Link
-              href="/features"
-              className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium tracking-widest"
-            >
-              Features
-            </Link>
-            <Link
-              href="/pricing"
-              className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium tracking-widest"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/about"
-              className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium tracking-widest"
-            >
-              About
-            </Link>
+            <Link href="/features" className="nav-link">Features</Link>
+            <Link href="/pricing" className="nav-link">Pricing</Link>
+            <Link href="/about" className="nav-link">About</Link>
           </div>
 
           {/* Auth Section */}
           <div className="hidden sm:flex sm:items-center sm:space-x-4 relative -mr-20" ref={dropdownRef}>
-            {user ? (
+            {!loading && user ? (
               <div className="relative">
                 <button
-                onClick={() => setDropdownOpen((prev) => !prev)}
-                className="flex items-center space-x-2 text-sm text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md font-medium cursor-pointer hover:bg-gray-100 transition"
+                  onClick={() => setDropdownOpen((prev) => !prev)}
+                  className="flex items-center space-x-2 text-sm text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md font-medium cursor-pointer hover:bg-gray-100 transition"
                 >
-                <VscAccount className="text-xl text-green-600" />
-                <span>Hi {user.firstname}</span>
+                  <VscAccount className="text-xl text-green-600" />
+                  <span>Hi {user.firstname}</span>
                 </button>
                 <AnimatePresence>
                   {dropdownOpen && (
@@ -111,48 +85,28 @@ export default function Navbar() {
                       transition={{ duration: 0.2 }}
                       className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10"
                     >
-                      <Link
-                    href="/profile"
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                    <MdOutlinePersonPin className="text-lg text-green-600" />
-                    Profile
-                    </Link>
-                    <Link
-                    href="/settings"
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                    <IoSettingsOutline className="text-lg text-green-600" />
-                    Settings
-                    </Link>
-                    <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-600 cursor-pointer hover:bg-gray-100"
-                    >
-                    <MdLogout className="text-lg" />
-                    Logout
-                    </button>
-
+                      <Link href="/profile" className="dropdown-link">
+                        <MdOutlinePersonPin className="text-lg text-green-600" />
+                        Profile
+                      </Link>
+                      <Link href="/settings" className="dropdown-link">
+                        <IoSettingsOutline className="text-lg text-green-600" />
+                        Settings
+                      </Link>
+                      <button onClick={handleLogout} className="dropdown-link text-red-600">
+                        <MdLogout className="text-lg" />
+                        Logout
+                      </button>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
-            ) : (
+            ) : !loading ? (
               <>
-                <Link
-                  href="/login"
-                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/signup"
-                  className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-                >
-                  Sign up
-                </Link>
+                <Link href="/login" className="nav-link">Log in</Link>
+                <Link href="/signup" className="nav-link">Sign up</Link>
               </>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

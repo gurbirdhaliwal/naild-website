@@ -35,7 +35,7 @@ export default function Home() {
           >
             <Link
               href="/demo"
-              className="px-8 py-3 rounded-full font-medium text-lg button-gradient"
+              className="px-8 py-3 rounded-xl outline-solid outline-offset-2 outline-green-500 font-medium text-lg button-gradient"
             >
               Get Started
             </Link>

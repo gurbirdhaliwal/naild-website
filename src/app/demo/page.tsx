@@ -1,5 +1,7 @@
 'use client';
 
+import { useAuth } from '../context/AuthContext';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import { motion } from 'framer-motion';
@@ -10,6 +12,9 @@ type Message = {
 };
 
 export default function Demo() {
+  const { user, loading } = useAuth();
+  const router  = useRouter();
+  const pathname = usePathname()
   const [isRecording, setIsRecording] = useState(false);
   const webcamRef = useRef<Webcam>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -32,18 +37,30 @@ export default function Demo() {
     'What is your greatest professional achievement?',
   ];
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLoadingDots((prev) => (prev.length < 3 ? prev + '.' : ''));
-    }, 500);
-    return () => clearInterval(interval);
-  }, []);
+// Always call all hooks
+useEffect(() => {
+  const interval = setInterval(() => {
+    setLoadingDots((prev) => (prev.length < 3 ? prev + '.' : ''));
+  }, 500);
+  return () => clearInterval(interval);
+}, []);
 
-  useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [messages]);
+useEffect(() => {
+  if (!loading && !user) {
+    router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+  }
+}, [loading, user, pathname, router]);
+
+useEffect(() => {
+  if (chatEndRef.current) {
+    chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}, [messages]);
+
+if (loading || !user) {
+  return <p className="mt-28 text-center">Redirecting...</p>;
+}
+
 
   const startInterview = () => {
     setIsRecording(true);
@@ -97,7 +114,7 @@ export default function Demo() {
   };
 
   return (
-    <div className="h-screen bg-gray-50 overflow-hidden flex flex-col">
+    <div className="mt-28 h-screen overflow-hidden flex flex-col">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col h-full">
         <div className="text-center mb-4">
           <h1 className="text-3xl font-bold text-gray-900 mt-20">AI Interview Practice</h1>

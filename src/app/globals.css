@@ -26,10 +26,10 @@ body {
 }
 
 .button-gradient {
-  background: linear-gradient(90deg, #cbf5cd, #c9fbe4, #d6edfc, #75a2e6);
+  background: linear-gradient(90deg, #cbf5cd, #cbf5cd, #26922c);
   background-size: 400% 100%;
   background-position: 0% 0%;
-  transition: background-position 0.5s ease, color 0.5s ease, transform 1s ease, box-shadow 1s ease;
+  transition: background-position 0.5s ease, color 0.5s ease, transform 0.5s ease, box-shadow 0.5s ease;
   color: #000000;
   box-shadow: 0 0 0 rgba(0, 0, 0, 0); 
 }
@@ -38,8 +38,17 @@ body {
   background-position: 100% 0%;
   color: white;
   transform: scale(1.05);
-  box-shadow: 0 8px 20px rgba(0, 178, 222, 0.4); /* soft blue glow */
+  box-shadow: 0 8px 20px rgba(41, 163, 0, 0.4); 
 }
+
+.nav-link {
+  @apply text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium;
+}
+
+.dropdown-link {
+  @apply flex items-center gap-2 w-full text-left px-4 py-2 text-sm hover:bg-gray-100;
+}
+
 
 html,
 body {
