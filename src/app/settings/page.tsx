@@ -17,16 +17,8 @@ export default function Settings() {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        console.log('⚠️ No token found');
-        return;
-    }
-
     fetch('http://localhost:8080/api/v1/user/me', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      credentials: "include"
     })
       .then((res) => res.json())
       .then((data) => {
@@ -50,13 +42,12 @@ export default function Settings() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:8080/api/v1/user/update', {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
+        credentials: "include",
         body: JSON.stringify(formData),
       });
 
@@ -76,16 +67,12 @@ export default function Settings() {
   const handleDelete = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:8080/api/v1/user/delete', {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: "include"
       });
 
       if (response.ok) {
-        localStorage.removeItem('token');
         window.location.href = '/signup';
       } else {
         const errMsg = await response.text();
@@ -100,7 +87,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="mt-20 min-h-screen py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-lg mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
