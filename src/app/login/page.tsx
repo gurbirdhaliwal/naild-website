@@ -4,152 +4,145 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useSearchParams, useRouter } from 'next/navigation';
-
+import { FaGoogle, FaLinkedin, FaGithub } from "react-icons/fa";
 
 export default function Login() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get('redirect');
 
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-  
+
     try {
       const response = await fetch('http://localhost:8080/api/v1/auth/authenticate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: "include",
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
+        credentials: 'include',
+        body: JSON.stringify(formData),
       });
-  
-      console.log("Login response status:", response.status);
-  
+
       const data = await response.json().catch(err => {
-        console.error("❌ Login JSON parse error", err);
         throw err;
       });
-  
-      console.log("Server login response body:", data);
+
       if (response.ok) {
         window.location.href = redirectPath || '/';
-
       } else {
         setError('Login failed. Check your credentials.');
       }
     } catch (err) {
-      console.error("❌ Login server error", err);
+      console.error('❌ Login error', err);
       setError('Server error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
-  
 
   return (
-    <div className="mt-28 min-h-screen py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900">Log in to your account</h2>
-            <p className="mt-2 text-gray-600">Welcome back! Let’s continue practicing.</p>
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-green-50 px-4">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-md bg-white rounded-2xl shadow-md p-8"
+      >
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold text-gray-900">naild.</h2>
+          <p className="mt-1 text-sm text-gray-600">Log in to your account</p>
+        </div>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-            <div className="rounded-md shadow-sm space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-green-500"
-                />
-              </div>
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <input
+            id="email"
+            name="email"
+            type="email"
+            placeholder="Email"
+            autoComplete="email"
+            required
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500 focus:outline-none"
+          />
+          <input
+            id="password"
+            name="password"
+            type="password"
+            placeholder="Password"
+            autoComplete="current-password"
+            required
+            value={formData.password}
+            onChange={handleChange}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500 focus:outline-none"
+          />
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-green-500"
-                />
-              </div>
-            </div>
+          {error && <div className="text-red-500 text-sm text-center">{error}</div>}
 
-            {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+          <button
+            type="submit"
+            disabled={loading}
+            className={`w-full py-2 px-4 text-white bg-black rounded-md text-sm font-semibold shadow-sm hover:bg-gray-900 transition ${
+              loading ? 'opacity-70 cursor-not-allowed' : ''
+            }`}
+          >
+            {loading ? 'Logging in...' : 'Continue with email'}
+          </button>
+        </form>
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
-                  loading ? 'opacity-75 cursor-not-allowed' : ''
-                }`}
-              >
-                {loading ? 'Logging in...' : 'Log in'}
-              </button>
-            </div>
-          </form>
+        <div className="flex items-center justify-center my-4">
+          <div className="border-t border-gray-200 w-full" />
+          <span className="mx-2 text-sm text-gray-500">OR</span>
+          <div className="border-t border-gray-200 w-full" />
+        </div>
 
-          <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600 mb-2">Or log in with</p>
+        <div className="space-y-3">
           <a
             href="http://localhost:8080/oauth2/authorization/google"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-md py-2 text-sm font-medium bg-white hover:bg-gray-50"
           >
-            <img src="/google-icon.svg" alt="Google" className="w-5 h-5" />
-            Log in with Google
+            <FaGoogle />
+            Continue with Google
+          </a>
+
+          {/* Additional providers */}
+          <a
+            href="#"
+            className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-md py-2 text-sm font-medium bg-white hover:bg-gray-50"
+          >
+            <FaLinkedin className='ml-2'/>
+            Continue with LinkedIn
+          </a>
+
+          <a
+            href="#"
+            className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-md py-2 text-sm font-medium bg-white hover:bg-gray-50"
+          >
+            <FaGithub />
+            Continue with GitHub
           </a>
         </div>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don’t have an account?{' '}
-              <Link href={`/signup?redirect=${redirectPath || '/'}`} className="font-medium text-green-600 hover:text-green-500">
-                Sign up
-              </Link>
-            </p>
-          </div>
-        </motion.div>
-      </div>
+        <div className="mt-6 text-center text-sm text-gray-600">
+          Don’t have an account?{' '}
+          <Link
+            href={`/signup?redirect=${redirectPath || '/'}`}
+            className="text-green-600 font-medium hover:text-green-500"
+          >
+            Sign up
+          </Link>
+        </div>
+      </motion.div>
     </div>
   );
 }
