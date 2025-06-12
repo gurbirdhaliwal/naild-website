@@ -89,14 +89,6 @@ export default function Signup() {
         className="w-full max-w-md bg-white rounded-2xl shadow-md p-8"
       >
         <div className="text-center">
-          {/* Back to email step */}
-  <button
-  type="button"
-  onClick={() => setStep('email')}
-  className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-gray-500 mb-2"
->
-  <FaArrowLeft className="w-4 h-4" />
-</button>
           <h2 className="text-2xl font-semibold text-gray-900">Create your account</h2>
           <p className="mt-1 text-sm text-gray-600">Start practicing interviews with AI feedback</p>
         </div>
@@ -110,7 +102,7 @@ export default function Signup() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0 }}
+              transition={{ duration: 0.3 }}
               className="mt-6 space-y-4"
             >
               <input
@@ -134,70 +126,79 @@ export default function Signup() {
             </motion.form>
           ) : (
             <motion.form
-  key="detailsStep"
-  onSubmit={handleSubmit}
-  initial={{ opacity: 0, y: 10 }}
-  animate={{ opacity: 1, y: 0 }}
-  exit={{ opacity: 0, y: -10 }}
-  transition={{ duration: 0.3 }}
-  className="mt-6 space-y-4"
->
-  
+              key="detailsStep"
+              onSubmit={handleSubmit}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="mt-6 space-y-4"
+            >
+              {/* Back to email */}
+              <div className="w-full flex justify-start">
+                <button
+                  type="button"
+                  onClick={() => setStep('email')}
+                  className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-gray-500 mb-4"
+                >
+                  <FaArrowLeft className="w-4 h-4" />
+                  <span>Back to edit email</span>
+                </button>
+              </div>
 
-  <div className="grid grid-cols-2 gap-4">
-    <input
-      name="firstName"
-      type="text"
-      placeholder="First name"
-      required
-      value={formData.firstName}
-      onChange={handleChange}
-      className="rounded-md border border-gray-300 px-3 py-2 shadow-sm w-full focus:outline-none focus:ring-green-500 focus:border-green-500"
-    />
-    <input
-      name="lastName"
-      type="text"
-      placeholder="Last name"
-      required
-      value={formData.lastName}
-      onChange={handleChange}
-      className="rounded-md border border-gray-300 px-3 py-2 shadow-sm w-full focus:outline-none focus:ring-green-500 focus:border-green-500"
-    />
-  </div>
-  <input
-    name="password"
-    type="password"
-    placeholder="Password"
-    autoComplete="new-password"
-    required
-    value={formData.password}
-    onChange={handleChange}
-    className="rounded-md border border-gray-300 px-3 py-2 shadow-sm w-full focus:outline-none focus:ring-green-500 focus:border-green-500"
-  />
-  <input
-    name="confirmPassword"
-    type="password"
-    placeholder="Confirm password"
-    autoComplete="new-password"
-    required
-    value={formData.confirmPassword}
-    onChange={handleChange}
-    className="rounded-md border border-gray-300 px-3 py-2 shadow-sm w-full focus:outline-none focus:ring-green-500 focus:border-green-500"
-  />
+              <div className="grid grid-cols-2 gap-4">
+                <input
+                  name="firstName"
+                  type="text"
+                  placeholder="First name"
+                  required
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  className="rounded-md border border-gray-300 px-3 py-2 shadow-sm w-full focus:outline-none focus:ring-green-500 focus:border-green-500"
+                />
+                <input
+                  name="lastName"
+                  type="text"
+                  placeholder="Last name"
+                  required
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  className="rounded-md border border-gray-300 px-3 py-2 shadow-sm w-full focus:outline-none focus:ring-green-500 focus:border-green-500"
+                />
+              </div>
+              <input
+                name="password"
+                type="password"
+                placeholder="Password"
+                autoComplete="new-password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                className="rounded-md border border-gray-300 px-3 py-2 shadow-sm w-full focus:outline-none focus:ring-green-500 focus:border-green-500"
+              />
+              <input
+                name="confirmPassword"
+                type="password"
+                placeholder="Confirm password"
+                autoComplete="new-password"
+                required
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="rounded-md border border-gray-300 px-3 py-2 shadow-sm w-full focus:outline-none focus:ring-green-500 focus:border-green-500"
+              />
 
-  {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+              {error && <div className="text-red-600 text-sm text-center">{error}</div>}
 
-  <button
-    type="submit"
-    disabled={loading}
-    className={`w-full py-2 px-4 text-white bg-black rounded-md text-sm font-semibold shadow-sm hover:bg-gray-900 transition ${
-      loading ? 'opacity-70 cursor-not-allowed' : ''
-    }`}
-  >
-    {loading ? 'Creating account...' : 'Sign up'}
-  </button>
-</motion.form>
-
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full py-2 px-4 text-white bg-black rounded-md text-sm font-semibold shadow-sm hover:bg-gray-900 transition ${
+                  loading ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
+              >
+                {loading ? 'Creating account...' : 'Sign up'}
+              </button>
+            </motion.form>
           )}
         </AnimatePresence>
 
