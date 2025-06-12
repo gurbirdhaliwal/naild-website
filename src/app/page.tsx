@@ -3,8 +3,25 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useAuth } from './context/AuthContext';
 
 export default function Home() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
+  const handleGetStarted = () => {
+    if (loading) return; // wait for auth check
+
+    if (user) {
+      router.push('/demo'); // ✅ go to demo if logged in
+    } else {
+      window.history.pushState({}, '', '/'); // ✅ support back button
+      router.push('/login?redirect=/demo');
+    }
+  };
+
+
   return (
     <main className="mt-28 min-h-screen flex flex-col items-center bg-gradient-to-b from-white via-[#f4fff7] to-[#b8ffdc]">
 
@@ -33,12 +50,12 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="mt-10"
           >
-            <Link
-              href="/demo"
+              <button
+              onClick={handleGetStarted}
               className="px-8 py-3 rounded-xl outline-solid outline-offset-2 outline-green-500 font-medium text-lg button-gradient"
             >
               Get Started
-            </Link>
+            </button>
           </motion.div>
         </div>
 
