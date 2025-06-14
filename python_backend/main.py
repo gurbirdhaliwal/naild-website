@@ -79,9 +79,18 @@ class VoiceAssistant:
             result = self.whisper_model.transcribe(audio_data)
             transcription = result["text"].strip()
             response = ollama.chat(
-                model='mistral',
-                messages=[{'role': 'user', 'content': transcription}]
-            )
+            model='mistral',
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a mock interview assistant. Respond in 1-2 short sentences only."
+                },
+                {
+                    "role": "user",
+                    "content": transcription
+                }
+            ]
+        )
             ai_response = response['message']['content']
             return {"user_input": transcription, "ai_response": ai_response}
         except Exception as e:

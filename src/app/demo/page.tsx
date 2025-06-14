@@ -13,17 +13,13 @@ type Message = {
 
 export default function Demo() {
   const { user, loading } = useAuth();
-  const router  = useRouter();
-  const pathname = usePathname()
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [isRecording, setIsRecording] = useState(false);
   const webcamRef = useRef<Webcam>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   const [messages, setMessages] = useState<Message[]>([
-    {
-      sender: 'ai',
-      text: "Welcome to your mock interview. Let's begin!",
-    },
+    { sender: 'ai', text: "Welcome to your mock interview. Let's begin!" },
   ]);
   const [currentQuestion, setCurrentQuestion] = useState('');
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -37,63 +33,48 @@ export default function Demo() {
     'What is your greatest professional achievement?',
   ];
 
-// Always call all hooks
-useEffect(() => {
-  const interval = setInterval(() => {
-    setLoadingDots((prev) => (prev.length < 3 ? prev + '.' : ''));
-  }, 500);
-  return () => clearInterval(interval);
-}, []);
-
-useEffect(() => {
-  if (!loading && !user) {
-    router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
-  }
-}, [loading, user, pathname, router]);
-
-useEffect(() => {
-  if (chatEndRef.current) {
-    chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-}, [messages]);
-
-if (loading || !user) {
-  return <p className="mt-28 text-center">Redirecting...</p>;
-}
-
-
-  const startInterview = () => {
-    setIsRecording(true);
-    setRecordedChunks([]);
-
-    const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
-    setMessages((prev) => [...prev, { sender: 'ai', text: randomQuestion }]);
-    setCurrentQuestion(randomQuestion);
-
-    // Start auto-fetch loop
-    setTimeout(() => {
-      fetchAIResponse();
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLoadingDots((prev) => (prev.length < 3 ? prev + '.' : ''));
     }, 500);
-  };
+    return () => clearInterval(interval);
+  }, []);
 
-  const stopInterview = () => {
-    // For testing purposes, we won't use MediaRecorder
-    // mediaRecorderRef.current?.stop();
-    setIsRecording(false);
-  };
-
-  const handleDataAvailable = ({ data }: BlobEvent) => {
-    if (data.size > 0) {
-      setRecordedChunks((prev) => [...prev, data]);
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
     }
-  };
+  }, [loading, user, pathname, router]);
 
-  const fetchAIResponse = async () => {
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [messages]);
+
+  if (loading || !user) {
+    return <p className="mt-28 text-center">Redirecting...</p>;
+  }
+
+  const handleInterviewTurn = async () => {
+    setIsRecording(true);
+
+    // If no current question, ask one
+    if (!currentQuestion) {
+      const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+      setMessages((prev) => [...prev, { sender: 'ai', text: randomQuestion }]);
+      setCurrentQuestion(randomQuestion);
+      setIsRecording(false);
+      return;
+    }
+
+    // Otherwise, capture user response
     try {
       setIsLoading(true);
       const res = await fetch('http://localhost:8000/app/interview');
       const data = await res.json();
       setIsLoading(false);
+      setIsRecording(false);
 
       if (data.user_input && data.ai_response) {
         setMessages((prev) => [
@@ -101,15 +82,14 @@ if (loading || !user) {
           { sender: 'user', text: data.user_input },
           { sender: 'ai', text: data.ai_response },
         ]);
-
         setCurrentQuestion(data.ai_response);
-        setTimeout(() => {
-          fetchAIResponse();
-        }, 500);
+      } else {
+        console.warn('No user_input or ai_response from server');
       }
     } catch (err) {
       console.error('Error fetching response:', err);
       setIsLoading(false);
+      setIsRecording(false);
     }
   };
 
@@ -118,7 +98,9 @@ if (loading || !user) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col h-full">
         <div className="text-center mb-4">
           <h1 className="text-3xl font-bold text-gray-900 mt-20">AI Interview Practice</h1>
-          <p className="mt-1 text-gray-600">Speak your answers out loud. The AI will listen and ask follow-ups.</p>
+          <p className="mt-1 text-gray-600">
+            Speak your answers out loud. The AI will listen and ask follow-ups.
+          </p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-4 items-stretch h-[400px]">
@@ -165,21 +147,19 @@ if (loading || !user) {
         </div>
 
         <div className="flex justify-center mt-2 gap-4">
-          {!isRecording ? (
-            <button
-              onClick={startInterview}
-              className="bg-blue-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-blue-700 transition-colors"
-            >
-              Start Interview
-            </button>
-          ) : (
-            <button
-              onClick={stopInterview}
-              className="bg-red-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-red-700 transition-colors"
-            >
-              Stop Answer
-            </button>
-          )}
+          <button
+            onClick={handleInterviewTurn}
+            disabled={isLoading}
+            className={`${
+              isRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
+            } text-white px-6 py-3 rounded-full font-semibold transition-colors`}
+          >
+            {isRecording
+              ? 'Recording...'
+              : currentQuestion
+              ? 'Answer / Continue'
+              : 'Start Interview'}
+          </button>
         </div>
       </div>
     </div>
