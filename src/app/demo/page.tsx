@@ -56,8 +56,8 @@ export default function Demo() {
     return <p className="mt-28 text-center">Redirecting...</p>;
   }
 
-  const handleInterviewTurn = async () => {
-    setIsRecording(true);
+  const handleInterviewTurn = async () => { 
+    setIsRecording(true); 
 
     // If no current question, ask one
     if (!currentQuestion) {
