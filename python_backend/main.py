@@ -30,7 +30,7 @@ class VoiceAssistant:
         self.dtype = np.float32
         self.block_size = 4096
         self.silence_threshold = 0.005
-        self.silence_duration = 1.5
+        self.silence_duration = 2.0
         self.last_sound = time.time()
         self.audio_buffer = []
         self.audio_queue = queue.Queue()
@@ -96,7 +96,11 @@ class VoiceAssistant:
         except Exception as e:
             return {"error": str(e)}
 
+
+
+
 assistant = VoiceAssistant()
+
 
 @app.get("/app/interview")
 def interview():
