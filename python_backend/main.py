@@ -61,7 +61,7 @@ class VoiceAssistant:
                                 blocksize=self.block_size,
                                 callback=self.audio_callback):
                 print("Listening...")
-                timeout = time.time() + 10
+                timeout = time.time() + 60
                 while self.audio_queue.empty() and time.time() < timeout:
                     time.sleep(0.1)
                 if not self.audio_queue.empty():
