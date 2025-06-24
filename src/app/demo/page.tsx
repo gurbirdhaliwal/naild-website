@@ -138,7 +138,7 @@ export default function Demo() {
               ))}
               {isLoading && (
                 <div className="text-sm text-gray-500 mt-2 ml-2 animate-pulse">
-                  AI is thinking{loadingDots}
+                  AI is listening{loadingDots}
                 </div>
               )}
               <div ref={chatEndRef} />
