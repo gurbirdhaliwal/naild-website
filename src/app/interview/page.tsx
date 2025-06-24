@@ -16,6 +16,7 @@ export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [currentInterview, setCurrentInterview] = useState<Interview | null>(null)
   const [showSetup, setShowSetup] = useState(true)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { user, loading, setUser } = useAuth()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
@@ -67,11 +68,13 @@ export default function InterviewPage() {
         currentInterview={currentInterview}
         onStartNew={() => setShowSetup(true)}
         onSelectInterview={setCurrentInterview}
-        collapsed={false}
-        onToggleCollapse={() => {}}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
 
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
+        sidebarCollapsed ? 'ml-16' : 'ml-64'
+      }`}>
         {/* Top-right Profile */}
         <div className="flex justify-end items-center p-4 border-b border-gray-200 relative">
           {user && (
@@ -114,9 +117,9 @@ export default function InterviewPage() {
         </div>
 
         {/* Interview Section */}
-        <div className="flex-1 overflow-y-auto flex justify-center items-center">
+        <div className="flex-1 overflow-hidden">
           {showSetup ? (
-            <div className="w-full ml-50 mt-80">
+            <div className="w-full overflow-y-auto h-full flex items-center justify-center p-4">
               <InterviewSetup onCreateInterview={handleCreateInterview} />
             </div>
           ) : currentInterview ? (
@@ -125,7 +128,9 @@ export default function InterviewPage() {
               onUpdateInterview={handleUpdate}
             />
           ) : (
-            <div className="p-8">Select or start an interview</div>
+            <div className="h-full flex items-center justify-center p-8 text-gray-500">
+              Select or start an interview
+            </div>
           )}
         </div>
       </main>
