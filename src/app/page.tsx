@@ -22,10 +22,10 @@ const NaildLanding = () => {
   const handleGetStarted = () => {
     if (loading) return;
     if (user) {
-      router.push('/demo');
+      router.push('/interview');
     } else {
       window.history.pushState({}, '', '/');
-      router.push('/login?redirect=/demo');
+      router.push('/login?redirect=/interview');
     }
   };
 
