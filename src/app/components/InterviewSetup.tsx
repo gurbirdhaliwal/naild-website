@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { InterviewConfig } from '../types/Interview';
 
@@ -54,31 +53,31 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
   const isValid = config.role && config.languages.length > 0;
 
   return (
-    <div className="flex items-center justify-center h-full p-8 bg-gray-50">
-      <div className="bg-white rounded-2xl p-8 max-w-2xl w-full border border-gray-200 shadow-sm">
-        <div className="mb-8 text-center">
-          <h2 className="text-3xl font-light text-gray-900 mb-2">Setup Your Interview</h2>
-          <p className="text-gray-600">Configure your mock technical interview session</p>
+    <div className="flex items-center justify-center h-full p-2 sm:p-4">
+      <div className="bg-white rounded-2xl p-4 sm:p-6 max-w-2xl w-full border border-gray-200 shadow-sm">
+        <div className="mb-4 sm:mb-6 text-center">
+          <h2 className="text-xl sm:text-2xl font-light text-gray-900 mb-1">Setup Your Interview</h2>
+          <p className="text-xs sm:text-sm text-gray-600">Configure your mock technical interview session</p>
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-4 sm:space-y-6">
           {/* Role Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-4">
+            <label className="block text-sm font-medium text-gray-900 mb-2 sm:mb-3">
               Job Title
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {roles.map((role) => (
                 <button
                   key={role}
                   onClick={() => setConfig(prev => ({ ...prev, role }))}
-                  className={`p-4 rounded-xl border-2 transition-all text-left ${
+                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-left ${
                     config.role === role
                       ? 'border-gray-900 bg-gray-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <div className="font-medium text-gray-900">{role}</div>
+                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{role}</div>
                 </button>
               ))}
             </div>
@@ -86,15 +85,15 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
 
           {/* Languages/Technologies */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-4">
+            <label className="block text-sm font-medium text-gray-900 mb-2 sm:mb-3">
               Technologies & Languages
             </label>
-            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-xl p-4">
+            <div className="grid grid-cols-4 gap-1 sm:gap-2 max-h-24 sm:max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2 sm:p-3">
               {languages.map((language) => (
                 <button
                   key={language}
                   onClick={() => handleLanguageToggle(language)}
-                  className={`p-2 rounded-lg text-sm transition-all ${
+                  className={`p-1 sm:p-1.5 rounded-md text-xs transition-all ${
                     config.languages.includes(language)
                       ? 'bg-gray-900 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -104,39 +103,39 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 mt-1">
               Selected: {config.languages.length} technologies
             </p>
           </div>
 
           {/* Difficulty Level */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-4">
+            <label className="block text-sm font-medium text-gray-900 mb-2 sm:mb-3">
               Experience Level
             </label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               {difficulties.map((diff) => (
                 <button
                   key={diff.value}
                   onClick={() => setConfig(prev => ({ ...prev, difficulty: diff.value as any }))}
-                  className={`p-4 rounded-xl border-2 transition-all text-center ${
+                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-center ${
                     config.difficulty === diff.value
                       ? 'border-gray-900 bg-gray-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <div className="font-medium text-gray-900">{diff.label}</div>
+                  <div className="font-medium text-gray-900 text-xs sm:text-sm">{diff.label}</div>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Start Button */}
-          <div className="pt-4">
+          <div className="pt-1 sm:pt-2">
             <button
               onClick={handleSubmit}
               disabled={!isValid}
-              className={`w-full py-4 px-6 rounded-xl font-medium transition-all ${
+              className={`w-full py-2 sm:py-3 px-6 rounded-lg font-medium transition-all ${
                 isValid
                   ? 'bg-gray-900 hover:bg-gray-800 text-white'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'

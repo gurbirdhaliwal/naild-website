@@ -119,7 +119,7 @@ export default function InterviewPage() {
         {/* Interview Section */}
         <div className="flex-1 overflow-hidden">
           {showSetup ? (
-            <div className="w-full overflow-y-auto h-full flex items-center justify-center p-4">
+            <div className="w-full overflow-y-auto h-full flex items-center justify-center">
               <InterviewSetup onCreateInterview={handleCreateInterview} />
             </div>
           ) : currentInterview ? (
