@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Volume2, Camera, CameraOff } from 'lucide-react';
 import { Interview, Message } from '../types/Interview';
 
 interface InterviewChatProps {
@@ -11,6 +11,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
   const [isRecording, setIsRecording] = useState(false);
   const [showTranscription, setShowTranscription] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [cameraOn, setCameraOn] = useState(true);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,6 +33,32 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
       onUpdateInterview(updated);
     }
   }, [interview, onUpdateInterview]);
+
+  useEffect(() => {
+    if (cameraOn) {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+        .then((mediaStream) => {
+          setStream(mediaStream);
+          if (videoRef.current) {
+            videoRef.current.srcObject = mediaStream;
+          }
+        })
+        .catch((err) => {
+          setStream(null);
+        });
+    } else {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+        setStream(null);
+      }
+    }
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameraOn]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -109,8 +138,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
 
   return (
     <div className="flex h-full bg-white">
-      <div className={`flex-1 flex flex-col ${showTranscription ? 'pr-80' : ''}`}>
-        <div className="border-b border-gray-200 p-6 bg-white">
+      <div className={`flex-1 flex flex-col ${showTranscription ? 'pr-80' : ''} items-center justify-center`}>
+        <div className="border-b border-gray-200 p-6 bg-white w-full">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-light text-gray-900">{interview.title}</h1>
@@ -134,76 +163,71 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
             </div>
           </div>
         </div>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50">
-          {interview.messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.role === 'candidate' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-3xl p-4 rounded-2xl ${
-                  message.role === 'candidate'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-white text-gray-900 border border-gray-200'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    message.role === 'candidate' ? 'bg-gray-700' : 'bg-gray-100'
-                  }`}>
-                    {message.role === 'candidate' ? 'Y' : 'AI'}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-xs mb-2 opacity-70">
-                      {message.role === 'candidate' ? 'You' : 'AI Interviewer'}
-                    </div>
-                    <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
-                  </div>
-                </div>
+        <div className="flex-1 flex flex-col items-center justify-center w-full bg-gray-50 relative">
+          <div className="relative w-full max-w-xl flex items-center justify-center">
+            {cameraOn ? (
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="rounded-xl shadow-lg w-full aspect-video bg-black"
+                style={{ objectFit: 'cover' }}
+              />
+            ) : (
+              <div className="w-full aspect-video rounded-xl shadow-lg bg-gray-200 flex flex-col items-center justify-center">
+                <CameraOff size={64} className="text-gray-400" />
+                <p className="text-gray-500 text-lg mt-4">Camera is off.</p>
               </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <div className="border-t border-gray-200 p-6 bg-white">
-          <div className="flex flex-col items-center gap-4">
+            )}
+            {/* Center-bottom camera toggle button */}
             <button
-              onClick={handleVoiceTurn}
-              disabled={isRecording || isProcessing}
-              className={`p-6 rounded-full transition-all duration-300 ${
-                isRecording 
-                  ? 'bg-red-100 text-red-600 hover:bg-red-200 scale-110' 
-                  : isProcessing
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-gray-900 text-white hover:bg-gray-800 hover:scale-105'
-              }`}
+              onClick={() => setCameraOn((prev) => !prev)}
+              className="absolute left-1/2 -translate-x-1/2 -bottom-6 z-10 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-3 shadow-md transition border border-gray-200"
+              title={cameraOn ? 'Turn camera off' : 'Turn camera on'}
             >
-              {isRecording ? <MicOff size={32} /> : <Mic size={32} />}
+              {cameraOn ? (
+                <CameraOff size={28} className="text-gray-700" />
+              ) : (
+                <Camera size={28} className="text-gray-700" />
+              )}
             </button>
-
-            <div className="text-center">
-              {isRecording && (
-                <div className="flex items-center justify-center text-red-500 text-sm mb-2">
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></div>
-                  Listening for your response...
-                </div>
-              )}
-              {isProcessing && (
-                <div className="flex items-center justify-center text-blue-500 text-sm mb-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse mr-2"></div>
-                  Processing your response...
-                </div>
-              )}
-              <p className="text-sm text-gray-600">
-                {isRecording 
-                  ? "Speak your answer now..." 
-                  : isProcessing 
-                  ? "Processing your voice input..." 
-                  : "Click the microphone to speak your answer"}
-              </p>
-            </div>
+          </div>
+        </div>
+        <div className="border-t border-gray-200 p-6 bg-white w-full flex flex-col items-center gap-4">
+          <button
+            onClick={handleVoiceTurn}
+            disabled={isRecording || isProcessing}
+            className={`p-6 rounded-full transition-all duration-300 ${
+              isRecording 
+                ? 'bg-red-100 text-red-600 hover:bg-red-200 scale-110' 
+                : isProcessing
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-gray-900 text-white hover:bg-gray-800 hover:scale-105'
+            }`}
+          >
+            {isRecording ? <MicOff size={32} /> : <Mic size={32} />}
+          </button>
+          <div className="text-center">
+            {isRecording && (
+              <div className="flex items-center justify-center text-red-500 text-sm mb-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></div>
+                Listening for your response...
+              </div>
+            )}
+            {isProcessing && (
+              <div className="flex items-center justify-center text-blue-500 text-sm mb-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse mr-2"></div>
+                Processing your response...
+              </div>
+            )}
+            <p className="text-sm text-gray-600">
+              {isRecording 
+                ? "Speak your answer now..." 
+                : isProcessing 
+                ? "Processing your voice input..." 
+                : "Click the microphone to speak your answer"}
+            </p>
           </div>
         </div>
       </div>
