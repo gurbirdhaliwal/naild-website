@@ -11,6 +11,8 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
     languages: [],
     difficulty: 'mid'
   });
+  const [loading, setLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState('');
 
   const roles = [
     'Frontend Developer',
@@ -44,9 +46,25 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (config.role && config.languages.length > 0) {
-      onCreateInterview(config);
+      setLoading(true);
+      setLoadingMsg('Warming up AI, please wait...');
+      try {
+        const res = await fetch('http://localhost:8081/warmup');
+        const data = await res.json();
+        if (data.status === 'ready') {
+          setLoadingMsg('AI is ready! Creating your interview...');
+          setTimeout(() => {
+            setLoading(false);
+            onCreateInterview(config);
+          }, 500); // brief pause for UX
+        } else {
+          setLoadingMsg('Error warming up AI. Please try again.');
+        }
+      } catch (e) {
+        setLoadingMsg('Error connecting to AI backend.');
+      }
     }
   };
 
@@ -55,10 +73,21 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
   return (
     <div className="flex items-center justify-center h-full p-2 sm:p-4">
       <div className="bg-white rounded-2xl p-4 sm:p-6 max-w-2xl w-full border border-gray-200 shadow-sm">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <svg className="animate-spin h-10 w-10 text-gray-900 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+            <div className="text-lg text-gray-900 font-medium mb-2">{loadingMsg}</div>
+            <div className="text-sm text-gray-500">This may take a few seconds the first time.</div>
+          </div>
+        ) : (
         <div className="mb-4 sm:mb-6 text-center">
           <h2 className="text-xl sm:text-2xl font-light text-gray-900 mb-1">Setup Your Interview</h2>
           <p className="text-xs sm:text-sm text-gray-600">Configure your mock technical interview session</p>
         </div>
+        )}
 
         <div className="space-y-4 sm:space-y-6">
           {/* Role Selection */}

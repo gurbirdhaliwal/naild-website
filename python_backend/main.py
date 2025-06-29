@@ -1,6 +1,5 @@
 import sounddevice as sd
 import numpy as np
-import whisper
 import ollama
 from scipy import signal
 import time
@@ -10,6 +9,7 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from faster_whisper import WhisperModel
 
 app = FastAPI()
 
@@ -24,7 +24,7 @@ app.add_middleware(
 
 class VoiceAssistant:
     def __init__(self):
-        self.whisper_model = whisper.load_model("tiny")
+        self.whisper_model = WhisperModel("tiny", device="auto")
         self.sample_rate = 16000
         self.channels = 1
         self.dtype = np.float32
@@ -76,21 +76,28 @@ class VoiceAssistant:
             audio_data = self.capture_once()
             audio_data = np.array(audio_data, dtype=self.dtype)
             audio_data = audio_data / np.max(np.abs(audio_data))
-            result = self.whisper_model.transcribe(audio_data)
-            transcription = result["text"].strip()
+            # Save audio to a temporary file for faster-whisper
+            import tempfile, os
+            import soundfile as sf
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                sf.write(tmp.name, audio_data, self.sample_rate)
+                tmp_path = tmp.name
+            segments, info = self.whisper_model.transcribe(tmp_path)
+            transcription = "".join([seg.text for seg in segments]).strip()
+            os.remove(tmp_path)
             response = ollama.chat(
-            model='mistral',
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a mock interview assistant. Respond in 1-2 short sentences only."
-                },
-                {
-                    "role": "user",
-                    "content": transcription
-                }
-            ]
-        )
+                model='mistral',
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a mock interview assistant. Respond in 1-2 short sentences only."
+                    },
+                    {
+                        "role": "user",
+                        "content": transcription
+                    }
+                ]
+            )
             ai_response = response['message']['content']
             return {"user_input": transcription, "ai_response": ai_response}
         except Exception as e:
@@ -106,6 +113,44 @@ assistant = VoiceAssistant()
 def interview():
     result = assistant.transcribe_and_respond()
     return JSONResponse(content=result)
+
+@app.get("/warmup")
+def warmup():
+    import time
+    import numpy as np
+    import tempfile, os
+    import soundfile as sf
+    try:
+        timings = {}
+        t0 = time.time()
+        # Generate a 1-second sine wave (minimal audio for warmup)
+        sr = 16000
+        duration = 1.0
+        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+        audio = 0.1 * np.sin(2 * np.pi * 220 * t)
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            sf.write(tmp.name, audio, sr)
+            tmp_path = tmp.name
+        t1 = time.time()
+        segments, info = assistant.whisper_model.transcribe(tmp_path)
+        _ = "".join([seg.text for seg in segments]).strip()
+        os.remove(tmp_path)
+        timings['whisper'] = time.time() - t1
+        # Warm up Ollama
+        t2 = time.time()
+        response = ollama.chat(
+            model='mistral',
+            messages=[
+                {"role": "system", "content": "You are a mock interview assistant."},
+                {"role": "user", "content": "hi"}
+            ]
+        )
+        _ = response['message']['content']
+        timings['ollama'] = time.time() - t2
+        timings['total'] = time.time() - t0
+        return {"status": "ready", "timings": timings}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
