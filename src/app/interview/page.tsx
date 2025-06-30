@@ -40,21 +40,51 @@ export default function InterviewPage() {
     }
   }
 
-  const handleCreateInterview = (config: any) => {
+  const handleCreateInterview = async (config: any) => {
+    // Fetch AI-generated questions
+    let aiQuestions: string[] = [];
+    try {
+      const res = await fetch('http://localhost:8081/generate_questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: config.role,
+          languages: config.languages,
+          difficulty: config.difficulty,
+        }),
+      });
+      const data = await res.json();
+      // Parse numbered list into array
+      aiQuestions = data.questions
+        .split(/\n|\r/)
+        .map((q: string) => q.replace(/^\d+\.|^\d+\)/, '').trim())
+        .filter((q: string) => q.length > 0);
+    } catch (e) {
+      aiQuestions = [];
+    }
+    const now = new Date();
+    const messages = aiQuestions.map((q: string, idx: number) => ({
+      id: `${Date.now()}-${idx}`,
+      role: 'interviewer' as const,
+      content: q,
+      timestamp: now,
+      transcription: `[AI Interviewer]: ${q}`,
+    }));
     const newInterview: Interview = {
       id: Date.now().toString(),
       title: `${config.role} Interview`,
       role: config.role,
       languages: config.languages,
       difficulty: config.difficulty,
-      createdAt: new Date(),
-      messages: [],
+      createdAt: now,
+      messages,
       status: 'active',
-    }
-    setInterviews((prev) => [newInterview, ...prev])
-    setCurrentInterview(newInterview)
-    setShowSetup(false)
-  }
+    };
+    console.log(aiQuestions);
+    setInterviews((prev) => [newInterview, ...prev]);
+    setCurrentInterview(newInterview);
+    setShowSetup(false);
+  };
 
   const handleUpdate = (updated: Interview) => {
     setInterviews((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))

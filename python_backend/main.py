@@ -6,7 +6,7 @@ import time
 import queue
 import threading
 import sys
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from faster_whisper import WhisperModel
@@ -151,6 +151,23 @@ def warmup():
         return {"status": "ready", "timings": timings}
     except Exception as e:
         return {"status": "error", "error": str(e)}
+
+@app.post("/generate_questions")
+async def generate_questions(request: Request):
+    data = await request.json()
+    role = data.get("role", "")
+    languages = data.get("languages", [])
+    difficulty = data.get("difficulty", "")
+    prompt = f"You are an expert technical interviewer. Generate 5 unique, challenging interview questions for a {role} position, focusing on the following technologies: {', '.join(languages)}. The questions should be appropriate for a {difficulty} level candidate. Return only the questions as a numbered list."
+    response = ollama.chat(
+        model='mistral',
+        messages=[
+            {"role": "system", "content": "You are a helpful AI that generates interview questions."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    questions = response['message']['content']
+    return {"questions": questions}
 
 if __name__ == "__main__":
     import uvicorn
