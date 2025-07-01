@@ -63,13 +63,22 @@ export default function InterviewPage() {
       aiQuestions = [];
     }
     const now = new Date();
-    const messages = aiQuestions.map((q: string, idx: number) => ({
-      id: `${Date.now()}-${idx}`,
+    // Add introduction and first question
+    const introMessage = {
+      id: `${Date.now()}-intro`,
       role: 'interviewer' as const,
-      content: q,
+      content: `Welcome to your ${config.role} interview! I'll be asking you ${aiQuestions.length} questions about ${config.languages.join(', ')}. Let's get started!`,
       timestamp: now,
-      transcription: `[AI Interviewer]: ${q}`,
-    }));
+      transcription: `[AI Interviewer]: Welcome to your ${config.role} interview! I'll be asking you ${aiQuestions.length} questions about ${config.languages.join(', ')}. Let's get started!`,
+    };
+    const firstQuestionMessage = {
+      id: `${Date.now()}-q0`,
+      role: 'interviewer' as const,
+      content: aiQuestions[0] || "Let's start with your first question.",
+      timestamp: now,
+      transcription: `[AI Interviewer]: ${aiQuestions[0] || "Let's start with your first question."}`,
+    };
+    const messages = [introMessage, firstQuestionMessage];
     const newInterview: Interview = {
       id: Date.now().toString(),
       title: `${config.role} Interview`,
@@ -79,6 +88,8 @@ export default function InterviewPage() {
       createdAt: now,
       messages,
       status: 'active',
+      questions: aiQuestions,
+      currentQuestionIndex: 0,
     };
     console.log(aiQuestions);
     setInterviews((prev) => [newInterview, ...prev]);

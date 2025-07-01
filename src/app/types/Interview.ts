@@ -14,6 +14,8 @@ export interface Message {
     createdAt:Date
     messages:Message[]
     status:string
+    questions?: string[]
+    currentQuestionIndex?: number
   }
   
   export interface InterviewConfig {

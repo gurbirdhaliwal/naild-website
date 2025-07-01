@@ -98,18 +98,88 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         transcription: `[Candidate]: ${result.user_input}`
       };
 
-      // Add AI response
-      const aiMessage: Message = {
+      // Get current question and check if this is the last question
+      const currentQuestionIndex = interview.currentQuestionIndex || 0;
+      const questions = interview.questions || [];
+      const currentQuestion = questions[currentQuestionIndex];
+      const isLastQuestion = currentQuestionIndex >= questions.length - 1;
+      const nextQuestion = isLastQuestion ? "" : questions[currentQuestionIndex + 1];
+
+      // Build previous Q&A context
+      const previousQA = [];
+      for (let i = 0; i < currentQuestionIndex; i++) {
+        const question = questions[i];
+        // Find the corresponding answer in messages
+        const questionMessageIndex = interview.messages.findIndex(m => m.content === question);
+        if (questionMessageIndex !== -1 && questionMessageIndex + 1 < interview.messages.length) {
+          const answerMessage = interview.messages[questionMessageIndex + 1];
+          if (answerMessage.role === 'candidate') {
+            previousQA.push({
+              question: question,
+              answer: answerMessage.content
+            });
+          }
+        }
+      }
+
+      // Call the interview acknowledgement endpoint
+      const ackResponse = await fetch('http://localhost:8081/interview_ack', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_question: currentQuestion,
+          user_answer: result.user_input,
+          previous_qa: previousQA,
+          next_question: nextQuestion,
+          is_last_question: isLastQuestion,
+        }),
+      });
+
+      if (!ackResponse.ok) {
+        throw new Error('Failed to get interview acknowledgement');
+      }
+
+      const ackResult = await ackResponse.json();
+
+      // Add acknowledgement message
+      const ackMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'interviewer',
-        content: result.ai_response,
+        content: ackResult.acknowledgement,
         timestamp: new Date(),
-        transcription: `[AI Interviewer]: ${result.ai_response}`
+        transcription: `[AI Interviewer]: ${ackResult.acknowledgement}`
       };
 
+      const newMessages = [...interview.messages, userMessage, ackMessage];
+
+      // Add next question or goodbye message
+      if (isLastQuestion) {
+        const goodbyeMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          role: 'interviewer',
+          content: ackResult.goodbye,
+          timestamp: new Date(),
+          transcription: `[AI Interviewer]: ${ackResult.goodbye}`
+        };
+        newMessages.push(goodbyeMessage);
+      } else {
+        const nextQuestionMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          role: 'interviewer',
+          content: ackResult.next_question,
+          timestamp: new Date(),
+          transcription: `[AI Interviewer]: ${ackResult.next_question}`
+        };
+        newMessages.push(nextQuestionMessage);
+      }
+
+      // Update interview with new messages and increment question index
       const updated = { 
         ...interview, 
-        messages: [...interview.messages, userMessage, aiMessage] 
+        messages: newMessages,
+        currentQuestionIndex: currentQuestionIndex + 1
       };
       onUpdateInterview(updated);
 

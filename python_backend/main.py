@@ -30,7 +30,7 @@ class VoiceAssistant:
         self.dtype = np.float32
         self.block_size = 2048
         self.silence_threshold = 0.005
-        self.silence_duration = 0.5
+        self.silence_duration = 2
         self.last_sound = time.time()
         self.audio_buffer = []
         self.audio_queue = queue.Queue()
@@ -90,7 +90,7 @@ class VoiceAssistant:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a mock interview assistant. Respond in 1-2 short sentences only."
+                        "content": "You are an expert technical interviewer that is very thorough. Respond in 1-2 short sentences only."
                     },
                     {
                         "role": "user",
@@ -158,16 +158,77 @@ async def generate_questions(request: Request):
     role = data.get("role", "")
     languages = data.get("languages", [])
     difficulty = data.get("difficulty", "")
-    prompt = f"You are an expert technical interviewer. Generate 5 unique, challenging interview questions for a {role} position, focusing on the following technologies: {', '.join(languages)}. The questions should be appropriate for a {difficulty} level candidate. Return only the questions as a numbered list."
+    prompt = f"You are an expert technical interviewer. Generate 5 unique interview questions for a {role} position, focusing on the following technologies: {', '.join(languages)}. The questions should be appropriate for a {difficulty} level candidate. Return only the questions as a numbered list."
     response = ollama.chat(
         model='mistral',
         messages=[
-            {"role": "system", "content": "You are a helpful AI that generates interview questions."},
+            {"role": "system", "content": "You are an expert technical interviewer that generates interview questions."},
             {"role": "user", "content": prompt}
         ]
     )
     questions = response['message']['content']
     return {"questions": questions}
+
+@app.post("/interview_ack")
+async def interview_ack(request: Request):
+    data = await request.json()
+    current_question = data.get("current_question", "")
+    user_answer = data.get("user_answer", "")
+    previous_qa = data.get("previous_qa", [])
+    next_question = data.get("next_question", "")
+    is_last_question = data.get("is_last_question", False)
+    
+    # Build context from previous Q&A
+    context = ""
+    if previous_qa:
+        context = "Previous Q&A:\n" + "\n".join([f"Q: {qa['question']}\nA: {qa['answer']}" for qa in previous_qa])
+    
+    if is_last_question:
+        # Generate final acknowledgement and goodbye
+        prompt = f"""You are an expert technical interviewer. The candidate just answered the final question.
+
+Current question: {current_question}
+Candidate's answer: {user_answer}
+{context}
+
+Generate a brief, professional acknowledgement of their answer (1-2 sentences) and a friendly goodbye message (1 sentence). Return as JSON:
+{{"acknowledgement": "your acknowledgement here", "goodbye": "your goodbye message here"}}"""
+    else:
+        # Generate acknowledgement and provide next question
+        prompt = f"""You are an expert technical interviewer that is very thorough. The candidate just answered a question.
+
+Current question: {current_question}
+Candidate's answer: {user_answer}
+{context}
+Next question: {next_question}
+
+Generate a brief, professional acknowledgement of their answer (1-2 sentences) that references specific details from their response if relevant, or simply acknowledges their answer if it's off-topic. Return as JSON:
+{{"acknowledgement": "your acknowledgement here", "next_question": "{next_question}"}}"""
+    
+    response = ollama.chat(
+        model='mistral',
+        messages=[
+            {"role": "system", "content": "You are a helpful AI that generates interview responses. Always return valid JSON."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    
+    try:
+        import json
+        result = json.loads(response['message']['content'])
+        return result
+    except:
+        # Fallback if JSON parsing fails
+        if is_last_question:
+            return {
+                "acknowledgement": "Thank you for your answer.",
+                "goodbye": "Thank you for participating in this interview. Good luck with your job search!"
+            }
+        else:
+            return {
+                "acknowledgement": "Thank you for your answer.",
+                "next_question": next_question
+            }
 
 if __name__ == "__main__":
     import uvicorn
