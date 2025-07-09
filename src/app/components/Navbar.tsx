@@ -41,7 +41,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="fixed top-3 left-1/2 transform -translate-x-1/2 z-50 w-[100%] max-w-7xl rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-md px-15 py-0">
+    <nav className="fixed top-3 left-1/2 transform -translate-x-1/2 z-50 w-[100%] max-w-7xl rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-md px-15 py-0 font-['Space_Grotesk']">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
@@ -52,7 +52,7 @@ export default function Navbar() {
                 alt="Naild Logo"
                 className="h-10 w-10 object-contain mr-0 mb-1"
               />
-              <span className="text-2xl font-regular text-black tracking-tight font-naild">
+              <span className="text-2xl font-regular text-black tracking-tight">
                 naild.
               </span>
             </Link>
@@ -60,9 +60,9 @@ export default function Navbar() {
 
           {/* Navigation Links */}
           <div className="hidden sm:flex sm:space-x-8 -ml-170 mt-1">
-            <Link href="/features" className="nav-link">Features</Link>
-            <Link href="/pricing" className="nav-link">Pricing</Link>
-            <Link href="/about" className="nav-link">About</Link>
+            <Link href="/features" className="nav-link font-['Space_Grotesk']">Features</Link>
+            <Link href="/pricing" className="nav-link font-['Space_Grotesk']">Pricing</Link>
+            <Link href="/about" className="nav-link font-['Space_Grotesk']">About</Link>
           </div>
 
           {/* Auth Section */}
@@ -103,8 +103,10 @@ export default function Navbar() {
               </div>
             ) : !loading ? (
               <>
-                <Link href="/login" className="nav-link">Log in</Link>
-                <Link href="/signup" className="nav-link">Sign up</Link>
+                <Link href="/login" className="nav-link font-['Space_Grotesk'] px-6 py-2 bg-gray-200 border border-gray-400 rounded-full">Log in</Link>
+                <Link
+  href="/signup"
+  className="nav-link font-['Space_Grotesk'] px-6 py-2 rounded-full border text-gray-800 font-semibold bg-[#b0efcb] border-[#00b86b] hover:bg-[#a2e7c0] transition">Sign up</Link>
               </>
             ) : null}
           </div>
