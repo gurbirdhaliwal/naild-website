@@ -1,44 +1,92 @@
 # Naild - AI-Powered Interview Practice Platform
 
-Naild is an innovative platform that helps students practice and improve their behavioral interview skills using AI-powered feedback. The platform analyzes facial expressions, voice tone, and responses in real-time to provide comprehensive feedback.
+Naild is an innovative platform that helps students practice and improve their interview skills using AI-powered voice interaction. The platform provides real-time voice transcription and AI-generated responses for a natural interview experience.
 
 ## Features
 
-- Real-time facial expression analysis
-- Voice tone and clarity feedback
-- AI-powered response evaluation
-- Practice interview recordings
-- Comprehensive feedback dashboard
-- Behavioral question bank
+- Voice-only interview interaction
+- Real-time speech transcription using Whisper
+- AI-powered interview responses using Ollama
+- Live transcription display
+- Interview session management
+- Multiple difficulty levels and technology stacks
 
 ## Technology Stack
 
+### Frontend
 - Next.js
 - TypeScript
 - Tailwind CSS
 - Framer Motion
-- MediaPipe Face Detection
-- React Webcam
+
+### Backend
+- Python FastAPI
+- Whisper (OpenAI) for speech transcription
+- Ollama for AI responses
+- SoundDevice for audio recording
 
 ## Getting Started
 
-1. Clone the repository:
+### Prerequisites
+
+1. **Install Ollama** (for AI responses):
+   - Visit https://ollama.ai/ and follow installation instructions
+   - Pull the Mistral model:
+   ```bash
+   ollama pull mistral
+   ```
+
+2. **Install Python dependencies** (for backend):
+   ```bash
+   cd python_backend
+   pip install -r requirements.txt
+   ```
+
+### Quick Start (Recommended)
+
+**On macOS/Linux:**
 ```bash
-git clone https://github.com/AssvinEswarathas/naild-website.git
+./start.sh
 ```
 
-2. Install dependencies:
+**On Windows:**
 ```bash
-cd naild-website
-npm install
+start.bat
 ```
 
-3. Run the development server:
-```bash
-npm run dev
-```
+These scripts will automatically:
+- Install all dependencies
+- Check for required software
+- Start both frontend and backend services
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+### Manual Setup
+
+1. **Start the Python backend** (Terminal 1):
+   ```bash
+   cd python_backend
+   python main.py
+   ```
+   The backend will run on `http://localhost:8081`
+
+2. **Start the Next.js frontend** (Terminal 2):
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+3. **Open your browser** and navigate to [http://localhost:3000](http://localhost:3000)
+
+### Using the Platform
+
+1. Sign up or log in to your account
+2. Click "Start New Interview" to configure your interview
+3. Select your role, technologies, and experience level
+4. Click the microphone button to begin speaking your answers
+5. The AI will transcribe your speech and provide interview responses
+
+## API Endpoints
+
+- `GET /app/interview` - Records voice input, transcribes it, and returns AI response
 
 ## License
 
