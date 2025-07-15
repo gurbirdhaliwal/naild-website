@@ -1,11 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Volume2, Camera, CameraOff } from 'lucide-react';
+import { Mic, MicOff, Volume2, Camera, CameraOff, Loader2, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Interview, Message } from '../types/Interview';
 
 interface InterviewChatProps {
   interview: Interview;
   onUpdateInterview: (interview: Interview) => void;
 }
+
+const getScoreLabel = (percent: number) => {
+  if (percent >= 90) return 'Excellent';
+  if (percent >= 75) return 'Good';
+  if (percent >= 60) return 'Fair';
+  return 'Needs Improvement';
+};
+
+const getBarColor = (percent: number) => {
+  if (percent >= 75) return 'bg-green-500';
+  if (percent >= 60) return 'bg-yellow-400';
+  return 'bg-red-400';
+};
 
 const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterview }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -15,6 +28,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
   const [stream, setStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [gradingResult, setGradingResult] = useState<any>(null);
+  const [gradingLoading, setGradingLoading] = useState(false);
+  const [expandedIndexes, setExpandedIndexes] = useState<number[]>([]);
 
   useEffect(() => {
     scrollToBottom();
@@ -164,6 +180,44 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
           transcription: `[AI Interviewer]: ${ackResult.goodbye}`
         };
         newMessages.push(goodbyeMessage);
+        // --- Grading logic: trigger after last answer ---
+        // Collect 5 questions and 5 user answers
+        const questions = interview.questions || [];
+        // Find candidate answers in messages (after each question)
+        const userAnswers: string[] = [];
+        for (let i = 0; i < questions.length; i++) {
+          const q = questions[i];
+          // Find the message after the question with role 'candidate'
+          const qIdx = newMessages.findIndex(m => m.content === q);
+          if (qIdx !== -1 && qIdx + 1 < newMessages.length) {
+            const answerMsg = newMessages[qIdx + 1];
+            if (answerMsg.role === 'candidate') {
+              userAnswers.push(answerMsg.content);
+            } else {
+              userAnswers.push('');
+            }
+          } else {
+            userAnswers.push('');
+          }
+        }
+        if (questions.length === 5 && userAnswers.length === 5) {
+          setGradingLoading(true);
+          setGradingResult(null);
+          try {
+            const gradeRes = await fetch('http://localhost:8081/grade_interview', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ questions, answers: userAnswers })
+            });
+            const gradeData = await gradeRes.json();
+            setGradingResult(gradeData);
+          } catch (e) {
+            setGradingResult({ error: 'Failed to grade answers. Please try again.' });
+          } finally {
+            setGradingLoading(false);
+          }
+        }
+        // --- End grading logic ---
       } else {
         const nextQuestionMessage: Message = {
           id: (Date.now() + 2).toString(),
@@ -206,9 +260,34 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
     }
   };
 
+  // Helper to toggle expanded state for a question
+  const toggleExpand = (idx: number) => {
+    setExpandedIndexes((prev) =>
+      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
+    );
+  };
+
+  // Helper to parse feedback into pros/cons (AI should return feedback in a structured way, but fallback to splitting by lines)
+  const parseFeedback = (feedback: string) => {
+    const pros: string[] = [];
+    const cons: string[] = [];
+    const lines = feedback.split(/\n|\r/).map(l => l.trim()).filter(Boolean);
+    let current: 'pros' | 'cons' | null = null;
+    for (const line of lines) {
+      if (/pros[:]?/i.test(line)) { current = 'pros'; continue; }
+      if (/cons[:]?/i.test(line)) { current = 'cons'; continue; }
+      if (current === 'pros') pros.push(line.replace(/^[-•*]\s*/, ''));
+      else if (current === 'cons') cons.push(line.replace(/^[-•*]\s*/, ''));
+    }
+    // fallback: if no pros/cons detected, put all in pros
+    if (!pros.length && !cons.length) pros.push(...lines);
+    return { pros, cons };
+  };
+
   return (
     <div className="flex h-full bg-white">
-      <div className={`flex-1 flex flex-col ${showTranscription ? 'pr-80' : ''} items-center justify-center`}>
+      <div className={`flex-1 flex flex-col ${showTranscription ? 'pr-80' : ''} items-center justify-start overflow-y-auto`}>
+        {/* Header and camera */}
         <div className="border-b border-gray-200 p-6 bg-white w-full">
           <div className="flex items-center justify-between">
             <div>
@@ -264,41 +343,138 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
             </button>
           </div>
         </div>
-        <div className="border-t border-gray-200 p-6 bg-white w-full flex flex-col items-center gap-4">
-          <button
-            onClick={handleVoiceTurn}
-            disabled={isRecording || isProcessing}
-            className={`p-6 rounded-full transition-all duration-300 ${
-              isRecording 
-                ? 'bg-red-100 text-red-600 hover:bg-red-200 scale-110' 
-                : isProcessing
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-900 text-white hover:bg-gray-800 hover:scale-105'
-            }`}
-          >
-            {isRecording ? <MicOff size={32} /> : <Mic size={32} />}
-          </button>
-          <div className="text-center">
-            {isRecording && (
-              <div className="flex items-center justify-center text-red-500 text-sm mb-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></div>
-                Listening for your response...
+        {/* Grading or mic area below camera */}
+        <div className="w-full max-w-2xl mx-auto flex flex-col gap-6 py-8">
+          {gradingLoading ? (
+            <div className="flex flex-col items-center justify-center min-h-[180px] w-full bg-white rounded-xl shadow p-8">
+              <Loader2 className="animate-spin text-blue-500 mb-4" size={40} />
+              <div className="text-blue-600 font-medium text-lg">Grading your answers...</div>
+            </div>
+          ) : gradingResult ? (
+            <>
+              {/* Interview Results Card */}
+              <div className="bg-white rounded-xl shadow p-6 mb-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <div className="text-xl font-semibold text-gray-900">Interview Results</div>
+                    <div className="text-gray-500 text-sm mt-1">Total Score</div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <div className="text-2xl font-bold text-gray-900">{gradingResult.scores ? gradingResult.scores.reduce((a: number, b: any) => a + (b.score || 0), 0) : 0}/{gradingResult.scores ? gradingResult.scores.length * 10 : 50}</div>
+                    <div className="text-lg font-semibold text-gray-700">{gradingResult.average_score ? Math.round(gradingResult.average_score) : 0}%</div>
+                    <div className="text-xs font-medium text-gray-500 mt-1">{getScoreLabel(gradingResult.average_score || 0)}</div>
+                  </div>
+                </div>
+                <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-2">
+                  <div className={`${getBarColor(gradingResult.average_score || 0)} h-3 rounded-full`} style={{ width: `${gradingResult.average_score || 0}%` }}></div>
+                </div>
               </div>
-            )}
-            {isProcessing && (
-              <div className="flex items-center justify-center text-blue-500 text-sm mb-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse mr-2"></div>
-                Processing your response...
+              {/* Question Breakdown Card */}
+              <div className="bg-white rounded-xl shadow p-6 mb-2">
+                <div className="text-lg font-semibold text-gray-900 mb-4">Question Breakdown</div>
+                <div className="flex flex-col gap-4">
+                  {gradingResult.scores && gradingResult.scores.map((item: any, idx: number) => {
+                    const percent = Math.round((item.score / 10) * 100);
+                    const isGood = percent >= 75;
+                    return (
+                      <div key={idx} className="border-b last:border-b-0 pb-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          {isGood ? <CheckCircle2 className="text-green-500" size={20} /> : <AlertCircle className="text-yellow-500" size={20} />}
+                          <button
+                            className="font-semibold text-gray-900 text-left flex-1 flex items-center gap-2 focus:outline-none"
+                            onClick={() => toggleExpand(idx)}
+                          >
+                            Question {idx + 1}
+                            {expandedIndexes.includes(idx) ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                          </button>
+                          <div className="font-semibold text-gray-700">{item.score}/10</div>
+                          <div className="text-xs text-gray-500">{percent}%</div>
+                        </div>
+                        <div className="text-gray-700 text-sm mb-2 ml-7">{item.question}</div>
+                        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-2 ml-7">
+                          <div className={`${getBarColor(percent)} h-2 rounded-full`} style={{ width: `${percent}%` }}></div>
+                        </div>
+                        {expandedIndexes.includes(idx) && (
+                          <div className="bg-gray-50 border rounded p-4 mt-2 ml-7">
+                            <div className="text-xs text-gray-500 mb-1">Your Answer:</div>
+                            <div className="text-sm mb-2">{item.answer}</div>
+                            {item.feedback && (() => {
+                              const { pros, cons } = parseFeedback(item.feedback);
+                              return (
+                                <div className="flex gap-8">
+                                  <div>
+                                    <div className="font-semibold text-green-700 mb-1">Pros</div>
+                                    <ul className="list-disc ml-5 text-green-800 text-sm">
+                                      {pros.length ? pros.map((p, i) => <li key={i}>{p}</li>) : <li>None</li>}
+                                    </ul>
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold text-red-700 mb-1">Cons</div>
+                                    <ul className="list-disc ml-5 text-red-800 text-sm">
+                                      {cons.length ? cons.map((c, i) => <li key={i}>{c}</li>) : <li>None</li>}
+                                    </ul>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            )}
-            <p className="text-sm text-gray-600">
-              {isRecording 
-                ? "Speak your answer now..." 
-                : isProcessing 
-                ? "Processing your voice input..." 
-                : "Click the microphone to speak your answer"}
-            </p>
-          </div>
+              {/* Detailed Feedback Card */}
+              {gradingResult.feedback && (
+                <div className="bg-white rounded-xl shadow p-6">
+                  <div className="text-lg font-semibold text-gray-900 mb-3">Detailed Feedback</div>
+                  <ul className="list-disc ml-5 text-gray-800 space-y-2">
+                    {parseFeedback(gradingResult.feedback).pros.map((fb, i) => (
+                      <li key={i}>{fb}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          ) : (
+            // Default mic area (before grading)
+            <div className="flex flex-col items-center justify-center min-h-[180px] w-full">
+              <button
+                onClick={handleVoiceTurn}
+                disabled={isRecording || isProcessing}
+                className={`p-6 rounded-full transition-all duration-300 ${
+                  isRecording 
+                    ? 'bg-red-100 text-red-600 hover:bg-red-200 scale-110' 
+                    : isProcessing
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-900 text-white hover:bg-gray-800 hover:scale-105'
+                }`}
+              >
+                {isRecording ? <MicOff size={32} /> : <Mic size={32} />}
+              </button>
+              <div className="text-center">
+                {isRecording && (
+                  <div className="flex items-center justify-center text-red-500 text-sm mb-2">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></div>
+                    Listening for your response...
+                  </div>
+                )}
+                {isProcessing && (
+                  <div className="flex items-center justify-center text-blue-500 text-sm mb-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse mr-2"></div>
+                    Processing your response...
+                  </div>
+                )}
+                <p className="text-sm text-gray-600">
+                  {isRecording 
+                    ? "Speak your answer now..." 
+                    : isProcessing 
+                    ? "Processing your voice input..." 
+                    : "Click the microphone to speak your answer"}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

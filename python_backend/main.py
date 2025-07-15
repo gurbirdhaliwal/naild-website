@@ -230,6 +230,57 @@ Generate a brief, professional acknowledgement of their answer (1-2 sentences) t
                 "next_question": next_question
             }
 
+@app.post("/grade_interview")
+async def grade_interview(request: Request):
+    data = await request.json()
+    questions = data.get("questions", [])
+    answers = data.get("answers", [])
+    if not questions or not answers or len(questions) != 5 or len(answers) != 5:
+        return {"error": "Must provide exactly 5 questions and 5 answers."}
+
+    grading_prompt = f"""
+You are an expert technical interviewer and grader. You will be given 5 interview questions and 5 candidate answers. For each answer, grade it from 1-100 based on these criteria:
+- Accuracy: Is the answer factually correct and addresses the question? (0 if unrelated)
+- Relevance: Is the answer on-topic and appropriate for the question?
+- Clarity: Is the answer clear, well-explained, and easy to understand?
+
+Short, off-topic, or nonsense answers should be penalized. Every answer must receive a grade, even if it is completely off-topic or nonsense. If an answer is unrelated, set accuracy to 0. Be consistent and robust.
+
+Return a JSON object with:
+- "scores": a list of 5 objects, each with "question", "answer", and "score" (1-100)
+- "average_score": the average of the 5 scores (rounded to 1 decimal)
+- "feedback": a readable summary of strengths, weaknesses, and suggestions for improvement, in plain English.
+
+Questions:
+"""
+    for i, q in enumerate(questions, 1):
+        grading_prompt += f"{i}. {q}\n"
+    grading_prompt += "\nAnswers:\n"
+    for i, a in enumerate(answers, 1):
+        grading_prompt += f"{i}. {a}\n"
+
+    response = ollama.chat(
+        model='mistral',
+        messages=[
+            {"role": "system", "content": "You are a strict, fair, and robust technical interview grader. Always return valid JSON."},
+            {"role": "user", "content": grading_prompt}
+        ]
+    )
+    import json
+    try:
+        result = json.loads(response['message']['content'])
+        return result
+    except Exception as e:
+        # Fallback: basic structure if parsing fails
+        scores = []
+        for q, a in zip(questions, answers):
+            scores.append({"question": q, "answer": a, "score": 1})
+        return {
+            "scores": scores,
+            "average_score": 1.0,
+            "feedback": "There was an error grading the answers. Please try again."
+        }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8081)
