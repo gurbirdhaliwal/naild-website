@@ -32,6 +32,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
   const [gradingResult, setGradingResult] = useState<any>(null);
   const [gradingLoading, setGradingLoading] = useState(false);
   const [expandedIndexes, setExpandedIndexes] = useState<number[]>([]);
+  const [timer, setTimer] = useState<number>(60);
+  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     scrollToBottom();
@@ -50,6 +53,42 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
       onUpdateInterview(updated);
     }
   }, [interview, onUpdateInterview]);
+
+  // Timer effect
+  useEffect(() => {
+    if (isTimerRunning && timer > 0) {
+      timerRef.current = setTimeout(() => {
+        setTimer(prev => prev - 1);
+      }, 1000);
+    } else if (timer === 0) {
+      setIsTimerRunning(false);
+    }
+    
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [isTimerRunning, timer]);
+
+  const startTimer = () => {
+    setTimer(60);
+    setIsTimerRunning(true);
+  };
+
+  const stopTimer = () => {
+    setIsTimerRunning(false);
+    setTimer(60);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     if (cameraOn) {
@@ -82,14 +121,17 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
   };
 
   const handleAudioUpload = async (audioBlob: Blob) => {
+    // Stop the timer when audio processing starts
+    stopTimer();
+    
     const formData = new FormData();
     formData.append("audio", audioBlob, "recording.webm");
     const response = await fetch("http://localhost:8081/app/interview", {
       method: "POST",
       body: formData,
     });
-    const result = await response.json();
-    if (result.error) {
+      const result = await response.json();
+      if (result.error) {
       // Add error message to chat
       const errorMessage: Message = {
         id: Date.now().toString(),
@@ -101,97 +143,97 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
       const updated = { ...interview, messages: [...interview.messages, errorMessage] };
       onUpdateInterview(updated);
       return;
-    }
+      }
 
-    // Add user's transcribed message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'candidate',
-      content: result.user_input,
-      timestamp: new Date(),
-      transcription: `[Candidate]: ${result.user_input}`
-    };
+      // Add user's transcribed message
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: 'candidate',
+        content: result.user_input,
+        timestamp: new Date(),
+        transcription: `[Candidate]: ${result.user_input}`
+      };
 
-    // Get current question and check if this is the last question
-    const currentQuestionIndex = interview.currentQuestionIndex || 0;
-    const questions = interview.questions || [];
-    const currentQuestion = questions[currentQuestionIndex];
-    const isLastQuestion = currentQuestionIndex >= questions.length - 1;
-    const nextQuestion = isLastQuestion ? "" : questions[currentQuestionIndex + 1];
+      // Get current question and check if this is the last question
+      const currentQuestionIndex = interview.currentQuestionIndex || 0;
+      const questions = interview.questions || [];
+      const currentQuestion = questions[currentQuestionIndex];
+      const isLastQuestion = currentQuestionIndex >= questions.length - 1;
+      const nextQuestion = isLastQuestion ? "" : questions[currentQuestionIndex + 1];
 
-    // Build previous Q&A context
-    const previousQA = [];
-    for (let i = 0; i < currentQuestionIndex; i++) {
-      const question = questions[i];
-      // Find the corresponding answer in messages
-      const questionMessageIndex = interview.messages.findIndex(m => m.content === question);
-      if (questionMessageIndex !== -1 && questionMessageIndex + 1 < interview.messages.length) {
-        const answerMessage = interview.messages[questionMessageIndex + 1];
-        if (answerMessage.role === 'candidate') {
-          previousQA.push({
-            question: question,
-            answer: answerMessage.content
-          });
+      // Build previous Q&A context
+      const previousQA = [];
+      for (let i = 0; i < currentQuestionIndex; i++) {
+        const question = questions[i];
+        // Find the corresponding answer in messages
+        const questionMessageIndex = interview.messages.findIndex(m => m.content === question);
+        if (questionMessageIndex !== -1 && questionMessageIndex + 1 < interview.messages.length) {
+          const answerMessage = interview.messages[questionMessageIndex + 1];
+          if (answerMessage.role === 'candidate') {
+            previousQA.push({
+              question: question,
+              answer: answerMessage.content
+            });
+          }
         }
       }
-    }
 
-    // Call the interview acknowledgement endpoint
-    const ackResponse = await fetch('http://localhost:8081/interview_ack', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        current_question: currentQuestion,
-        user_answer: result.user_input,
-        previous_qa: previousQA,
-        next_question: nextQuestion,
-        is_last_question: isLastQuestion,
-      }),
-    });
+      // Call the interview acknowledgement endpoint
+      const ackResponse = await fetch('http://localhost:8081/interview_ack', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_question: currentQuestion,
+          user_answer: result.user_input,
+          previous_qa: previousQA,
+          next_question: nextQuestion,
+          is_last_question: isLastQuestion,
+        }),
+      });
 
-    const ackResult = await ackResponse.json();
+      const ackResult = await ackResponse.json();
 
-    // Add acknowledgement message
-    const ackMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: 'interviewer',
-      content: ackResult.acknowledgement,
-      timestamp: new Date(),
-      transcription: `[AI Interviewer]: ${ackResult.acknowledgement}`
-    };
-
-    const newMessages = [...interview.messages, userMessage, ackMessage];
-
-    // Add next question or goodbye message
-    if (isLastQuestion) {
-      const goodbyeMessage: Message = {
-        id: (Date.now() + 2).toString(),
+      // Add acknowledgement message
+      const ackMessage: Message = {
+        id: (Date.now() + 1).toString(),
         role: 'interviewer',
-        content: ackResult.goodbye,
+        content: ackResult.acknowledgement,
         timestamp: new Date(),
-        transcription: `[AI Interviewer]: ${ackResult.goodbye}`
+        transcription: `[AI Interviewer]: ${ackResult.acknowledgement}`
       };
-      newMessages.push(goodbyeMessage);
-    } else {
-      const nextQuestionMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        role: 'interviewer',
-        content: ackResult.next_question,
-        timestamp: new Date(),
-        transcription: `[AI Interviewer]: ${ackResult.next_question}`
-      };
-      newMessages.push(nextQuestionMessage);
-    }
 
-    // Update interview with new messages and increment question index
-    const updated = { 
-      ...interview, 
-      messages: newMessages,
-      currentQuestionIndex: currentQuestionIndex + 1
-    };
-    onUpdateInterview(updated);
+      const newMessages = [...interview.messages, userMessage, ackMessage];
+
+      // Add next question or goodbye message
+      if (isLastQuestion) {
+        const goodbyeMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          role: 'interviewer',
+          content: ackResult.goodbye,
+          timestamp: new Date(),
+          transcription: `[AI Interviewer]: ${ackResult.goodbye}`
+        };
+        newMessages.push(goodbyeMessage);
+      } else {
+        const nextQuestionMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          role: 'interviewer',
+          content: ackResult.next_question,
+          timestamp: new Date(),
+          transcription: `[AI Interviewer]: ${ackResult.next_question}`
+        };
+        newMessages.push(nextQuestionMessage);
+      }
+
+      // Update interview with new messages and increment question index
+      const updated = { 
+        ...interview, 
+        messages: newMessages,
+        currentQuestionIndex: currentQuestionIndex + 1
+      };
+      onUpdateInterview(updated);
 
   // --- Grading logic: trigger after last answer ---
   if (isLastQuestion) {
@@ -304,6 +346,14 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                 <p className="text-gray-500 text-lg mt-4">Camera is off.</p>
               </div>
             )}
+            
+            {/* Timer display in top right corner */}
+            {isTimerRunning && (
+              <div className="absolute top-4 right-4 z-20 bg-black bg-opacity-70 text-white px-3 py-2 rounded-lg font-mono text-lg font-bold">
+                {formatTime(timer)}
+              </div>
+            )}
+            
             {/* Center-bottom camera toggle button */}
             <button
               onClick={() => setCameraOn((prev) => !prev)}
@@ -392,8 +442,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                                 </div>
                               );
                             })()}
-                          </div>
-                        )}
+              </div>
+            )}
                       </div>
                     );
                   })}
@@ -413,7 +463,11 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
             </>
           ) : (
             // Default mic area (before grading)
-            <CustomMicRecorder onAudioRecorded={handleAudioUpload} />
+            <CustomMicRecorder 
+              onAudioRecorded={handleAudioUpload} 
+              onRecordingStart={startTimer}
+              onRecordingStop={stopTimer}
+            />
           )}
         </div>
       </div>

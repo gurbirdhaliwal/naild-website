@@ -24,8 +24,8 @@ export default function InterviewPage() {
 
   // Handle authentication redirect
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login')
+  if (!loading && !user) {
+    router.push('/login')
     }
   }, [loading, user, router])
 

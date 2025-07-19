@@ -106,7 +106,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
   const renderStep = () => {
     switch (currentStep) {
       case 0:
-        return (
+  return (
           <motion.div
             key="step-0"
             initial={{ opacity: 0, x: 50 }}
@@ -118,7 +118,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
             <div className="text-center mb-6">
               <h3 className="text-lg font-medium text-gray-900 mb-1">Select Job Title</h3>
               <p className="text-sm text-gray-600">Choose the role you're interviewing for</p>
-            </div>
+          </div>
             <div className="grid grid-cols-2 gap-3">
               {roles.map((role, index) => (
                 <motion.button
@@ -149,7 +149,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
             <div className="text-center mb-6">
               <h3 className="text-lg font-medium text-gray-900 mb-1">Select Technologies</h3>
               <p className="text-sm text-gray-600">Choose the technologies you want to be tested on</p>
-            </div>
+          </div>
             <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
               {languages.map((language, index) => (
                 <motion.button
@@ -170,8 +170,8 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
             </div>
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Selected: {config.languages.length} technologies
-              </p>
+              Selected: {config.languages.length} technologies
+            </p>
               <motion.button
                 onClick={handleLanguagesNext}
                 disabled={config.languages.length === 0}
@@ -185,7 +185,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
               >
                 Next
               </motion.button>
-            </div>
+          </div>
           </motion.div>
         );
 
@@ -256,10 +256,10 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">Experience Level:</span>
                   <span className="text-sm text-gray-900">{getDifficultyLabel(config.difficulty)}</span>
-                </div>
+          </div>
               </motion.div>
               <motion.button
-                onClick={handleSubmit}
+              onClick={handleSubmit}
                 className="w-full py-3 px-6 rounded-lg font-medium bg-gray-900 hover:bg-gray-800 text-white transition-all"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}

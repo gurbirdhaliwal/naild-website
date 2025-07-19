@@ -2,72 +2,43 @@ import React, { useRef, useState } from "react";
 
 interface CustomMicRecorderProps {
   onAudioRecorded: (audioBlob: Blob) => void;
-  silenceDuration?: number; // seconds of silence before auto-stop
-  silenceThreshold?: number; // volume threshold
+  onRecordingStart?: () => void;
+  onRecordingStop?: () => void;
   maxDuration?: number; // max seconds to record
 }
 
 const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
   onAudioRecorded,
-  silenceDuration = 1.2,
-  silenceThreshold = 0.01,
+  onRecordingStart,
+  onRecordingStop,
   maxDuration = 60,
 }) => {
   const [recording, setRecording] = useState(false);
   const [status, setStatus] = useState<"idle" | "recording" | "processing">("idle");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
-  const silenceTimer = useRef<NodeJS.Timeout | null>(null);
   const maxTimer = useRef<NodeJS.Timeout | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const isRecordingRef = useRef<boolean>(false);
 
   const startRecording = async () => {
     setStatus("recording");
     setRecording(true);
+    isRecordingRef.current = true;
     audioChunks.current = [];
+    
+    // Notify parent component that recording has started
+    onRecordingStart?.();
+    
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mediaRecorder = new window.MediaRecorder(stream);
     mediaRecorderRef.current = mediaRecorder;
 
-    // Silence detection
-    audioContextRef.current = new window.AudioContext();
-    sourceRef.current = audioContextRef.current.createMediaStreamSource(stream);
-    analyserRef.current = audioContextRef.current.createAnalyser();
-    sourceRef.current.connect(analyserRef.current);
-
     // Max duration timer
     maxTimer.current = setTimeout(() => {
-      stopRecording();
+      if (isRecordingRef.current) {
+        stopRecording();
+      }
     }, maxDuration * 1000);
-
-    const detectSilence = () => {
-      if (!analyserRef.current) return;
-      const buffer = new Uint8Array(analyserRef.current.fftSize);
-      analyserRef.current.getByteTimeDomainData(buffer);
-      const rms =
-        Math.sqrt(
-          buffer.reduce((sum, val) => sum + Math.pow(val - 128, 2), 0) / buffer.length
-        ) / 128;
-      if (rms < silenceThreshold) {
-        if (!silenceTimer.current) {
-          silenceTimer.current = setTimeout(() => {
-            stopRecording();
-          }, silenceDuration * 1000);
-        }
-      } else {
-        if (silenceTimer.current) {
-          clearTimeout(silenceTimer.current);
-          silenceTimer.current = null;
-        }
-      }
-      if (recording) {
-        requestAnimationFrame(detectSilence);
-      }
-    };
-
-    requestAnimationFrame(detectSilence);
 
     mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) {
@@ -76,13 +47,13 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
     };
 
     mediaRecorder.onstop = () => {
+      isRecordingRef.current = false;
       setRecording(false);
       setStatus("processing");
       const audioBlob = new Blob(audioChunks.current, { type: "audio/webm" });
       onAudioRecorded(audioBlob);
       // Clean up
       stream.getTracks().forEach((track) => track.stop());
-      audioContextRef.current?.close();
       if (maxTimer.current) clearTimeout(maxTimer.current);
       setStatus("idle");
     };
@@ -91,14 +62,15 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
   };
 
   const stopRecording = () => {
+    isRecordingRef.current = false;
     setRecording(false);
     setStatus("processing");
+    
+    // Notify parent component that recording has stopped
+    onRecordingStop?.();
+    
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
-    }
-    if (silenceTimer.current) {
-      clearTimeout(silenceTimer.current);
-      silenceTimer.current = null;
     }
     if (maxTimer.current) {
       clearTimeout(maxTimer.current);
@@ -121,7 +93,7 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
       </button>
       <div className="text-sm text-gray-600">
         {status === "idle" && "Click the microphone to speak your answer"}
-        {status === "recording" && `Listening... (auto-stops on silence or after ${maxDuration} seconds)`}
+        {status === "recording" && `Recording... (max ${maxDuration} seconds)`}
         {status === "processing" && "Processing..."}
       </div>
     </div>
