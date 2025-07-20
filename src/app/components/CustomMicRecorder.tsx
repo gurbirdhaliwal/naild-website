@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import { LuMic } from "react-icons/lu";
 
 interface CustomMicRecorderProps {
   onAudioRecorded: (audioBlob: Blob) => void;
@@ -89,7 +90,7 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
         }`}
         disabled={status === "processing"}
       >
-        {recording ? "Stop" : "🎤"}
+        {recording ? "Stop" : <LuMic />}
       </button>
       <div className="text-sm text-gray-600">
         {status === "idle" && "Click the microphone to speak your answer"}

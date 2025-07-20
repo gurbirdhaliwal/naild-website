@@ -35,7 +35,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
   ];
 
   const difficulties = [
-    { value: 'junior', label: 'Junior (0-2 years)' },
+    { value: 'intern', label: 'Intern (0-2 years)' },
     { value: 'mid', label: 'Mid-level (2-5 years)' },
     { value: 'senior', label: 'Senior (5+ years)' }
   ];
