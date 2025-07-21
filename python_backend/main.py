@@ -29,7 +29,7 @@ class VoiceAssistant:
 assistant = VoiceAssistant()
 
 @app.post("/transcription")
-async def interview(audio: UploadFile = File(...)):
+async def transcription(audio: UploadFile = File(...)):
     try:
         import tempfile, os
         # Save uploaded audio to a temp file
