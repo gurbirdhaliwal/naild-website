@@ -28,7 +28,7 @@ class VoiceAssistant:
 
 assistant = VoiceAssistant()
 
-@app.post("/app/interview")
+@app.post("/transcription")
 async def interview(audio: UploadFile = File(...)):
     try:
         import tempfile, os
@@ -40,21 +40,7 @@ async def interview(audio: UploadFile = File(...)):
         segments, info = assistant.whisper_model.transcribe(tmp_path)
         transcription = "".join([seg.text for seg in segments]).strip()
         os.remove(tmp_path)
-        response = ollama.chat(
-            model='mistral',
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an expert technical interviewer that is very thorough. Respond in 1-2 short sentences only."
-                },
-                {
-                    "role": "user",
-                    "content": transcription
-                }
-            ]
-        )
-        ai_response = response['message']['content']
-        return {"user_input": transcription, "ai_response": ai_response}
+        return {"user_input": transcription}
     except Exception as e:
         return {"error": str(e)}
 

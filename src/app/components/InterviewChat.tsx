@@ -126,7 +126,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
     
     const formData = new FormData();
     formData.append("audio", audioBlob, "recording.webm");
-    const response = await fetch("http://localhost:8081/app/interview", {
+    const response = await fetch("http://localhost:8081/transcription", {
       method: "POST",
       body: formData,
     });
