@@ -145,6 +145,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
       return;
       }
 
+      const currentMessages = [...interview.messages];
+
       // Add user's transcribed message
       const userMessage: Message = {
         id: Date.now().toString(),
@@ -153,6 +155,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         timestamp: new Date(),
         transcription: `[Candidate]: ${result.user_input}`
       };
+
+      currentMessages.push(userMessage);
+      onUpdateInterview({
+        ...interview,
+        messages: currentMessages
+      })
 
       // Get current question and check if this is the last question
       const currentQuestionIndex = interview.currentQuestionIndex || 0;
@@ -203,8 +211,13 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         timestamp: new Date(),
         transcription: `[AI Interviewer]: ${ackResult.acknowledgement}`
       };
+      currentMessages.push(ackMessage)
+      onUpdateInterview({
+        ...interview,
+        messages: currentMessages
+      }) 
 
-      const newMessages = [...interview.messages, userMessage, ackMessage];
+      
 
       // Add next question or goodbye message
       if (isLastQuestion) {
@@ -215,7 +228,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
           timestamp: new Date(),
           transcription: `[AI Interviewer]: ${ackResult.goodbye}`
         };
-        newMessages.push(goodbyeMessage);
+        currentMessages.push(goodbyeMessage);
       } else {
         const nextQuestionMessage: Message = {
           id: (Date.now() + 2).toString(),
@@ -224,13 +237,14 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
           timestamp: new Date(),
           transcription: `[AI Interviewer]: ${ackResult.next_question}`
         };
-        newMessages.push(nextQuestionMessage);
+        currentMessages.push(nextQuestionMessage);
       }
 
       // Update interview with new messages and increment question index
+      
       const updated = { 
         ...interview, 
-        messages: newMessages,
+        messages: currentMessages,
         currentQuestionIndex: currentQuestionIndex + 1
       };
       onUpdateInterview(updated);
