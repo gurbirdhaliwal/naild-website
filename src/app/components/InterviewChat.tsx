@@ -21,6 +21,24 @@ const getBarColor = (percent: number) => {
   return 'bg-red-400';
 };
 
+// Simple ThinkingDots component
+const ThinkingDots = () => {
+  const [dots, setDots] = useState('');
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => {
+        if (prev === '...') return '';
+        return prev + '.';
+      });
+    }, 500);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  return <span>{dots}</span>;
+};
+
 const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterview }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [showTranscription, setShowTranscription] = useState(true);
@@ -47,7 +65,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         role: 'interviewer',
         content: "Welcome to your mock interview. Click the microphone to begin speaking your answers.",
         timestamp: new Date(),
-        transcription: `[AI Interviewer]: Welcome to your mock interview. Click the microphone to begin speaking your answers.`
+        transcription: `[AI Interviewer]: Welcome to your mock interview. Click the microphone to begin speaking your answers.`,
+        isThinking: false
       }
       const updated = { ...interview, messages: [welcome] }
       onUpdateInterview(updated);
@@ -138,7 +157,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         role: 'interviewer',
         content: "I'm sorry, I couldn't process your voice input. Please try again by clicking the microphone.",
         timestamp: new Date(),
-        transcription: `[AI Interviewer]: I'm sorry, I couldn't process your voice input. Please try again by clicking the microphone.`
+        transcription: `[AI Interviewer]: I'm sorry, I couldn't process your voice input. Please try again by clicking the microphone.`,
+        isThinking: false
       };
       const updated = { ...interview, messages: [...interview.messages, errorMessage] };
       onUpdateInterview(updated);
@@ -153,7 +173,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         role: 'candidate',
         content: result.user_input,
         timestamp: new Date(),
-        transcription: `[Candidate]: ${result.user_input}`
+        transcription: `[Candidate]: ${result.user_input}`,
+        isThinking: false
       };
 
       currentMessages.push(userMessage);
@@ -161,6 +182,21 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         ...interview,
         messages: currentMessages
       })
+
+      const thinkingMessage: Message = {
+        id: (Date.now() + 0.5).toString(),
+        role: 'interviewer',
+        content: "AI is thinking...",
+        timestamp: new Date(),
+        transcription: `AI is thinking`,
+        isThinking: true
+      };
+    
+      currentMessages.push(thinkingMessage);
+      onUpdateInterview( {
+        ...interview,
+        messages: currentMessages
+      });
 
       // Get current question and check if this is the last question
       const currentQuestionIndex = interview.currentQuestionIndex || 0;
@@ -203,21 +239,19 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
 
       const ackResult = await ackResponse.json();
 
-      // Add acknowledgement message
+      // Remove the thinking message and add acknowledgement message
+      const messagesWithoutThinking = currentMessages.filter(msg => msg.id !== thinkingMessage.id);
+      
       const ackMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'interviewer',
         content: ackResult.acknowledgement,
         timestamp: new Date(),
-        transcription: `[AI Interviewer]: ${ackResult.acknowledgement}`
+        transcription: `[AI Interviewer]: ${ackResult.acknowledgement}`,
+        isThinking: false
       };
-      currentMessages.push(ackMessage)
-      onUpdateInterview({
-        ...interview,
-        messages: currentMessages
-      }) 
-
       
+      messagesWithoutThinking.push(ackMessage);
 
       // Add next question or goodbye message
       if (isLastQuestion) {
@@ -226,25 +260,26 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
           role: 'interviewer',
           content: ackResult.goodbye,
           timestamp: new Date(),
-          transcription: `[AI Interviewer]: ${ackResult.goodbye}`
+          transcription: `[AI Interviewer]: ${ackResult.goodbye}`,
+          isThinking: false
         };
-        currentMessages.push(goodbyeMessage);
+        messagesWithoutThinking.push(goodbyeMessage);
       } else {
         const nextQuestionMessage: Message = {
           id: (Date.now() + 2).toString(),
           role: 'interviewer',
           content: ackResult.next_question,
           timestamp: new Date(),
-          transcription: `[AI Interviewer]: ${ackResult.next_question}`
+          transcription: `[AI Interviewer]: ${ackResult.next_question}`,
+          isThinking: false
         };
-        currentMessages.push(nextQuestionMessage);
+        messagesWithoutThinking.push(nextQuestionMessage);
       }
 
       // Update interview with new messages and increment question index
-      
       const updated = { 
         ...interview, 
-        messages: currentMessages,
+        messages: messagesWithoutThinking,
         currentQuestionIndex: currentQuestionIndex + 1
       };
       onUpdateInterview(updated);
@@ -506,10 +541,22 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                     ? 'bg-gray-100 text-gray-800'
                     : 'bg-gray-50 text-gray-700'
                 }`}>
-                  {message.transcription}
+                  {message.isThinking ? (
+                    <span>
+                      AI is thinking
+                      <span className="thinking-dots-bouncing">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </span>
+                    </span>
+                  ) : (
+                    message.transcription
+                  )}
                 </div>
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         </div>
       )}
