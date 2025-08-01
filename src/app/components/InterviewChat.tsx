@@ -312,10 +312,28 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         const gradeRes = await fetch('http://localhost:8081/grade_interview', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ questions, answers: userAnswers })
+          body: JSON.stringify({ 
+            questions, 
+            answers: userAnswers,
+            interview_id: !isNaN(Number(interview.id)) ? Number(interview.id) : null
+          })
         });
         const gradeData = await gradeRes.json();
         setGradingResult(gradeData);
+        
+        // Update interview status to completed
+        if (!isNaN(Number(interview.id))) {
+          try {
+            await fetch(`http://localhost:8080/api/v1/interviews/${interview.id}/status`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ status: 'completed' })
+            });
+          } catch (e) {
+            console.error('Failed to update interview status:', e);
+          }
+        }
       } catch (e) {
         setGradingResult({ error: 'Failed to grade answers. Please try again.' });
       } finally {
@@ -534,7 +552,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
             {interview.messages.map((message) => (
               <div key={message.id} className="text-sm">
                 <div className="text-gray-400 text-xs mb-1">
-                  {message.timestamp.toLocaleTimeString()}
+                  {message.timestamp.toLocaleDateString()}
                 </div>
                 <div className={`p-3 rounded-lg text-xs ${
                   message.role === 'candidate'

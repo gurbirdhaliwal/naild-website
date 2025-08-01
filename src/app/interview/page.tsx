@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { MdOutlinePersonPin, MdLogout } from 'react-icons/md'
 import { IoSettingsOutline } from 'react-icons/io5'
+import { interviewService } from '../services/interviewService'
 
 export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
@@ -21,13 +22,47 @@ export default function InterviewPage() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const router = useRouter()
+  const [loadingInterviews, setLoadingInterviews] = useState(false)
 
   // Handle authentication redirect
   useEffect(() => {
-  if (!loading && !user) {
-    router.push('/login')
+    if (!loading && !user) {
+      router.push('/login')
     }
   }, [loading, user, router])
+
+  // Load saved interviews when user is authenticated
+  useEffect(() => {
+    if (user && !loading) {
+      loadSavedInterviews();
+    }
+  }, [user, loading]);
+
+  const loadSavedInterviews = async () => {
+    try {
+      setLoadingInterviews(true);
+      console.log('Loading saved interviews...');
+      const savedInterviews = await interviewService.getUserInterviews();
+      console.log('Received interviews:', savedInterviews);
+      const convertedInterviews = savedInterviews.map(response => 
+        interviewService.convertToInterview(response)
+      );
+      console.log('Converted interviews:', convertedInterviews);
+      setInterviews(convertedInterviews);
+    } catch (error) {
+      console.error('Failed to load interviews:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
+      // Don't show error to user, just log it - interviews will be empty
+    } finally {
+      setLoadingInterviews(false);
+    }
+  };
 
   // Don't render anything while loading or if user is not authenticated
   if (loading || !user) {
@@ -77,6 +112,7 @@ export default function InterviewPage() {
       content: `Welcome to your ${config.role} interview! I'll be asking you ${aiQuestions.length} questions about ${config.languages.join(', ')}. Let's get started!`,
       timestamp: now,
       transcription: `[AI Interviewer]: Welcome to your ${config.role} interview! I'll be asking you ${aiQuestions.length} questions about ${config.languages.join(', ')}. Let's get started!`,
+      isThinking: false,
     };
     const firstQuestionMessage = {
       id: `${Date.now()}-q0`,
@@ -84,29 +120,81 @@ export default function InterviewPage() {
       content: aiQuestions[0] || "Let's start with your first question.",
       timestamp: now,
       transcription: `[AI Interviewer]: ${aiQuestions[0] || "Let's start with your first question."}`,
+      isThinking: false,
     };
     const messages = [introMessage, firstQuestionMessage];
-    const newInterview: Interview = {
-      id: Date.now().toString(),
-      title: `${config.role} Interview`,
-      role: config.role,
-      languages: config.languages,
-      difficulty: config.difficulty,
-      createdAt: now,
-      messages,
-      status: 'active',
-      questions: aiQuestions,
-      currentQuestionIndex: 0,
-    };
-    console.log(aiQuestions);
-    setInterviews((prev) => [newInterview, ...prev]);
-    setCurrentInterview(newInterview);
-    setShowSetup(false);
+    
+    // Create interview in database
+    try {
+      const createRequest = {
+        title: `${config.role} Interview`,
+        role: config.role,
+        languages: config.languages,
+        difficulty: config.difficulty,
+        questions: aiQuestions,
+      };
+      
+      const savedInterview = await interviewService.createInterview(createRequest);
+      const newInterview = interviewService.convertToInterview(savedInterview);
+      newInterview.messages = messages;
+      newInterview.currentQuestionIndex = 0;
+      
+      setInterviews((prev) => [newInterview, ...prev]);
+      setCurrentInterview(newInterview);
+      setShowSetup(false);
+    } catch (error) {
+      console.error('Failed to create interview:', error);
+      // Fallback to in-memory only - this will work even without backend
+      const newInterview: Interview = {
+        id: Date.now().toString(),
+        title: `${config.role} Interview`,
+        role: config.role,
+        languages: config.languages,
+        difficulty: config.difficulty,
+        createdAt: now,
+        messages,
+        status: 'active',
+        questions: aiQuestions,
+        currentQuestionIndex: 0,
+      };
+      setInterviews((prev) => [newInterview, ...prev]);
+      setCurrentInterview(newInterview);
+      setShowSetup(false);
+    }
   };
 
-  const handleUpdate = (updated: Interview) => {
+  const handleUpdate = async (updated: Interview) => {
     setInterviews((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))
     setCurrentInterview(updated)
+    
+    // Save to database if interview has a numeric ID (from database)
+    if (!isNaN(Number(updated.id))) {
+      try {
+        await interviewService.updateInterviewMessages(Number(updated.id), {
+          messages: updated.messages
+        });
+      } catch (error) {
+        console.error('Failed to save interview messages:', error);
+        // Continue with in-memory updates even if backend fails
+      }
+    }
+  }
+
+  const handleDeleteInterview = async (interviewId: string) => {
+    try {
+      if (!isNaN(Number(interviewId))) {
+        await interviewService.deleteInterview(Number(interviewId));
+      }
+    } catch (error) {
+      console.error('Failed to delete interview from backend:', error);
+      // Continue with local deletion even if backend fails
+    }
+    
+    // Always remove from local state
+    setInterviews((prev) => prev.filter((i) => i.id !== interviewId));
+    if (currentInterview?.id === interviewId) {
+      setCurrentInterview(null);
+    }
   }
 
   return (
@@ -116,8 +204,10 @@ export default function InterviewPage() {
         currentInterview={currentInterview}
         onStartNew={() => setShowSetup(true)}
         onSelectInterview={setCurrentInterview}
+        onDeleteInterview={handleDeleteInterview}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        loading={loadingInterviews}
       />
 
       <main className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${

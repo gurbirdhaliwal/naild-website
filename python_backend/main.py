@@ -9,6 +9,8 @@ from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from faster_whisper import WhisperModel
+import requests
+import json
 
 app = FastAPI()
 
@@ -27,6 +29,9 @@ class VoiceAssistant:
         self.debug = True
 
 assistant = VoiceAssistant()
+
+# Spring Boot API base URL
+SPRING_API_BASE = "http://localhost:8080/api/v1"
 
 @app.post("/transcription")
 async def transcription(audio: UploadFile = File(...)):
@@ -165,6 +170,8 @@ async def grade_interview(request: Request):
     data = await request.json()
     questions = data.get("questions", [])
     answers = data.get("answers", [])
+    interview_id = data.get("interview_id")  # New parameter for interview ID
+    
     if not questions or not answers or len(questions) != 5 or len(answers) != 5:
         return {"error": "Must provide exactly 5 questions and 5 answers."}
 
@@ -199,6 +206,20 @@ Questions:
     import json
     try:
         result = json.loads(response['message']['content'])
+        
+        # If interview_id is provided, save the grading result to Spring Boot
+        if interview_id:
+            try:
+                grading_update_response = requests.put(
+                    f"{SPRING_API_BASE}/interviews/{interview_id}/grading",
+                    json={"gradingResult": result},
+                    headers={"Content-Type": "application/json"}
+                )
+                if grading_update_response.status_code != 200:
+                    print(f"Warning: Failed to save grading result to database: {grading_update_response.text}")
+            except Exception as e:
+                print(f"Warning: Failed to save grading result to database: {str(e)}")
+        
         return result
     except Exception as e:
         # Fallback: basic structure if parsing fails
