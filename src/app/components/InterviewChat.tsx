@@ -552,7 +552,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
             {interview.messages.map((message) => (
               <div key={message.id} className="text-sm">
                 <div className="text-gray-400 text-xs mb-1">
-                  {message.timestamp.toLocaleDateString()}
+                  {message.timestamp.toLocaleString()}
                 </div>
                 <div className={`p-3 rounded-lg text-xs ${
                   message.role === 'candidate'
