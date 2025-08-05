@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Volume2, Camera, CameraOff, Loader2, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Interview, Message } from '../types/Interview';
 import CustomMicRecorder from "./CustomMicRecorder";
+import { interviewService } from '../services/interviewService';
 
 interface InterviewChatProps {
   interview: Interview;
@@ -320,7 +321,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         });
         const gradeData = await gradeRes.json();
         setGradingResult(gradeData);
-        
+        await interviewService.updateGradingResult(Number(interview.id), {gradingResult: gradeData});
         // Update interview status to completed
         if (!isNaN(Number(interview.id))) {
           try {
