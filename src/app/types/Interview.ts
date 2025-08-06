@@ -17,6 +17,7 @@ export interface Message {
     status:string
     questions?: string[]
     currentQuestionIndex?: number
+    gradingResult?: any;
   }
   
   export interface InterviewConfig {

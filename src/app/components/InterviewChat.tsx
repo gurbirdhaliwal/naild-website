@@ -50,6 +50,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [gradingResult, setGradingResult] = useState<any>(null);
   const [gradingLoading, setGradingLoading] = useState(false);
+  const [loadingExistingGrade, setLoadingExistingGrade] = useState(false);
   const [expandedIndexes, setExpandedIndexes] = useState<number[]>([]);
   const [timer, setTimer] = useState<number>(60);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
@@ -58,6 +59,33 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
   useEffect(() => {
     scrollToBottom();
   }, [interview.messages]);
+
+  useEffect(() => {
+      setGradingResult(null);
+      setGradingLoading(false);
+      setLoadingExistingGrade(false);
+  }, [interview.id]);
+
+  useEffect(() => {
+    const loadGradingResult = async () => {
+      if (interview.status === 'completed' && !isNaN(Number(interview.id))) {
+        try {
+          setLoadingExistingGrade(true);
+          const response = await interviewService.getInterviewById(Number(interview.id));
+          if (response.gradingResult) {
+            const parsedGrading = JSON.parse(response.gradingResult);
+            setGradingResult(parsedGrading);
+          }
+        } catch (error) {
+          console.error('Failed to load grading result: ', error);
+        } finally {
+          setLoadingExistingGrade(false);
+        }
+      }
+    };
+
+    loadGradingResult();
+  }, [interview.id, interview.status]);
 
   useEffect(() => {
     if (interview.messages.length === 0) {
@@ -369,6 +397,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
     return { pros, cons };
   };
 
+
+  const shouldShowGrading = interview.status === 'completed' || gradingResult;
+
   return (
     <div className="flex h-full bg-white">
       <div className={`flex-1 flex flex-col ${showTranscription ? 'pr-80' : ''} items-center justify-start overflow-y-auto`}>
@@ -381,6 +412,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                 <span className="capitalize">{interview.difficulty} level</span>
                 <span>•</span>
                 <span>{interview.languages.join(', ')}</span>
+                {interview.status === 'completed' && (
+                  <>
+                    <span>•</span>
+                    <span className="text-green-600 font-medium">Completed</span>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -390,10 +427,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
               >
                 {showTranscription ? 'Hide' : 'Show'} Transcription
               </button>
-              <div className="flex items-center gap-2 text-green-500">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm">Live</span>
-              </div>
+              {interview.status !== 'completed' && (
+                <div className="flex items-center gap-2 text-green-500">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm">Live</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -443,7 +482,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
               <Loader2 className="animate-spin text-blue-500 mb-4" size={40} />
               <div className="text-blue-600 font-medium text-lg">Grading your answers...</div>
             </div>
-          ) : gradingResult ? (
+          ) : shouldShowGrading && gradingResult ? (
             <>
               {/* Interview Results Card */}
               <div className="bg-white rounded-xl shadow p-6 mb-2">
@@ -510,8 +549,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                                 </div>
                               );
                             })()}
-              </div>
-            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -530,12 +569,14 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
               )}
             </>
           ) : (
-            // Default mic area (before grading)
-            <CustomMicRecorder 
-              onAudioRecorded={handleAudioUpload} 
-              onRecordingStart={startTimer}
-              onRecordingStop={stopTimer}
-            />
+            // Default mic area (before grading or for active interviews)
+            interview.status !== 'completed' && (
+              <CustomMicRecorder 
+                onAudioRecorded={handleAudioUpload} 
+                onRecordingStart={startTimer}
+                onRecordingStop={stopTimer}
+              />
+            )
           )}
         </div>
       </div>

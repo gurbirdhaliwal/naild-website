@@ -222,6 +222,7 @@ class InterviewService {
       status: response.status,
       questions: JSON.parse(response.questions),
       currentQuestionIndex: response.currentQuestionIndex,
+      gradingResult: response.gradingResult ? JSON.parse(response.gradingResult) : null,
     };
   }
 
