@@ -74,7 +74,7 @@ def warmup():
         # Warm up Ollama
         t2 = time.time()
         response = ollama.chat(
-            model='mistral',
+            model='tinyllama',
             messages=[
                 {"role": "system", "content": "You are a mock interview assistant."},
                 {"role": "user", "content": "hi"}
@@ -95,7 +95,7 @@ async def generate_questions(request: Request):
     difficulty = data.get("difficulty", "")
     prompt = f"You are an expert technical interviewer. Generate 5 unique interview questions for a {role} position, focusing on the following technologies: {', '.join(languages)}. The questions should be appropriate for a {difficulty} level candidate. Return only the questions as a numbered list."
     response = ollama.chat(
-        model='mistral',
+        model='tinyllama',
         messages=[
             {"role": "system", "content": "You are an expert technical interviewer that generates interview questions."},
             {"role": "user", "content": prompt}
@@ -141,7 +141,7 @@ Generate a brief, professional acknowledgement of their answer (1-2 sentences) t
 {{"acknowledgement": "your acknowledgement here", "next_question": "{next_question}"}}"""
     
     response = ollama.chat(
-        model='mistral',
+        model='tinyllama',
         messages=[
             {"role": "system", "content": "You are a helpful AI that generates interview responses. Always return valid JSON."},
             {"role": "user", "content": prompt}
@@ -197,7 +197,7 @@ Questions:
         grading_prompt += f"{i}. {a}\n"
 
     response = ollama.chat(
-        model='mistral',
+        model='tinyllama',
         messages=[
             {"role": "system", "content": "You are a strict, fair, and robust technical interview grader. Always return valid JSON."},
             {"role": "user", "content": grading_prompt}
