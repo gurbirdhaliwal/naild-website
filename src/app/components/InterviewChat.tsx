@@ -312,6 +312,16 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         currentQuestionIndex: currentQuestionIndex + 1
       };
       onUpdateInterview(updated);
+      try {
+        await fetch(`http://localhost:8080/api/v1/interviews/${interview.id}/current_question_index`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ currentQuestionIndex: updated.currentQuestionIndex })
+        });
+      } catch (error) {
+        console.error("Failed to update current question index ", error);
+      }
 
   // --- Grading logic: trigger after last answer ---
   if (isLastQuestion) {

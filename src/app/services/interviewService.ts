@@ -25,12 +25,9 @@ export interface CreateInterviewRequest {
   questions: string[];
 }
 
+
 export interface UpdateMessagesRequest {
   messages: Message[];
-}
-
-export interface UpdateStatusRequest {
-  status: string;
 }
 
 export interface UpdateGradingRequest {
@@ -117,6 +114,8 @@ class InterviewService {
     }
   }
 
+
+
   async updateInterviewMessages(id: number, data: UpdateMessagesRequest): Promise<InterviewResponse> {
     try {
       return await this.makeRequest(`/interviews/${id}/messages`, {
@@ -135,33 +134,6 @@ class InterviewService {
         status: 'active',
         questions: '[]',
         messages: JSON.stringify(data.messages),
-        currentQuestionIndex: 0,
-        gradingResult: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      return mockResponse;
-    }
-  }
-
-  async updateInterviewStatus(id: number, data: UpdateStatusRequest): Promise<InterviewResponse> {
-    try {
-      return await this.makeRequest(`/interviews/${id}/status`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-    } catch (error) {
-      console.log('Backend not available, skipping status update');
-      // Return a mock response
-      const mockResponse: InterviewResponse = {
-        id: id,
-        title: 'Mock Interview',
-        role: 'Developer',
-        languages: '["JavaScript"]',
-        difficulty: 'mid',
-        status: data.status,
-        questions: '[]',
-        messages: '[]',
         currentQuestionIndex: 0,
         gradingResult: null,
         createdAt: new Date().toISOString(),
