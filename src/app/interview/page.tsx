@@ -138,7 +138,8 @@ export default function InterviewPage() {
       const newInterview = interviewService.convertToInterview(savedInterview);
       newInterview.messages = messages;
       newInterview.currentQuestionIndex = 0;
-      
+      await interviewService.updateInterviewMessages(Number(newInterview.id), {messages: newInterview.messages});
+
       setInterviews((prev) => [newInterview, ...prev]);
       setCurrentInterview(newInterview);
       setShowSetup(false);
