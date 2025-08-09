@@ -93,7 +93,7 @@ async def generate_questions(request: Request):
     role = data.get("role", "")
     languages = data.get("languages", [])
     difficulty = data.get("difficulty", "")
-    prompt = f"You are an expert technical interviewer. Generate 5 unique interview questions for a {role} position, focusing on the following technologies: {', '.join(languages)}. The questions should be appropriate for a {difficulty} level candidate. Return only the questions as a numbered list."
+    prompt = f"You are an expert technical interviewer. Generate 5 unique interview questions for a {role} position, focusing on the following technologies: {', '.join(languages)}. The questions should be appropriate for a {difficulty} level candidate. The questions should not ask the user to code any functions. Return only the questions as a numbered list."
     response = ollama.chat(
         model='mistral',
         messages=[
@@ -122,24 +122,24 @@ async def interview_ack(request: Request):
         # Generate final acknowledgement and goodbye
         prompt = f"""You are an expert technical interviewer. The candidate just answered the final question.
 
-Current question: {current_question}
-Candidate's answer: {user_answer}
-{context}
+        Current question: {current_question}
+        Candidate's answer: {user_answer}
+        {context}
 
-Generate a brief, professional acknowledgement of their answer (1-2 sentences) and a friendly goodbye message (1 sentence). Return as JSON:
-{{"acknowledgement": "your acknowledgement here", "goodbye": "your goodbye message here"}}"""
+        Generate a brief, professional acknowledgement of their answer (1-2 sentences) and a friendly goodbye message (1 sentence). Return as JSON:
+                {{"acknowledgement": "your acknowledgement here", "goodbye": "your goodbye message here"}}"""
     else:
         # Generate acknowledgement and provide next question
         prompt = f"""You are an expert technical interviewer that is very thorough. The candidate just answered a question.
 
-Current question: {current_question}
-Candidate's answer: {user_answer}
-{context}
-Next question: {next_question}
+        Current question: {current_question}
+        Candidate's answer: {user_answer}
+        {context}
+        Next question: {next_question}
 
-Generate a brief, professional acknowledgement of their answer (1-2 sentences) that references specific details from their response if relevant, or simply acknowledges their answer if it's off-topic. Return as JSON:
-{{"acknowledgement": "your acknowledgement here", "next_question": "{next_question}"}}"""
-    
+        Generate a brief, professional acknowledgement of their answer (1-2 sentences) that references specific details from their response if relevant, or simply acknowledges their answer if it's off-topic. Return as JSON:
+                {{"acknowledgement": "your acknowledgement here", "next_question": "{next_question}"}}"""
+            
     response = ollama.chat(
         model='mistral',
         messages=[

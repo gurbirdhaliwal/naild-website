@@ -599,7 +599,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                 <div className={`p-3 rounded-lg text-xs ${
                   message.role === 'candidate'
                     ? 'bg-gray-100 text-gray-800'
-                    : 'bg-gray-50 text-gray-700'
+                    : 'bg-green-50 text-green-800 border border-green-200'
                 }`}>
                   {message.isThinking ? (
                     <span>
