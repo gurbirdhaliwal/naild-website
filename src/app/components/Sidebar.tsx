@@ -60,12 +60,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* User greeting */}
-        {!collapsed && (
-          <div className="p-4 border-b border-gray-200">
-            <p className="text-lg font-medium text-gray-900">Hey, Developer!</p>
-          </div>
-        )}
+        
 
         {/* Navigation */}
         {!collapsed && (
