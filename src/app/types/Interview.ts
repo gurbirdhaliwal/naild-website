@@ -1,9 +1,10 @@
 export interface Message {
     id: string
-    role: 'candidate' | 'interviewer'
+    role: 'candidate' | 'interviewer' 
     content: string
     timestamp: Date
     transcription: string
+    isThinking: boolean
   }
   export interface Interview {
     id:string
@@ -16,6 +17,7 @@ export interface Message {
     status:string
     questions?: string[]
     currentQuestionIndex?: number
+    gradingResult?: any;
   }
   
   export interface InterviewConfig {

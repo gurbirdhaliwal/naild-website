@@ -1,11 +1,44 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Volume2, Camera, CameraOff } from 'lucide-react';
+import { Mic, MicOff, Volume2, Camera, CameraOff, Loader2, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Interview, Message } from '../types/Interview';
+import CustomMicRecorder from "./CustomMicRecorder";
+import { interviewService } from '../services/interviewService';
 
 interface InterviewChatProps {
   interview: Interview;
   onUpdateInterview: (interview: Interview) => void;
 }
+
+const getScoreLabel = (percent: number) => {
+  if (percent >= 90) return 'Excellent';
+  if (percent >= 75) return 'Good';
+  if (percent >= 60) return 'Fair';
+  return 'Needs Improvement';
+};
+
+const getBarColor = (percent: number) => {
+  if (percent >= 75) return 'bg-green-500';
+  if (percent >= 60) return 'bg-yellow-400';
+  return 'bg-red-400';
+};
+
+// Simple ThinkingDots component
+const ThinkingDots = () => {
+  const [dots, setDots] = useState('');
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => {
+        if (prev === '...') return '';
+        return prev + '.';
+      });
+    }, 500);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  return <span>{dots}</span>;
+};
 
 const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterview }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -15,10 +48,44 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
   const [stream, setStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [gradingResult, setGradingResult] = useState<any>(null);
+  const [gradingLoading, setGradingLoading] = useState(false);
+  const [loadingExistingGrade, setLoadingExistingGrade] = useState(false);
+  const [expandedIndexes, setExpandedIndexes] = useState<number[]>([]);
+  const [timer, setTimer] = useState<number>(60);
+  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     scrollToBottom();
   }, [interview.messages]);
+
+  useEffect(() => {
+      setGradingResult(null);
+      setGradingLoading(false);
+      setLoadingExistingGrade(false);
+  }, [interview.id]);
+
+  useEffect(() => {
+    const loadGradingResult = async () => {
+      if (interview.status === 'completed' && !isNaN(Number(interview.id))) {
+        try {
+          setLoadingExistingGrade(true);
+          const response = await interviewService.getInterviewById(Number(interview.id));
+          if (response.gradingResult) {
+            const parsedGrading = JSON.parse(response.gradingResult);
+            setGradingResult(parsedGrading);
+          }
+        } catch (error) {
+          console.error('Failed to load grading result: ', error);
+        } finally {
+          setLoadingExistingGrade(false);
+        }
+      }
+    };
+
+    loadGradingResult();
+  }, [interview.id, interview.status]);
 
   useEffect(() => {
     if (interview.messages.length === 0) {
@@ -27,12 +94,49 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         role: 'interviewer',
         content: "Welcome to your mock interview. Click the microphone to begin speaking your answers.",
         timestamp: new Date(),
-        transcription: `[AI Interviewer]: Welcome to your mock interview. Click the microphone to begin speaking your answers.`
+        transcription: `[AI Interviewer]: Welcome to your mock interview. Click the microphone to begin speaking your answers.`,
+        isThinking: false
       }
       const updated = { ...interview, messages: [welcome] }
       onUpdateInterview(updated);
     }
   }, [interview, onUpdateInterview]);
+
+  // Timer effect
+  useEffect(() => {
+    if (isTimerRunning && timer > 0) {
+      timerRef.current = setTimeout(() => {
+        setTimer(prev => prev - 1);
+      }, 1000);
+    } else if (timer === 0) {
+      setIsTimerRunning(false);
+    }
+    
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [isTimerRunning, timer]);
+
+  const startTimer = () => {
+    setTimer(60);
+    setIsTimerRunning(true);
+  };
+
+  const stopTimer = () => {
+    setIsTimerRunning(false);
+    setTimer(60);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     if (cameraOn) {
@@ -64,8 +168,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleVoiceTurn = async () => {
-    if (isRecording || isProcessing) return;
+  const handleAudioUpload = async (audioBlob: Blob) => {
+    // Stop the timer when audio processing starts
+    stopTimer();
     
     setIsRecording(true);
     setIsProcessing(true);
@@ -95,14 +200,38 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         throw new Error(result.error);
       }
 
+      const currentMessages = [...interview.messages];
+
       // Add user's transcribed message
       const userMessage: Message = {
         id: Date.now().toString(),
         role: 'candidate',
         content: result.user_input,
         timestamp: new Date(),
-        transcription: `[Candidate]: ${result.user_input}`
+        transcription: `[Candidate]: ${result.user_input}`,
+        isThinking: false
       };
+
+      currentMessages.push(userMessage);
+      onUpdateInterview({
+        ...interview,
+        messages: currentMessages
+      })
+
+      const thinkingMessage: Message = {
+        id: (Date.now() + 0.5).toString(),
+        role: 'interviewer',
+        content: "AI is thinking...",
+        timestamp: new Date(),
+        transcription: `AI is thinking`,
+        isThinking: true
+      };
+    
+      currentMessages.push(thinkingMessage);
+      onUpdateInterview( {
+        ...interview,
+        messages: currentMessages
+      });
 
       // Get current question and check if this is the last question
       const currentQuestionIndex = interview.currentQuestionIndex || 0;
@@ -143,22 +272,21 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         }),
       });
 
-      if (!ackResponse.ok) {
-        throw new Error('Failed to get interview acknowledgement');
-      }
-
       const ackResult = await ackResponse.json();
 
-      // Add acknowledgement message
+      // Remove the thinking message and add acknowledgement message
+      const messagesWithoutThinking = currentMessages.filter(msg => msg.id !== thinkingMessage.id);
+      
       const ackMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'interviewer',
         content: ackResult.acknowledgement,
         timestamp: new Date(),
-        transcription: `[AI Interviewer]: ${ackResult.acknowledgement}`
+        transcription: `[AI Interviewer]: ${ackResult.acknowledgement}`,
+        isThinking: false
       };
-
-      const newMessages = [...interview.messages, userMessage, ackMessage];
+      
+      messagesWithoutThinking.push(ackMessage);
 
       // Add next question or goodbye message
       if (isLastQuestion) {
@@ -167,54 +295,131 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
           role: 'interviewer',
           content: ackResult.goodbye,
           timestamp: new Date(),
-          transcription: `[AI Interviewer]: ${ackResult.goodbye}`
+          transcription: `[AI Interviewer]: ${ackResult.goodbye}`,
+          isThinking: false
         };
-        newMessages.push(goodbyeMessage);
+        messagesWithoutThinking.push(goodbyeMessage);
       } else {
         const nextQuestionMessage: Message = {
           id: (Date.now() + 2).toString(),
           role: 'interviewer',
           content: ackResult.next_question,
           timestamp: new Date(),
-          transcription: `[AI Interviewer]: ${ackResult.next_question}`
+          transcription: `[AI Interviewer]: ${ackResult.next_question}`,
+          isThinking: false
         };
-        newMessages.push(nextQuestionMessage);
+        messagesWithoutThinking.push(nextQuestionMessage);
       }
 
       // Update interview with new messages and increment question index
       const updated = { 
         ...interview, 
-        messages: newMessages,
+        messages: messagesWithoutThinking,
         currentQuestionIndex: currentQuestionIndex + 1
       };
       onUpdateInterview(updated);
+      try {
+        await fetch(`http://localhost:8080/api/v1/interviews/${interview.id}/current_question_index`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ currentQuestionIndex: updated.currentQuestionIndex })
+        });
+      } catch (error) {
+        console.error("Failed to update current question index ", error);
+      }
 
-    } catch (error) {
-      console.error('Voice processing error:', error);
-      
-      // Add error message
-      const errorMessage: Message = {
-        id: Date.now().toString(),
-        role: 'interviewer',
-        content: "I'm sorry, I couldn't process your voice input. Please try again by clicking the microphone.",
-        timestamp: new Date(),
-        transcription: `[AI Interviewer]: I'm sorry, I couldn't process your voice input. Please try again by clicking the microphone.`
-      };
-      
-      const updated = { 
-        ...interview, 
-        messages: [...interview.messages, errorMessage] 
-      };
-      onUpdateInterview(updated);
-    } finally {
-      setIsRecording(false);
-      setIsProcessing(false);
+  // --- Grading logic: trigger after last answer ---
+  if (isLastQuestion) {
+    // Collect 5 questions and 5 user answers
+    const questions = updated.questions || [];
+    // Find candidate answers in messages (after each question)
+    const userAnswers: string[] = [];
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      // Find the message after the question with role 'candidate'
+      const qIdx = updated.messages.findIndex(m => m.content === q);
+      if (qIdx !== -1 && qIdx + 1 < updated.messages.length) {
+        const answerMsg = updated.messages[qIdx + 1];
+        if (answerMsg.role === 'candidate') {
+          userAnswers.push(answerMsg.content);
+        } else {
+          userAnswers.push('');
+        }
+      } else {
+        userAnswers.push('');
+      }
     }
+    if (questions.length === 5 && userAnswers.length === 5) {
+      setGradingLoading(true);
+      setGradingResult(null);
+      try {
+        const gradeRes = await fetch('http://localhost:8081/grade_interview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            questions, 
+            answers: userAnswers,
+            interview_id: !isNaN(Number(interview.id)) ? Number(interview.id) : null
+          })
+        });
+        const gradeData = await gradeRes.json();
+        setGradingResult(gradeData);
+        await interviewService.updateGradingResult(Number(interview.id), {gradingResult: gradeData});
+        // Update interview status to completed
+        if (!isNaN(Number(interview.id))) {
+          try {
+            await fetch(`http://localhost:8080/api/v1/interviews/${interview.id}/status`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ status: 'completed' })
+            });
+          } catch (e) {
+            console.error('Failed to update interview status:', e);
+          }
+        }
+      } catch (e) {
+        setGradingResult({ error: 'Failed to grade answers. Please try again.' });
+      } finally {
+        setGradingLoading(false);
+      }
+    }
+  }
+
   };
+
+  // Helper to toggle expanded state for a question
+  const toggleExpand = (idx: number) => {
+    setExpandedIndexes((prev) =>
+      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
+    );
+  };
+
+  // Helper to parse feedback into pros/cons (AI should return feedback in a structured way, but fallback to splitting by lines)
+  const parseFeedback = (feedback: string) => {
+    const pros: string[] = [];
+    const cons: string[] = [];
+    const lines = feedback.split(/\n|\r/).map(l => l.trim()).filter(Boolean);
+    let current: 'pros' | 'cons' | null = null;
+    for (const line of lines) {
+      if (/pros[:]?/i.test(line)) { current = 'pros'; continue; }
+      if (/cons[:]?/i.test(line)) { current = 'cons'; continue; }
+      if (current === 'pros') pros.push(line.replace(/^[-•*]\s*/, ''));
+      else if (current === 'cons') cons.push(line.replace(/^[-•*]\s*/, ''));
+    }
+    // fallback: if no pros/cons detected, put all in pros
+    if (!pros.length && !cons.length) pros.push(...lines);
+    return { pros, cons };
+  };
+
+
+  const shouldShowGrading = interview.status === 'completed' || gradingResult;
 
   return (
     <div className="flex h-full bg-white">
-      <div className={`flex-1 flex flex-col ${showTranscription ? 'pr-80' : ''} items-center justify-center`}>
+      <div className={`flex-1 flex flex-col ${showTranscription ? 'pr-80' : ''} items-center justify-start overflow-y-auto`}>
+        {/* Header and camera */}
         <div className="border-b border-gray-200 p-6 bg-white w-full">
           <div className="flex items-center justify-between">
             <div>
@@ -223,6 +428,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                 <span className="capitalize">{interview.difficulty} level</span>
                 <span>•</span>
                 <span>{interview.languages.join(', ')}</span>
+                {interview.status === 'completed' && (
+                  <>
+                    <span>•</span>
+                    <span className="text-green-600 font-medium">Completed</span>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -232,10 +443,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
               >
                 {showTranscription ? 'Hide' : 'Show'} Transcription
               </button>
-              <div className="flex items-center gap-2 text-green-500">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm">Live</span>
-              </div>
+              {interview.status !== 'completed' && (
+                <div className="flex items-center gap-2 text-green-500">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm">Live</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -256,6 +469,14 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                 <p className="text-gray-500 text-lg mt-4">Camera is off.</p>
               </div>
             )}
+            
+            {/* Timer display in top right corner */}
+            {isTimerRunning && (
+              <div className="absolute top-4 right-4 z-20 bg-black bg-opacity-70 text-white px-3 py-2 rounded-lg font-mono text-lg font-bold">
+                {formatTime(timer)}
+              </div>
+            )}
+            
             {/* Center-bottom camera toggle button */}
             <button
               onClick={() => setCameraOn((prev) => !prev)}
@@ -270,41 +491,109 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
             </button>
           </div>
         </div>
-        <div className="border-t border-gray-200 p-6 bg-white w-full flex flex-col items-center gap-4">
-          <button
-            onClick={handleVoiceTurn}
-            disabled={isRecording || isProcessing}
-            className={`p-6 rounded-full transition-all duration-300 ${
-              isRecording 
-                ? 'bg-red-100 text-red-600 hover:bg-red-200 scale-110' 
-                : isProcessing
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-900 text-white hover:bg-gray-800 hover:scale-105'
-            }`}
-          >
-            {isRecording ? <MicOff size={32} /> : <Mic size={32} />}
-          </button>
-          <div className="text-center">
-            {isRecording && (
-              <div className="flex items-center justify-center text-red-500 text-sm mb-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></div>
-                Listening for your response...
+        {/* Grading or mic area below camera */}
+        <div className="w-full max-w-2xl mx-auto flex flex-col gap-6 py-8">
+          {gradingLoading ? (
+            <div className="flex flex-col items-center justify-center min-h-[180px] w-full bg-white rounded-xl shadow p-8">
+              <Loader2 className="animate-spin text-blue-500 mb-4" size={40} />
+              <div className="text-blue-600 font-medium text-lg">Grading your answers...</div>
+            </div>
+          ) : shouldShowGrading && gradingResult ? (
+            <>
+              {/* Interview Results Card */}
+              <div className="bg-white rounded-xl shadow p-6 mb-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <div className="text-xl font-semibold text-gray-900">Interview Results</div>
+                    <div className="text-gray-500 text-sm mt-1">Total Score</div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <div className="text-2xl font-bold text-gray-900">{gradingResult.scores ? gradingResult.scores.reduce((a: number, b: any) => a + (b.score || 0), 0) : 0}/{gradingResult.scores ? gradingResult.scores.length * 10 : 50}</div>
+                    <div className="text-lg font-semibold text-gray-700">{gradingResult.average_score ? Math.round(gradingResult.average_score) : 0}%</div>
+                    <div className="text-xs font-medium text-gray-500 mt-1">{getScoreLabel(gradingResult.average_score || 0)}</div>
+                  </div>
+                </div>
+                <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-2">
+                  <div className={`${getBarColor(gradingResult.average_score || 0)} h-3 rounded-full`} style={{ width: `${gradingResult.average_score || 0}%` }}></div>
+                </div>
               </div>
-            )}
-            {isProcessing && (
-              <div className="flex items-center justify-center text-blue-500 text-sm mb-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse mr-2"></div>
-                Processing your response...
+              {/* Question Breakdown Card */}
+              <div className="bg-white rounded-xl shadow p-6 mb-2">
+                <div className="text-lg font-semibold text-gray-900 mb-4">Question Breakdown</div>
+                <div className="flex flex-col gap-4">
+                  {gradingResult.scores && gradingResult.scores.map((item: any, idx: number) => {
+                    const percent = Math.round((item.score / 10) * 100);
+                    const isGood = percent >= 75;
+                    return (
+                      <div key={idx} className="border-b last:border-b-0 pb-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          {isGood ? <CheckCircle2 className="text-green-500" size={20} /> : <AlertCircle className="text-yellow-500" size={20} />}
+                          <button
+                            className="font-semibold text-gray-900 text-left flex-1 flex items-center gap-2 focus:outline-none"
+                            onClick={() => toggleExpand(idx)}
+                          >
+                            Question {idx + 1}
+                            {expandedIndexes.includes(idx) ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                          </button>
+                          <div className="font-semibold text-gray-700">{item.score}/10</div>
+                          <div className="text-xs text-gray-500">{percent}%</div>
+                        </div>
+                        <div className="text-gray-700 text-sm mb-2 ml-7">{item.question}</div>
+                        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-2 ml-7">
+                          <div className={`${getBarColor(percent)} h-2 rounded-full`} style={{ width: `${percent}%` }}></div>
+                        </div>
+                        {expandedIndexes.includes(idx) && (
+                          <div className="bg-gray-50 border rounded p-4 mt-2 ml-7">
+                            <div className="text-xs text-gray-500 mb-1">Your Answer:</div>
+                            <div className="text-sm mb-2">{item.answer}</div>
+                            {item.feedback && (() => {
+                              const { pros, cons } = parseFeedback(item.feedback);
+                              return (
+                                <div className="flex gap-8">
+                                  <div>
+                                    <div className="font-semibold text-green-700 mb-1">Pros</div>
+                                    <ul className="list-disc ml-5 text-green-800 text-sm">
+                                      {pros.length ? pros.map((p, i) => <li key={i}>{p}</li>) : <li>None</li>}
+                                    </ul>
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold text-red-700 mb-1">Cons</div>
+                                    <ul className="list-disc ml-5 text-red-800 text-sm">
+                                      {cons.length ? cons.map((c, i) => <li key={i}>{c}</li>) : <li>None</li>}
+                                    </ul>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            )}
-            <p className="text-sm text-gray-600">
-              {isRecording 
-                ? "Speak your answer now..." 
-                : isProcessing 
-                ? "Processing your voice input..." 
-                : "Click the microphone to speak your answer"}
-            </p>
-          </div>
+              {/* Detailed Feedback Card */}
+              {gradingResult.feedback && (
+                <div className="bg-white rounded-xl shadow p-6">
+                  <div className="text-lg font-semibold text-gray-900 mb-3">Detailed Feedback</div>
+                  <ul className="list-disc ml-5 text-gray-800 space-y-2">
+                    {parseFeedback(gradingResult.feedback).pros.map((fb, i) => (
+                      <li key={i}>{fb}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          ) : (
+            // Default mic area (before grading or for active interviews)
+            interview.status !== 'completed' && (
+              <CustomMicRecorder 
+                onAudioRecorded={handleAudioUpload} 
+                onRecordingStart={startTimer}
+                onRecordingStop={stopTimer}
+              />
+            )
+          )}
         </div>
       </div>
 
@@ -321,17 +610,29 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
             {interview.messages.map((message) => (
               <div key={message.id} className="text-sm">
                 <div className="text-gray-400 text-xs mb-1">
-                  {message.timestamp.toLocaleTimeString()}
+                  {message.timestamp.toLocaleString()}
                 </div>
                 <div className={`p-3 rounded-lg text-xs ${
                   message.role === 'candidate'
                     ? 'bg-gray-100 text-gray-800'
-                    : 'bg-gray-50 text-gray-700'
+                    : 'bg-green-50 text-green-800 border border-green-200'
                 }`}>
-                  {message.transcription}
+                  {message.isThinking ? (
+                    <span>
+                      AI is thinking
+                      <span className="thinking-dots-bouncing">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </span>
+                    </span>
+                  ) : (
+                    message.transcription
+                  )}
                 </div>
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         </div>
       )}

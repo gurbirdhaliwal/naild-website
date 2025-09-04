@@ -1,4 +1,3 @@
-import sounddevice as sd
 import numpy as np
 import ollama
 from scipy import signal
@@ -6,10 +5,12 @@ import time
 import queue
 import threading
 import sys
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from faster_whisper import WhisperModel
+import requests
+import json
 
 app = FastAPI()
 
@@ -37,82 +38,26 @@ class VoiceAssistant:
         self.is_recording = False
         self.debug = True
 
-    def audio_callback(self, indata, frames, time_info, status):
-        if status:
-            print(f"Status: {status}")
-        data = indata[:, 0] if self.channels == 1 else indata.mean(axis=1)
-        audio_level = np.abs(data).mean()
-        if audio_level > self.silence_threshold:
-            self.last_sound = time.time()
-            if not self.is_recording:
-                self.is_recording = True
-        if self.is_recording:
-            self.audio_buffer.extend(data.tolist())
-        if self.is_recording and time.time() - self.last_sound > self.silence_duration:
-            self.audio_queue.put(np.array(self.audio_buffer))
-            self.audio_buffer = []
-            self.is_recording = False
-
-    def capture_once(self):
-        try:
-            with sd.InputStream(channels=self.channels,
-                                samplerate=self.sample_rate,
-                                dtype=self.dtype,
-                                blocksize=self.block_size,
-                                callback=self.audio_callback):
-                print("Listening...")
-                timeout = time.time() + 60
-                while self.audio_queue.empty() and time.time() < timeout:
-                    time.sleep(0.1)
-                if not self.audio_queue.empty():
-                    return self.audio_queue.get()
-                else:
-                    raise TimeoutError("No speech detected in time")
-        except Exception as e:
-            raise RuntimeError(f"Audio stream error: {e}")
-
-    def transcribe_and_respond(self):
-        try:
-            audio_data = self.capture_once()
-            audio_data = np.array(audio_data, dtype=self.dtype)
-            audio_data = audio_data / np.max(np.abs(audio_data))
-            # Save audio to a temporary file for faster-whisper
-            import tempfile, os
-            import soundfile as sf
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                sf.write(tmp.name, audio_data, self.sample_rate)
-                tmp_path = tmp.name
-            segments, info = self.whisper_model.transcribe(tmp_path)
-            transcription = "".join([seg.text for seg in segments]).strip()
-            os.remove(tmp_path)
-            response = ollama.chat(
-                model='mistral',
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert technical interviewer that is very thorough. Respond in 1-2 short sentences only."
-                    },
-                    {
-                        "role": "user",
-                        "content": transcription
-                    }
-                ]
-            )
-            ai_response = response['message']['content']
-            return {"user_input": transcription, "ai_response": ai_response}
-        except Exception as e:
-            return {"error": str(e)}
-
-
-
-
 assistant = VoiceAssistant()
 
+# Spring Boot API base URL
+SPRING_API_BASE = "http://localhost:8080/api/v1"
 
-@app.get("/app/interview")
-def interview():
-    result = assistant.transcribe_and_respond()
-    return JSONResponse(content=result)
+@app.post("/transcription")
+async def transcription(audio: UploadFile = File(...)):
+    try:
+        import tempfile, os
+        # Save uploaded audio to a temp file
+        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
+            tmp.write(await audio.read())
+            tmp_path = tmp.name
+        # Transcribe using your existing logic
+        segments, info = assistant.whisper_model.transcribe(tmp_path)
+        transcription = "".join([seg.text for seg in segments]).strip()
+        os.remove(tmp_path)
+        return {"user_input": transcription}
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/warmup")
 def warmup():
@@ -158,7 +103,7 @@ async def generate_questions(request: Request):
     role = data.get("role", "")
     languages = data.get("languages", [])
     difficulty = data.get("difficulty", "")
-    prompt = f"You are an expert technical interviewer. Generate 5 unique interview questions for a {role} position, focusing on the following technologies: {', '.join(languages)}. The questions should be appropriate for a {difficulty} level candidate. Return only the questions as a numbered list."
+    prompt = f"You are an expert technical interviewer. Generate 5 unique interview questions for a {role} position, focusing on the following technologies: {', '.join(languages)}. The questions should be appropriate for a {difficulty} level candidate. The questions should not ask the user to code any functions. Return only the questions as a numbered list."
     response = ollama.chat(
         model='mistral',
         messages=[
@@ -187,24 +132,24 @@ async def interview_ack(request: Request):
         # Generate final acknowledgement and goodbye
         prompt = f"""You are an expert technical interviewer. The candidate just answered the final question.
 
-Current question: {current_question}
-Candidate's answer: {user_answer}
-{context}
+        Current question: {current_question}
+        Candidate's answer: {user_answer}
+        {context}
 
-Generate a brief, professional acknowledgement of their answer (1-2 sentences) and a friendly goodbye message (1 sentence). Return as JSON:
-{{"acknowledgement": "your acknowledgement here", "goodbye": "your goodbye message here"}}"""
+        Generate a brief, professional acknowledgement of their answer (1-2 sentences) and a friendly goodbye message (1 sentence). Return as JSON:
+                {{"acknowledgement": "your acknowledgement here", "goodbye": "your goodbye message here"}}"""
     else:
         # Generate acknowledgement and provide next question
         prompt = f"""You are an expert technical interviewer that is very thorough. The candidate just answered a question.
 
-Current question: {current_question}
-Candidate's answer: {user_answer}
-{context}
-Next question: {next_question}
+        Current question: {current_question}
+        Candidate's answer: {user_answer}
+        {context}
+        Next question: {next_question}
 
-Generate a brief, professional acknowledgement of their answer (1-2 sentences) that references specific details from their response if relevant, or simply acknowledges their answer if it's off-topic. Return as JSON:
-{{"acknowledgement": "your acknowledgement here", "next_question": "{next_question}"}}"""
-    
+        Generate a brief, professional acknowledgement of their answer (1-2 sentences) that references specific details from their response if relevant, or simply acknowledges their answer if it's off-topic. Return as JSON:
+                {{"acknowledgement": "your acknowledgement here", "next_question": "{next_question}"}}"""
+            
     response = ollama.chat(
         model='mistral',
         messages=[
@@ -229,6 +174,73 @@ Generate a brief, professional acknowledgement of their answer (1-2 sentences) t
                 "acknowledgement": "Thank you for your answer.",
                 "next_question": next_question
             }
+
+@app.post("/grade_interview")
+async def grade_interview(request: Request):
+    data = await request.json()
+    questions = data.get("questions", [])
+    answers = data.get("answers", [])
+    interview_id = data.get("interview_id")  # New parameter for interview ID
+    
+    if not questions or not answers or len(questions) != 5 or len(answers) != 5:
+        return {"error": "Must provide exactly 5 questions and 5 answers."}
+
+    grading_prompt = f"""
+You are an expert technical interviewer and grader. You will be given 5 interview questions and 5 candidate answers. For each answer, grade it from 1-100 based on these criteria:
+- Accuracy: Is the answer factually correct and addresses the question? (0 if unrelated)
+- Relevance: Is the answer on-topic and appropriate for the question?
+- Clarity: Is the answer clear, well-explained, and easy to understand?
+
+Short, off-topic, or nonsense answers should be penalized. Every answer must receive a grade, even if it is completely off-topic or nonsense. If an answer is unrelated, set accuracy to 0. Be consistent and robust.
+
+Return a JSON object with:
+- "scores": a list of 5 objects, each with "question", "answer", and "score" (1-100)
+- "average_score": the average of the 5 scores (rounded to 1 decimal)
+- "feedback": a readable summary of strengths, weaknesses, and suggestions for improvement, in plain English.
+
+Questions:
+"""
+    for i, q in enumerate(questions, 1):
+        grading_prompt += f"{i}. {q}\n"
+    grading_prompt += "\nAnswers:\n"
+    for i, a in enumerate(answers, 1):
+        grading_prompt += f"{i}. {a}\n"
+
+    response = ollama.chat(
+        model='mistral',
+        messages=[
+            {"role": "system", "content": "You are a strict, fair, and robust technical interview grader. Always return valid JSON."},
+            {"role": "user", "content": grading_prompt}
+        ]
+    )
+    import json
+    try:
+        result = json.loads(response['message']['content'])
+        
+        # If interview_id is provided, save the grading result to Spring Boot
+        if interview_id:
+            try:
+                grading_update_response = requests.put(
+                    f"{SPRING_API_BASE}/interviews/{interview_id}/grading",
+                    json={"gradingResult": result},
+                    headers={"Content-Type": "application/json"}
+                )
+                if grading_update_response.status_code != 200:
+                    print(f"Warning: Failed to save grading result to database: {grading_update_response.text}")
+            except Exception as e:
+                print(f"Warning: Failed to save grading result to database: {str(e)}")
+        
+        return result
+    except Exception as e:
+        # Fallback: basic structure if parsing fails
+        scores = []
+        for q, a in zip(questions, answers):
+            scores.append({"question": q, "answer": a, "score": 1})
+        return {
+            "scores": scores,
+            "average_score": 1.0,
+            "feedback": "There was an error grading the answers. Please try again."
+        }
 
 if __name__ == "__main__":
     import uvicorn

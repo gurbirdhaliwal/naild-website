@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import InterviewSetup from '../components/InterviewSetup'
 import InterviewChat from '../components/InterviewChat'
@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { MdOutlinePersonPin, MdLogout } from 'react-icons/md'
 import { IoSettingsOutline } from 'react-icons/io5'
+import { interviewService } from '../services/interviewService'
 
 export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
@@ -21,9 +22,50 @@ export default function InterviewPage() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const router = useRouter()
+  const [loadingInterviews, setLoadingInterviews] = useState(false)
 
-  if (!loading && !user) {
-    router.push('/login')
+  // Handle authentication redirect
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login')
+    }
+  }, [loading, user, router])
+
+  // Load saved interviews when user is authenticated
+  useEffect(() => {
+    if (user && !loading) {
+      loadSavedInterviews();
+    }
+  }, [user, loading]);
+
+  const loadSavedInterviews = async () => {
+    try {
+      setLoadingInterviews(true);
+      console.log('Loading saved interviews...');
+      const savedInterviews = await interviewService.getUserInterviews();
+      console.log('Received interviews:', savedInterviews);
+      const convertedInterviews = savedInterviews.map(response => 
+        interviewService.convertToInterview(response)
+      );
+      console.log('Converted interviews:', convertedInterviews);
+      setInterviews(convertedInterviews);
+    } catch (error) {
+      console.error('Failed to load interviews:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
+      // Don't show error to user, just log it - interviews will be empty
+    } finally {
+      setLoadingInterviews(false);
+    }
+  };
+
+  // Don't render anything while loading or if user is not authenticated
+  if (loading || !user) {
     return null
   }
 
@@ -70,6 +112,7 @@ export default function InterviewPage() {
       content: `Welcome to your ${config.role} interview! I'll be asking you ${aiQuestions.length} questions about ${config.languages.join(', ')}. Let's get started!`,
       timestamp: now,
       transcription: `[AI Interviewer]: Welcome to your ${config.role} interview! I'll be asking you ${aiQuestions.length} questions about ${config.languages.join(', ')}. Let's get started!`,
+      isThinking: false,
     };
     const firstQuestionMessage = {
       id: `${Date.now()}-q0`,
@@ -77,40 +120,95 @@ export default function InterviewPage() {
       content: aiQuestions[0] || "Let's start with your first question.",
       timestamp: now,
       transcription: `[AI Interviewer]: ${aiQuestions[0] || "Let's start with your first question."}`,
+      isThinking: false,
     };
     const messages = [introMessage, firstQuestionMessage];
-    const newInterview: Interview = {
-      id: Date.now().toString(),
-      title: `${config.role} Interview`,
-      role: config.role,
-      languages: config.languages,
-      difficulty: config.difficulty,
-      createdAt: now,
-      messages,
-      status: 'active',
-      questions: aiQuestions,
-      currentQuestionIndex: 0,
-    };
-    console.log(aiQuestions);
-    setInterviews((prev) => [newInterview, ...prev]);
-    setCurrentInterview(newInterview);
-    setShowSetup(false);
+    
+    // Create interview in database
+    try {
+      const createRequest = {
+        title: `${config.role} Interview`,
+        role: config.role,
+        languages: config.languages,
+        difficulty: config.difficulty,
+        questions: aiQuestions,
+      };
+      
+      const savedInterview = await interviewService.createInterview(createRequest);
+      const newInterview = interviewService.convertToInterview(savedInterview);
+      newInterview.messages = messages;
+      newInterview.currentQuestionIndex = 0;
+      await interviewService.updateInterviewMessages(Number(newInterview.id), {messages: newInterview.messages});
+
+      setInterviews((prev) => [newInterview, ...prev]);
+      setCurrentInterview(newInterview);
+      setShowSetup(false);
+    } catch (error) {
+      console.error('Failed to create interview:', error);
+      // Fallback to in-memory only - this will work even without backend
+      const newInterview: Interview = {
+        id: Date.now().toString(),
+        title: `${config.role} Interview`,
+        role: config.role,
+        languages: config.languages,
+        difficulty: config.difficulty,
+        createdAt: now,
+        messages,
+        status: 'active',
+        questions: aiQuestions,
+        currentQuestionIndex: 0,
+      };
+      setInterviews((prev) => [newInterview, ...prev]);
+      setCurrentInterview(newInterview);
+      setShowSetup(false);
+    }
   };
 
-  const handleUpdate = (updated: Interview) => {
+  const handleUpdate = async (updated: Interview) => {
     setInterviews((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))
     setCurrentInterview(updated)
+    
+    // Save to database if interview has a numeric ID (from database)
+    if (!isNaN(Number(updated.id))) {
+      try {
+        await interviewService.updateInterviewMessages(Number(updated.id), {
+          messages: updated.messages
+        });
+      } catch (error) {
+        console.error('Failed to save interview messages:', error);
+        // Continue with in-memory updates even if backend fails
+      }
+    }
+  }
+
+  const handleDeleteInterview = async (interviewId: string) => {
+    try {
+      if (!isNaN(Number(interviewId))) {
+        await interviewService.deleteInterview(Number(interviewId));
+      }
+    } catch (error) {
+      console.error('Failed to delete interview from backend:', error);
+      // Continue with local deletion even if backend fails
+    }
+    
+    // Always remove from local state
+    setInterviews((prev) => prev.filter((i) => i.id !== interviewId));
+    if (currentInterview?.id === interviewId) {
+      setCurrentInterview(null);
+    }
   }
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-screen bg-white overflow-hidden font-['Space_Grotesk']">
       <Sidebar
         interviews={interviews}
         currentInterview={currentInterview}
         onStartNew={() => setShowSetup(true)}
         onSelectInterview={setCurrentInterview}
+        onDeleteInterview={handleDeleteInterview}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        loading={loadingInterviews}
       />
 
       <main className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
@@ -173,26 +271,28 @@ export default function InterviewPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="h-full flex items-center justify-center p-8"
+              className="h-full flex items-start justify-center pt-32 p-8"
             >
               <div className="text-center max-w-md">
                 <motion.div 
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
-                  className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center"
+                  className="w-24 h-24 mx-auto mb-2 flex items-center justify-center mt-10"
                 >
-                  <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
+                  <img
+                    src="/naild_logo.png"
+                    alt="Naild Logo"
+                    className="w-20 h-20 object-contain"
+                  />
                 </motion.div>
                 <motion.h3 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 0 }}
+                  animate={{ opacity: 1, y: -10 }}
                   transition={{ duration: 0.5, delay: 0.3 }}
-                  className="text-xl font-semibold text-gray-900 mb-2"
+                  className="text-3xl text-gray-900 mb-2 font-['Space_Grotesk'] mt-4"
                 >
-                  Start Your First Interview
+                  Hey {user?.firstname || 'there'}, let's jump into some interviews!
                 </motion.h3>
                 <motion.p 
                   initial={{ opacity: 0, y: 10 }}
@@ -200,7 +300,7 @@ export default function InterviewPage() {
                   transition={{ duration: 0.5, delay: 0.4 }}
                   className="text-gray-600 mb-6"
                 >
-                  Ready to practice your interview skills? Create your first mock interview and get started with AI-powered feedback.
+                  
                 </motion.p>
                 <motion.button
                   initial={{ opacity: 0, y: 10 }}
@@ -209,20 +309,13 @@ export default function InterviewPage() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowSetup(true)}
-                  className="inline-flex items-center px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg transition-colors"
+                  className="inline-flex items-center px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg transition-colors mt-1"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
                   Create Your First Interview
                 </motion.button>
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.6 }}
-                  className="mt-6 text-sm text-gray-500"
-                >                
-                </motion.div>
               </div>
             </motion.div>
           ) : (
