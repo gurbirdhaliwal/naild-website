@@ -71,6 +71,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
     setIsProcessing(true);
     
     try {
+      console.log('🎤 Starting voice processing...');
       // Call the Python backend API for voice processing
       const response = await fetch('http://localhost:8081/app/interview', {
         method: 'GET',
@@ -79,13 +80,18 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         },
       });
 
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+
       if (!response.ok) {
         throw new Error('Failed to process voice input');
       }
 
       const result = await response.json();
+      console.log('📡 API result:', result);
       
       if (result.error) {
+        console.error('❌ API returned error:', result.error);
         throw new Error(result.error);
       }
 

@@ -29,7 +29,7 @@ class VoiceAssistant:
         self.channels = 1
         self.dtype = np.float32
         self.block_size = 2048
-        self.silence_threshold = 0.005
+        self.silence_threshold = 0.001
         self.silence_duration = 2
         self.last_sound = time.time()
         self.audio_buffer = []
