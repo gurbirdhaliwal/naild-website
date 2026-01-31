@@ -172,26 +172,32 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
     // Stop the timer when audio processing starts
     stopTimer();
     
-    const formData = new FormData();
-    formData.append("audio", audioBlob, "recording.webm");
-    const response = await fetch("http://localhost:8081/transcription", {
-      method: "POST",
-      body: formData,
-    });
+    setIsRecording(true);
+    setIsProcessing(true);
+    
+    try {
+      console.log('🎤 Starting voice processing...');
+      // Call the Python backend API for voice processing
+      const response = await fetch('http://localhost:8081/app/interview', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+
+      if (!response.ok) {
+        throw new Error('Failed to process voice input');
+      }
+
       const result = await response.json();
+      console.log('📡 API result:', result);
+      
       if (result.error) {
-      // Add error message to chat
-      const errorMessage: Message = {
-        id: Date.now().toString(),
-        role: 'interviewer',
-        content: "I'm sorry, I couldn't process your voice input. Please try again by clicking the microphone.",
-        timestamp: new Date(),
-        transcription: `[AI Interviewer]: I'm sorry, I couldn't process your voice input. Please try again by clicking the microphone.`,
-        isThinking: false
-      };
-      const updated = { ...interview, messages: [...interview.messages, errorMessage] };
-      onUpdateInterview(updated);
-      return;
+        console.error('❌ API returned error:', result.error);
+        throw new Error(result.error);
       }
 
       const currentMessages = [...interview.messages];

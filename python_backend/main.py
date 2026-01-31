@@ -27,6 +27,16 @@ app.add_middleware(
 class VoiceAssistant:
     def __init__(self):
         self.whisper_model = WhisperModel("tiny", device="auto")
+        self.sample_rate = 16000
+        self.channels = 1
+        self.dtype = np.float32
+        self.block_size = 2048
+        self.silence_threshold = 0.001
+        self.silence_duration = 2
+        self.last_sound = time.time()
+        self.audio_buffer = []
+        self.audio_queue = queue.Queue()
+        self.is_recording = False
         self.debug = True
 
 assistant = VoiceAssistant()
