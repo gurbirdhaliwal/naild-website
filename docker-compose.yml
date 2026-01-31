@@ -1,0 +1,10 @@
+services:
+  python_backend:
+    build:
+      context: .
+      dockerfile: python_backend/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      SPRING_API_BASE: ${SPRING_API_BASE:-http://host.docker.internal:8080/api/v1}

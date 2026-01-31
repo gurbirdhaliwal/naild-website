@@ -5,6 +5,7 @@ import time
 import queue
 import threading
 import sys
+import os
 from fastapi import FastAPI, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -30,8 +31,11 @@ class VoiceAssistant:
 
 assistant = VoiceAssistant()
 
-# Spring Boot API base URL
-SPRING_API_BASE = "http://localhost:8080/api/v1"
+# Configurable service endpoints
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+SPRING_API_BASE = os.getenv("SPRING_API_BASE", "http://localhost:8080/api/v1")
+
+ollama_client = ollama.Client(host=OLLAMA_HOST)
 
 @app.post("/transcription")
 async def transcription(audio: UploadFile = File(...)):
@@ -73,7 +77,7 @@ def warmup():
         timings['whisper'] = time.time() - t1
         # Warm up Ollama
         t2 = time.time()
-        response = ollama.chat(
+        response = ollama_client.chat(
             model='mistral',
             messages=[
                 {"role": "system", "content": "You are a mock interview assistant."},
@@ -94,7 +98,7 @@ async def generate_questions(request: Request):
     languages = data.get("languages", [])
     difficulty = data.get("difficulty", "")
     prompt = f"You are an expert technical interviewer. Generate 5 unique interview questions for a {role} position, focusing on the following technologies: {', '.join(languages)}. The questions should be appropriate for a {difficulty} level candidate. The questions should not ask the user to code any functions. Return only the questions as a numbered list."
-    response = ollama.chat(
+    response = ollama_client.chat(
         model='mistral',
         messages=[
             {"role": "system", "content": "You are an expert technical interviewer that generates interview questions."},
@@ -140,7 +144,7 @@ async def interview_ack(request: Request):
         Generate a brief, professional acknowledgement of their answer (1-2 sentences) that references specific details from their response if relevant, or simply acknowledges their answer if it's off-topic. Return as JSON:
                 {{"acknowledgement": "your acknowledgement here", "next_question": "{next_question}"}}"""
             
-    response = ollama.chat(
+    response = ollama_client.chat(
         model='mistral',
         messages=[
             {"role": "system", "content": "You are a helpful AI that generates interview responses. Always return valid JSON."},
@@ -196,7 +200,7 @@ Questions:
     for i, a in enumerate(answers, 1):
         grading_prompt += f"{i}. {a}\n"
 
-    response = ollama.chat(
+    response = ollama_client.chat(
         model='mistral',
         messages=[
             {"role": "system", "content": "You are a strict, fair, and robust technical interview grader. Always return valid JSON."},
