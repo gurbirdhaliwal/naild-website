@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { API_BASE } from '../services/api';
 
 export default function Settings() {
   const [formData, setFormData] = useState({
@@ -17,7 +18,7 @@ export default function Settings() {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/v1/user/me', {
+    fetch(`${API_BASE}/user/me`, {
       credentials: "include"
     })
       .then((res) => res.json())
@@ -42,7 +43,7 @@ export default function Settings() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8080/api/v1/user/update', {
+      const response = await fetch(`${API_BASE}/user/update`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -67,7 +68,7 @@ export default function Settings() {
   const handleDelete = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8080/api/v1/user/delete', {
+      const response = await fetch(`${API_BASE}/user/delete`, {
         method: 'DELETE',
         credentials: "include"
       });

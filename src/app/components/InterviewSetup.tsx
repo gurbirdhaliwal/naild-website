@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { InterviewConfig } from '../types/Interview';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AI_BASE } from '../services/api';
 
 interface InterviewSetupProps {
   onCreateInterview: (config: InterviewConfig) => void;
@@ -77,7 +78,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
       setLoading(true);
       setLoadingMsg('Warming up AI, please wait...');
       try {
-        const res = await fetch('http://localhost:8081/warmup');
+        const res = await fetch(`${AI_BASE}/warmup`);
         const data = await res.json();
         if (data.status === 'ready') {
           setLoadingMsg('AI is ready! Creating your interview...');

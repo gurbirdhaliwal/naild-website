@@ -1,6 +1,5 @@
 import { Interview, Message } from '../types/Interview';
-
-const API_BASE = 'http://localhost:8080/api/v1';
+import { API_BASE } from './api';
 
 export interface InterviewResponse {
   id: number;

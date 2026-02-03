@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { MdOutlinePersonPin, MdLogout } from 'react-icons/md'
 import { IoSettingsOutline } from 'react-icons/io5'
 import { interviewService } from '../services/interviewService'
+import { API_BASE, AI_BASE } from '../services/api'
 
 export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
@@ -71,7 +72,7 @@ export default function InterviewPage() {
 
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:8080/api/v1/auth/logout', {
+      await fetch(`${API_BASE}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       })
@@ -86,7 +87,7 @@ export default function InterviewPage() {
     // Fetch AI-generated questions
     let aiQuestions: string[] = [];
     try {
-      const res = await fetch('http://localhost:8081/generate_questions', {
+      const res = await fetch(`${AI_BASE}/generate_questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

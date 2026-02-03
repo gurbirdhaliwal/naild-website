@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '../types/Users';
+import { API_BASE } from '../services/api';
  
 interface AuthContextType {
   user: User | null;
@@ -18,7 +19,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/v1/user/me', {
+    fetch(`${API_BASE}/user/me`, {
       credentials: 'include',
     })
       .then(res => res.ok ? res.json() : null)

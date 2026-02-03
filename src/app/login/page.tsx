@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { FaGoogle, FaLinkedin, FaGithub } from "react-icons/fa";
+import { API_BASE, API_ORIGIN } from '../services/api';
 
 export default function Login() {
   const router = useRouter();
@@ -26,7 +27,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8080/api/v1/auth/authenticate', {
+      const response = await fetch(`${API_BASE}/auth/authenticate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -108,7 +109,7 @@ export default function Login() {
 
         <div className="space-y-3">
           <a
-            href="http://localhost:8080/oauth2/authorization/google"
+            href={`${API_ORIGIN}/oauth2/authorization/google`}
             className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-md py-2 text-sm font-medium bg-white hover:bg-gray-50"
           >
             <FaGoogle />

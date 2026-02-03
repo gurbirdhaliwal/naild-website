@@ -3,6 +3,7 @@ import { Mic, MicOff, Volume2, Camera, CameraOff, Loader2, ChevronDown, ChevronU
 import { Interview, Message } from '../types/Interview';
 import CustomMicRecorder from "./CustomMicRecorder";
 import { interviewService } from '../services/interviewService';
+import { API_BASE, AI_BASE } from '../services/api';
 
 interface InterviewChatProps {
   interview: Interview;
@@ -177,12 +178,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
     
     try {
       console.log('🎤 Starting voice processing...');
-      // Call the Python backend API for voice processing
-      const response = await fetch('http://localhost:8081/app/interview', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      // Send recorded audio to the Python backend for transcription
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
+      const response = await fetch(`${AI_BASE}/transcription`, {
+        method: 'POST',
+        body: formData,
       });
 
       console.log('📡 Response status:', response.status);
@@ -258,7 +259,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
       }
 
       // Call the interview acknowledgement endpoint
-      const ackResponse = await fetch('http://localhost:8081/interview_ack', {
+      const ackResponse = await fetch(`${AI_BASE}/interview_ack`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -319,7 +320,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
       };
       onUpdateInterview(updated);
       try {
-        await fetch(`http://localhost:8080/api/v1/interviews/${interview.id}/current_question_index`, {
+        await fetch(`${API_BASE}/interviews/${interview.id}/current_question_index`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -354,7 +355,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
       setGradingLoading(true);
       setGradingResult(null);
       try {
-        const gradeRes = await fetch('http://localhost:8081/grade_interview', {
+        const gradeRes = await fetch(`${AI_BASE}/grade_interview`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -369,7 +370,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         // Update interview status to completed
         if (!isNaN(Number(interview.id))) {
           try {
-            await fetch(`http://localhost:8080/api/v1/interviews/${interview.id}/status`, {
+            await fetch(`${API_BASE}/interviews/${interview.id}/status`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
@@ -387,6 +388,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
     }
   }
 
+    } catch (error) {
+      console.error('Failed to process voice input:', error);
+    } finally {
+      setIsProcessing(false);
+      setIsRecording(false);
+    }
   };
 
   // Helper to toggle expanded state for a question

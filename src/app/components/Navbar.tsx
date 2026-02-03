@@ -7,6 +7,7 @@ import { VscAccount } from "react-icons/vsc";
 import { MdOutlinePersonPin, MdLogout } from "react-icons/md";
 import { IoSettingsOutline } from "react-icons/io5";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE } from "../services/api";
 
 export default function Navbar() {
   const { user, loading, setUser } = useAuth();
@@ -29,7 +30,7 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:8080/api/v1/auth/logout", {
+      await fetch(`${API_BASE}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

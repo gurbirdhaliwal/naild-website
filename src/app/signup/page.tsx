@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { FaGoogle, FaLinkedin, FaGithub, FaArrowLeft } from 'react-icons/fa';
+import { API_BASE, API_ORIGIN } from '../services/api';
 
 export default function Signup() {
   const router = useRouter();
@@ -50,7 +51,7 @@ export default function Signup() {
     }
 
     try {
-      const response = await fetch('http://localhost:8080/api/v1/auth/register', {
+      const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -212,7 +213,7 @@ export default function Signup() {
         {/* SOCIAL SIGNUP */}
         <div className="space-y-3">
           <a
-            href="http://localhost:8080/oauth2/authorization/google"
+            href={`${API_ORIGIN}/oauth2/authorization/google`}
             className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-md py-2 text-sm font-medium bg-white hover:bg-gray-50"
           >
             <FaGoogle />
