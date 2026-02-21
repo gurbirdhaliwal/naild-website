@@ -13,12 +13,27 @@ from faster_whisper import WhisperModel
 import requests
 import json
 
+
+def _load_cors_origins():
+    raw_origins = os.getenv("CORS_ALLOW_ORIGINS")
+    if not raw_origins:
+        # Safe local defaults for development.
+        return ["http://localhost:3000", "http://127.0.0.1:3000"]
+
+    origins = [origin.strip().rstrip("/") for origin in raw_origins.split(",") if origin.strip()]
+    if "*" in origins:
+        raise ValueError("CORS_ALLOW_ORIGINS cannot include '*' when allow_credentials=True.")
+    return origins
+
+
+ALLOWED_CORS_ORIGINS = _load_cors_origins()
+
 app = FastAPI()
 
 # Allow requests from frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
