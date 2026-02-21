@@ -6,7 +6,7 @@ import queue
 import threading
 import sys
 import os
-from fastapi import FastAPI, Request, File, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from faster_whisper import WhisperModel
@@ -59,11 +59,56 @@ assistant = VoiceAssistant()
 # Configurable service endpoints
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 SPRING_API_BASE = os.getenv("SPRING_API_BASE", "http://localhost:8080/api/v1")
+AUTH_CHECK_TIMEOUT_SECONDS = float(os.getenv("AUTH_CHECK_TIMEOUT_SECONDS", "5"))
 
 ollama_client = ollama.Client(host=OLLAMA_HOST)
 
+def require_authenticated_user(request: Request):
+    auth_header = request.headers.get("authorization")
+    token_cookie = request.cookies.get("token")
+
+    if not auth_header and not token_cookie:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required.",
+        )
+
+    headers = {}
+    cookies = {}
+    if auth_header:
+        headers["Authorization"] = auth_header
+    if token_cookie:
+        cookies["token"] = token_cookie
+
+    try:
+        auth_response = requests.get(
+            f"{SPRING_API_BASE}/user/me",
+            headers=headers,
+            cookies=cookies,
+            timeout=AUTH_CHECK_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service unavailable.",
+        )
+
+    if auth_response.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized.",
+        )
+
+    try:
+        return auth_response.json()
+    except ValueError:
+        return {"authenticated": True}
+
 @app.post("/transcription")
-async def transcription(audio: UploadFile = File(...)):
+async def transcription(
+    audio: UploadFile = File(...),
+    _: dict = Depends(require_authenticated_user),
+):
     try:
         import tempfile, os
         # Save uploaded audio to a temp file
@@ -117,7 +162,10 @@ def warmup():
         return {"status": "error", "error": str(e)}
 
 @app.post("/generate_questions")
-async def generate_questions(request: Request):
+async def generate_questions(
+    request: Request,
+    _: dict = Depends(require_authenticated_user),
+):
     data = await request.json()
     role = data.get("role", "")
     languages = data.get("languages", [])
@@ -134,7 +182,10 @@ async def generate_questions(request: Request):
     return {"questions": questions}
 
 @app.post("/interview_ack")
-async def interview_ack(request: Request):
+async def interview_ack(
+    request: Request,
+    _: dict = Depends(require_authenticated_user),
+):
     data = await request.json()
     current_question = data.get("current_question", "")
     user_answer = data.get("user_answer", "")
@@ -195,7 +246,10 @@ async def interview_ack(request: Request):
             }
 
 @app.post("/grade_interview")
-async def grade_interview(request: Request):
+async def grade_interview(
+    request: Request,
+    _: dict = Depends(require_authenticated_user),
+):
     data = await request.json()
     questions = data.get("questions", [])
     answers = data.get("answers", [])

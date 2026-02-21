@@ -183,6 +183,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
       formData.append('audio', audioBlob, 'recording.webm');
       const response = await fetch(`${AI_BASE}/transcription`, {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
 
@@ -264,6 +265,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           current_question: currentQuestion,
           user_answer: result.user_input,
@@ -358,6 +360,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         const gradeRes = await fetch(`${AI_BASE}/grade_interview`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ 
             questions, 
             answers: userAnswers,

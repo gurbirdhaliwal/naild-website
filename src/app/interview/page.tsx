@@ -90,6 +90,7 @@ export default function InterviewPage() {
       const res = await fetch(`${AI_BASE}/generate_questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           role: config.role,
           languages: config.languages,
