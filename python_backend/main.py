@@ -6,10 +6,12 @@ import queue
 import threading
 import sys
 import os
+import logging
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from faster_whisper import WhisperModel
+from faster_whisper.audio import decode_audio
 import requests
 import json
 
@@ -60,6 +62,22 @@ assistant = VoiceAssistant()
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 SPRING_API_BASE = os.getenv("SPRING_API_BASE", "http://localhost:8080/api/v1")
 AUTH_CHECK_TIMEOUT_SECONDS = float(os.getenv("AUTH_CHECK_TIMEOUT_SECONDS", "5"))
+MAX_AUDIO_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_AUDIO_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)))
+MAX_AUDIO_DURATION_SECONDS = float(os.getenv("MAX_AUDIO_DURATION_SECONDS", "300"))
+AUDIO_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024
+ALLOWED_AUDIO_CONTENT_TYPES = {
+    "audio/webm",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/mp4",
+    "audio/x-m4a",
+    "audio/ogg",
+    "audio/flac",
+}
+ALLOWED_AUDIO_EXTENSIONS = {".webm", ".wav", ".mp3", ".m4a", ".mp4", ".ogg", ".flac"}
+logger = logging.getLogger(__name__)
 
 ollama_client = ollama.Client(host=OLLAMA_HOST)
 
@@ -109,19 +127,77 @@ async def transcription(
     audio: UploadFile = File(...),
     _: dict = Depends(require_authenticated_user),
 ):
+    import tempfile
+    from pathlib import Path
+
+    tmp_path = None
     try:
-        import tempfile, os
-        # Save uploaded audio to a temp file
-        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
-            tmp.write(await audio.read())
+        content_type = (audio.content_type or "").split(";")[0].strip().lower()
+        if content_type not in ALLOWED_AUDIO_CONTENT_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Unsupported audio type.",
+            )
+
+        file_extension = Path(audio.filename or "").suffix.lower()
+        if file_extension and file_extension not in ALLOWED_AUDIO_EXTENSIONS:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Unsupported audio file extension.",
+            )
+
+        total_size = 0
+        with tempfile.NamedTemporaryFile(suffix=file_extension or ".webm", delete=False) as tmp:
             tmp_path = tmp.name
-        # Transcribe using your existing logic
+            while True:
+                chunk = await audio.read(AUDIO_UPLOAD_CHUNK_SIZE_BYTES)
+                if not chunk:
+                    break
+                total_size += len(chunk)
+                if total_size > MAX_AUDIO_UPLOAD_SIZE_BYTES:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail=f"Audio file exceeds the {MAX_AUDIO_UPLOAD_SIZE_BYTES} byte limit.",
+                    )
+                tmp.write(chunk)
+
+        if total_size == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Uploaded audio file is empty.",
+            )
+
+        try:
+            decoded_audio = decode_audio(tmp_path, sampling_rate=assistant.sample_rate)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Unable to decode uploaded audio. Ensure the file is valid.",
+            )
+
+        duration_seconds = len(decoded_audio) / assistant.sample_rate
+        if duration_seconds > MAX_AUDIO_DURATION_SECONDS:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"Audio duration exceeds the {MAX_AUDIO_DURATION_SECONDS:.0f} second limit.",
+            )
+
         segments, info = assistant.whisper_model.transcribe(tmp_path)
         transcription = "".join([seg.text for seg in segments]).strip()
-        os.remove(tmp_path)
+
         return {"user_input": transcription}
-    except Exception as e:
-        return {"error": str(e)}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unexpected error while processing transcription request.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to process transcription request.",
+        )
+    finally:
+        await audio.close()
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 @app.get("/warmup")
 def warmup():
@@ -158,8 +234,9 @@ def warmup():
         timings['ollama'] = time.time() - t2
         timings['total'] = time.time() - t0
         return {"status": "ready", "timings": timings}
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
+    except Exception:
+        logger.exception("Warmup failed.")
+        return {"status": "error", "error": "Warmup failed."}
 
 @app.post("/generate_questions")
 async def generate_questions(
