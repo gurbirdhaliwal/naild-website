@@ -4,6 +4,7 @@ import { Interview, Message } from '../types/Interview';
 import CustomMicRecorder from "./CustomMicRecorder";
 import { interviewService } from '../services/interviewService';
 import { API_BASE, AI_BASE } from '../services/api';
+import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 
 interface InterviewChatProps {
   interview: Interview;
@@ -322,9 +323,13 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
       };
       onUpdateInterview(updated);
       try {
+        const csrfToken = await getCsrfToken();
         await fetch(`${API_BASE}/interviews/${interview.id}/current_question_index`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            [CSRF_HEADER_NAME]: csrfToken,
+          },
           credentials: 'include',
           body: JSON.stringify({ currentQuestionIndex: updated.currentQuestionIndex })
         });
@@ -373,9 +378,13 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         // Update interview status to completed
         if (!isNaN(Number(interview.id))) {
           try {
+            const csrfToken = await getCsrfToken();
             await fetch(`${API_BASE}/interviews/${interview.id}/status`, {
               method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                [CSRF_HEADER_NAME]: csrfToken,
+              },
               credentials: 'include',
               body: JSON.stringify({ status: 'completed' })
             });

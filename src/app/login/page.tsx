@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { FaGoogle, FaLinkedin, FaGithub } from "react-icons/fa";
 import { API_BASE, API_ORIGIN } from '../services/api';
+import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { getSafeRedirectPath } from '../services/safeRedirect';
 
 export default function Login() {
@@ -27,9 +28,13 @@ export default function Login() {
     setLoading(true);
 
     try {
+      const csrfToken = await getCsrfToken();
       const response = await fetch(`${API_BASE}/auth/authenticate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          [CSRF_HEADER_NAME]: csrfToken,
+        },
         credentials: 'include',
         body: JSON.stringify(formData),
       });

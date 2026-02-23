@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { FaGoogle, FaLinkedin, FaGithub, FaArrowLeft } from 'react-icons/fa';
 import { API_BASE, API_ORIGIN } from '../services/api';
+import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { getSafeRedirectPath } from '../services/safeRedirect';
 
 export default function Signup() {
@@ -51,9 +52,13 @@ export default function Signup() {
     }
 
     try {
+      const csrfToken = await getCsrfToken();
       const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          [CSRF_HEADER_NAME]: csrfToken,
+        },
         credentials: 'include',
         body: JSON.stringify({
           firstname: formData.firstName,

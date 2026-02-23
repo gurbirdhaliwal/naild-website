@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { API_BASE } from '../services/api';
+import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 
 export default function Settings() {
   const [formData, setFormData] = useState({
@@ -18,6 +19,10 @@ export default function Settings() {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   useEffect(() => {
+    getCsrfToken().catch((err) => {
+      console.error('Failed to initialize CSRF token:', err);
+    });
+
     fetch(`${API_BASE}/user/me`, {
       credentials: "include"
     })
@@ -43,10 +48,12 @@ export default function Settings() {
     setLoading(true);
 
     try {
+      const csrfToken = await getCsrfToken();
       const response = await fetch(`${API_BASE}/user/update`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          [CSRF_HEADER_NAME]: csrfToken,
         },
         credentials: "include",
         body: JSON.stringify(formData),
@@ -68,9 +75,13 @@ export default function Settings() {
   const handleDelete = async () => {
     setLoading(true);
     try {
+      const csrfToken = await getCsrfToken();
       const response = await fetch(`${API_BASE}/user/delete`, {
         method: 'DELETE',
-        credentials: "include"
+        headers: {
+          [CSRF_HEADER_NAME]: csrfToken,
+        },
+        credentials: "include",
       });
 
       if (response.ok) {

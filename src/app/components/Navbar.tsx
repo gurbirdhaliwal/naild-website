@@ -8,6 +8,7 @@ import { MdOutlinePersonPin, MdLogout } from "react-icons/md";
 import { IoSettingsOutline } from "react-icons/io5";
 import { useAuth } from "../context/AuthContext";
 import { API_BASE } from "../services/api";
+import { CSRF_HEADER_NAME, getCsrfToken } from "../services/csrf";
 
 export default function Navbar() {
   const { user, loading, setUser } = useAuth();
@@ -30,8 +31,12 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
+      const csrfToken = await getCsrfToken();
       await fetch(`${API_BASE}/auth/logout`, {
         method: "POST",
+        headers: {
+          [CSRF_HEADER_NAME]: csrfToken,
+        },
         credentials: "include",
       });
       setUser(null);

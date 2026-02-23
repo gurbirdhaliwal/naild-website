@@ -1,5 +1,6 @@
 import { Interview, Message } from '../types/Interview';
 import { API_BASE } from './api';
+import { CSRF_HEADER_NAME, getCsrfToken } from './csrf';
 
 export interface InterviewResponse {
   id: number;
@@ -38,14 +39,19 @@ class InterviewService {
     try {
       console.log(`Making request to: ${API_BASE}${endpoint}`);
       console.log(`Request options:`, options);
+
+      const method = (options.method ?? 'GET').toUpperCase();
+      const requiresCsrf = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method);
+      const headers = new Headers(options.headers);
+      headers.set('Content-Type', 'application/json');
+      if (requiresCsrf) {
+        headers.set(CSRF_HEADER_NAME, await getCsrfToken());
+      }
       
       const response = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
+        headers,
       });
 
       console.log(`Response status: ${response.status}`);

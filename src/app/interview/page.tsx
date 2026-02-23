@@ -13,6 +13,7 @@ import { MdOutlinePersonPin, MdLogout } from 'react-icons/md'
 import { IoSettingsOutline } from 'react-icons/io5'
 import { interviewService } from '../services/interviewService'
 import { API_BASE, AI_BASE } from '../services/api'
+import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
 
 export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
@@ -72,8 +73,12 @@ export default function InterviewPage() {
 
   const handleLogout = async () => {
     try {
+      const csrfToken = await getCsrfToken()
       await fetch(`${API_BASE}/auth/logout`, {
         method: 'POST',
+        headers: {
+          [CSRF_HEADER_NAME]: csrfToken,
+        },
         credentials: 'include',
       })
       setUser(null)
