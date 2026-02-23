@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { FaGoogle, FaLinkedin, FaGithub, FaArrowLeft } from 'react-icons/fa';
 import { API_BASE, API_ORIGIN } from '../services/api';
+import { getSafeRedirectPath } from '../services/safeRedirect';
 
 export default function Signup() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectPath = searchParams.get('redirect');
+  const redirectPath = getSafeRedirectPath(searchParams.get('redirect'));
 
   const [step, setStep] = useState<'email' | 'details'>('email');
   const [formData, setFormData] = useState({
@@ -69,13 +69,13 @@ export default function Signup() {
       });
 
       if (response.ok) {
-        window.location.href = redirectPath || '/';
+        window.location.href = redirectPath;
       } else {
         setError(data.error || 'Signup failed. Try again.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ Signup error:', err);
-      setError(err.message || 'Server error. Please try again.');
+      setError(err instanceof Error ? err.message : 'Server error. Please try again.');
     } finally {
       setLoading(false);
     }

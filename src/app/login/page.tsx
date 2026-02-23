@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { FaGoogle, FaLinkedin, FaGithub } from "react-icons/fa";
 import { API_BASE, API_ORIGIN } from '../services/api';
+import { getSafeRedirectPath } from '../services/safeRedirect';
 
 export default function Login() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectPath = searchParams.get('redirect');
+  const redirectPath = getSafeRedirectPath(searchParams.get('redirect'));
 
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
@@ -34,12 +34,12 @@ export default function Login() {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json().catch(err => {
+      await response.json().catch(err => {
         throw err;
       });
 
       if (response.ok) {
-        window.location.href = redirectPath || '/';
+        window.location.href = redirectPath;
       } else {
         setError('Login failed. Check your credentials.');
       }
@@ -137,7 +137,7 @@ export default function Login() {
         <div className="mt-6 text-center text-sm text-gray-600">
           Don’t have an account?{' '}
           <Link
-            href={`/signup?redirect=${redirectPath || '/'}`}
+            href={`/signup?redirect=${encodeURIComponent(redirectPath)}`}
             className="text-green-600 font-medium hover:text-green-500"
           >
             Sign up
