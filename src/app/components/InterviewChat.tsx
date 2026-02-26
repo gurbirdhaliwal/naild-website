@@ -527,13 +527,13 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                     <div className="text-gray-500 text-sm mt-1">Total Score</div>
                   </div>
                   <div className="flex flex-col items-end">
-                    <div className="text-2xl font-bold text-gray-900">{gradingResult.scores ? gradingResult.scores.reduce((a: number, b: any) => a + (b.score || 0), 0) : 0}/{gradingResult.scores ? gradingResult.scores.length * 10 : 50}</div>
+                    <div className="text-2xl font-bold text-gray-900">{gradingResult.scores ? gradingResult.scores.reduce((a: number, b: any) => a + (Number(b.score) || 0), 0) : 0}/{gradingResult.scores ? gradingResult.scores.length * 100 : 500}</div>
                     <div className="text-lg font-semibold text-gray-700">{gradingResult.average_score ? Math.round(gradingResult.average_score) : 0}%</div>
-                    <div className="text-xs font-medium text-gray-500 mt-1">{getScoreLabel(gradingResult.average_score || 0)}</div>
+                    <div className="text-xs font-medium text-gray-500 mt-1">{getScoreLabel(Number(gradingResult.average_score) || 0)}</div>
                   </div>
                 </div>
                 <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-2">
-                  <div className={`${getBarColor(gradingResult.average_score || 0)} h-3 rounded-full`} style={{ width: `${gradingResult.average_score || 0}%` }}></div>
+                  <div className={`${getBarColor(Number(gradingResult.average_score) || 0)} h-3 rounded-full`} style={{ width: `${Math.min(100, Math.max(0, Number(gradingResult.average_score) || 0))}%` }}></div>
                 </div>
               </div>
               {/* Question Breakdown Card */}
@@ -541,7 +541,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                 <div className="text-lg font-semibold text-gray-900 mb-4">Question Breakdown</div>
                 <div className="flex flex-col gap-4">
                   {gradingResult.scores && gradingResult.scores.map((item: any, idx: number) => {
-                    const percent = Math.round((item.score / 10) * 100);
+                    const score = Number(item.score) || 0;
+                    const percent = Math.round(Math.min(100, Math.max(0, score)));
                     const isGood = percent >= 75;
                     return (
                       <div key={idx} className="border-b last:border-b-0 pb-4">
@@ -554,7 +555,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                             Question {idx + 1}
                             {expandedIndexes.includes(idx) ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                           </button>
-                          <div className="font-semibold text-gray-700">{item.score}/10</div>
+                          <div className="font-semibold text-gray-700">{score}/100</div>
                           <div className="text-xs text-gray-500">{percent}%</div>
                         </div>
                         <div className="text-gray-700 text-sm mb-2 ml-7">{item.question}</div>
