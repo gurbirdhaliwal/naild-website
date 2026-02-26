@@ -336,7 +336,7 @@ async def grade_interview(
         return {"error": "Must provide exactly 5 questions and 5 answers."}
 
     grading_prompt = f"""
-You are an expert technical interviewer and grader. You will be given 5 interview questions and 5 candidate answers. For each answer, grade it from 1-100 based on these criteria:
+You are an expert technical interviewer and grader. You will be given 5 interview questions and 5 candidate answers. For each answer, grade it from 0-100 based on these criteria:
 - Accuracy: Is the answer factually correct and addresses the question? (0 if unrelated)
 - Relevance: Is the answer on-topic and appropriate for the question?
 - Clarity: Is the answer clear, well-explained, and easy to understand?
@@ -344,7 +344,7 @@ You are an expert technical interviewer and grader. You will be given 5 intervie
 Short, off-topic, or nonsense answers should be penalized. Every answer must receive a grade, even if it is completely off-topic or nonsense. If an answer is unrelated, set accuracy to 0. Be consistent and robust.
 
 Return a JSON object with:
-- "scores": a list of 5 objects, each with "question", "answer", and "score" (1-100)
+- "scores": a list of 5 objects, each with "question", "answer", and "score" (0-100)
 - "average_score": the average of the 5 scores (rounded to 1 decimal)
 - "feedback": a readable summary of strengths, weaknesses, and suggestions for improvement, in plain English.
 
@@ -385,10 +385,10 @@ Questions:
         # Fallback: basic structure if parsing fails
         scores = []
         for q, a in zip(questions, answers):
-            scores.append({"question": q, "answer": a, "score": 1})
+            scores.append({"question": q, "answer": a, "score": 0})
         return {
             "scores": scores,
-            "average_score": 1.0,
+            "average_score": 0.0,
             "feedback": "There was an error grading the answers. Please try again."
         }
 
