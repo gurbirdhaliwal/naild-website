@@ -37,8 +37,11 @@ export interface UpdateGradingRequest {
 class InterviewService {
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
     try {
-      console.log(`Making request to: ${API_BASE}${endpoint}`);
-      console.log(`Request options:`, options);
+      const isDebugLoggingEnabled = process.env.NODE_ENV !== 'production';
+      if (isDebugLoggingEnabled) {
+        console.debug(`Making request to: ${API_BASE}${endpoint}`);
+        console.debug('Request options:', options);
+      }
 
       const method = (options.method ?? 'GET').toUpperCase();
       const requiresCsrf = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method);
@@ -54,17 +57,19 @@ class InterviewService {
         headers,
       });
 
-      console.log(`Response status: ${response.status}`);
-      console.log(`Response headers:`, Object.fromEntries(response.headers.entries()));
+      if (isDebugLoggingEnabled) {
+        console.debug(`Response status: ${response.status}`);
+      }
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`HTTP error! status: ${response.status}, body: ${errorText}`);
-        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        throw new Error(`HTTP error! status: ${response.status}${errorText ? ` - ${errorText}` : ''}`);
       }
 
       const data = await response.json();
-      console.log(`Response data:`, data);
+      if (isDebugLoggingEnabled) {
+        console.debug('Response data:', data);
+      }
       return data;
     } catch (error) {
       console.error(`Network error for ${endpoint}:`, error);
