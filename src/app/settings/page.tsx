@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { API_BASE } from '../services/api';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
+import { useAuth } from '../context/AuthContext';
 
 export default function Settings() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [formData, setFormData] = useState({
     firstname: '',
     lastname: '',
@@ -22,20 +26,27 @@ export default function Settings() {
     getCsrfToken().catch((err) => {
       console.error('Failed to initialize CSRF token:', err);
     });
-
-    fetch(`${API_BASE}/user/me`, {
-      credentials: "include"
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setFormData((prev) => ({
-          ...prev,
-          firstname: data.firstname,
-          lastname: data.lastname,
-          email: data.email,
-        }));
-      });
   }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      router.push('/login?redirect=/settings');
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      firstname: user.firstname,
+      lastname: user.lastname,
+      email: user.email,
+    }));
+  }, [authLoading, router, user]);
+
+  if (authLoading || !user) {
+    return null;
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -65,7 +76,7 @@ export default function Settings() {
       } else {
         setMessage(`❌ ${text}`);
       }
-    } catch (err) {
+    } catch {
       setMessage('❌ An error occurred. Try again.');
     } finally {
       setLoading(false);
@@ -90,7 +101,7 @@ export default function Settings() {
         const errMsg = await response.text();
         setMessage(`❌ ${errMsg}`);
       }
-    } catch (err) {
+    } catch {
       setMessage('❌ Error deleting account.');
     } finally {
       setLoading(false);
