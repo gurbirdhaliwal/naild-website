@@ -1,4 +1,4 @@
-import { Interview, Message } from '../types/Interview';
+import { GradingResult, Interview, Message } from '../types/Interview';
 import { API_BASE } from './api';
 import { CSRF_HEADER_NAME, getCsrfToken } from './csrf';
 
@@ -31,7 +31,7 @@ export interface UpdateMessagesRequest {
 }
 
 export interface UpdateGradingRequest {
-  gradingResult: any;
+  gradingResult: GradingResult;
 }
 
 class InterviewService {
@@ -79,7 +79,7 @@ class InterviewService {
   async getUserInterviews(): Promise<InterviewResponse[]> {
     try {
       return await this.makeRequest('/interviews');
-    } catch (error) {
+    } catch {
       console.log('Backend not available, returning empty interviews list');
       return [];
     }
@@ -88,7 +88,7 @@ class InterviewService {
   async getInterviewById(id: number): Promise<InterviewResponse> {
     try {
       return await this.makeRequest(`/interviews/${id}`);
-    } catch (error) {
+    } catch {
       throw new Error('Interview not found');
     }
   }
@@ -99,7 +99,7 @@ class InterviewService {
         method: 'POST',
         body: JSON.stringify(data),
       });
-    } catch (error) {
+    } catch {
       // Return a mock response for testing
       const mockResponse: InterviewResponse = {
         id: Date.now(),
@@ -127,7 +127,7 @@ class InterviewService {
         method: 'PUT',
         body: JSON.stringify(data),
       });
-    } catch (error) {
+    } catch {
       console.log('Backend not available, skipping message update');
       // Return a mock response
       const mockResponse: InterviewResponse = {
@@ -154,7 +154,7 @@ class InterviewService {
         method: 'PUT',
         body: JSON.stringify(data),
       });
-    } catch (error) {
+    } catch {
       console.log('Backend not available, skipping grading update');
       // Return a mock response
       const mockResponse: InterviewResponse = {
@@ -180,7 +180,7 @@ class InterviewService {
       return await this.makeRequest(`/interviews/${id}`, {
         method: 'DELETE',
       });
-    } catch (error) {
+    } catch {
       console.log('Backend not available, skipping delete');
       // Don't throw error, just log it
     }
@@ -199,7 +199,7 @@ class InterviewService {
       status: response.status,
       questions: JSON.parse(response.questions),
       currentQuestionIndex: response.currentQuestionIndex,
-      gradingResult: response.gradingResult ? JSON.parse(response.gradingResult) : null,
+      gradingResult: response.gradingResult ? (JSON.parse(response.gradingResult) as GradingResult) : null,
     };
   }
 
