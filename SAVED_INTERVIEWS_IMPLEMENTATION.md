@@ -8,25 +8,25 @@ This implementation provides a complete solution for saving, managing, and persi
 
 ### Backend Components
 
-#### 1. Database Schema (Spring Boot + MySQL)
-- **Interview Entity**: Stores interview data with JSON fields for flexibility
-- **User Relationship**: Each interview belongs to a user (Many-to-One)
-- **Status Tracking**: Active, completed, or paused interviews
-- **Grading Results**: Stored as JSON for easy retrieval
+#### 1. Persistence Service (Spring Boot + MySQL, separate service)
+- Interview persistence and authentication live in the Spring Boot API (`http://localhost:8080/api/v1`)
+- This repository contains the Next.js app and FastAPI AI service, which integrate with that Spring API
+- Interview data is persisted server-side; frontend also includes fallback behavior when the Spring API is unavailable
 
 #### 2. Spring Boot API Endpoints
 - `GET /api/v1/interviews` - Get user's interviews
 - `GET /api/v1/interviews/{id}` - Get specific interview
 - `POST /api/v1/interviews` - Create new interview
 - `PUT /api/v1/interviews/{id}/messages` - Update interview messages
+- `PUT /api/v1/interviews/{id}/current_question_index` - Persist interview progress
 - `PUT /api/v1/interviews/{id}/status` - Update interview status
 - `PUT /api/v1/interviews/{id}/grading` - Save grading results
 - `DELETE /api/v1/interviews/{id}` - Delete interview
 
 #### 3. FastAPI Integration
-- Enhanced grading endpoint to save results to Spring Boot
-- Automatic interview status updates on completion
-- Seamless integration with existing AI processing
+- FastAPI runs on `http://localhost:8081` and provides AI endpoints (`/transcription`, `/generate_questions`, `/interview_ack`, `/grade_interview`)
+- `POST /grade_interview` optionally forwards grading to Spring Boot when `interview_id` is provided
+- Interview status/progress updates are sent directly from the frontend to Spring Boot (`/status`, `/current_question_index`)
 
 ### Frontend Components
 
