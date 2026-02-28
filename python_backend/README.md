@@ -23,11 +23,20 @@ Start the FastAPI server:
 python main.py
 ```
 
-The server will run on `http://localhost:8080`
+The server will run on `http://localhost:8081`
 
 ## API Endpoints
 
-- `GET /app/interview` - Records voice input, transcribes it, and returns AI response
+- `POST /transcription` - Accepts uploaded audio and returns `{ "user_input": "..." }`
+- `POST /generate_questions` - Generates interview questions from role/languages/difficulty
+- `POST /interview_ack` - Returns acknowledgement plus next question (or goodbye on final question)
+- `POST /grade_interview` - Grades 5 Q&A pairs and can persist grading when `interview_id` is provided
+- `GET /warmup` - Warms Whisper/Ollama models and reports readiness/timings
+
+## Default Service Integrations
+
+- `OLLAMA_HOST=http://localhost:11434`
+- `SPRING_API_BASE=http://localhost:8080/api/v1`
 
 ## Requirements
 
