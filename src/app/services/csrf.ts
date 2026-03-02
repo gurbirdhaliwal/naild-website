@@ -20,11 +20,6 @@ function getCookieValue(name: string): string | null {
 }
 
 export async function getCsrfToken(): Promise<string> {
-  const existingToken = getCookieValue(CSRF_COOKIE_NAME);
-  if (existingToken) {
-    return existingToken;
-  }
-
   const response = await fetch(`${API_BASE}/auth/csrf`, {
     method: 'GET',
     credentials: 'include',
@@ -36,7 +31,7 @@ export async function getCsrfToken(): Promise<string> {
 
   const payload = (await response.json().catch(() => ({}))) as { token?: string };
   const tokenFromCookie = getCookieValue(CSRF_COOKIE_NAME);
-  const token = tokenFromCookie ?? payload.token;
+  const token = payload.token ?? tokenFromCookie;
 
   if (!token) {
     throw new Error('CSRF token missing from response and cookies');
