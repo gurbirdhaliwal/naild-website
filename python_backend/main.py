@@ -81,6 +81,129 @@ logger = logging.getLogger(__name__)
 
 ollama_client = ollama.Client(host=OLLAMA_HOST)
 
+
+def _coerce_score(value):
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return 0
+    if score < 0:
+        return 0
+    if score > 100:
+        return 100
+    return int(round(score))
+
+
+def _parse_model_json_content(content):
+    """
+    Parse model output that should contain JSON, with tolerance for markdown wrappers
+    or extra surrounding text.
+    """
+    if isinstance(content, (dict, list)):
+        return content
+    if not isinstance(content, str):
+        raise ValueError("Model response content is not JSON-parseable text.")
+
+    text = content.strip()
+    attempts = []
+
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+
+    attempts.append(text)
+
+    obj_start = text.find("{")
+    obj_end = text.rfind("}")
+    if obj_start != -1 and obj_end > obj_start:
+        attempts.append(text[obj_start : obj_end + 1])
+
+    arr_start = text.find("[")
+    arr_end = text.rfind("]")
+    if arr_start != -1 and arr_end > arr_start:
+        attempts.append(text[arr_start : arr_end + 1])
+
+    for candidate in attempts:
+        try:
+            parsed = json.loads(candidate)
+            if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+                return parsed[0]
+            return parsed
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+
+    raise ValueError("Unable to parse model response as JSON.")
+
+
+def _normalize_grading_result(raw_result, questions, answers):
+    """
+    Enforce a strict grading payload shape aligned to the provided interview input.
+    This prevents model-added/example answers from being persisted as extra Q/A rows.
+    """
+    raw_scores = raw_result.get("scores", []) if isinstance(raw_result, dict) else []
+    if not isinstance(raw_scores, list):
+        raw_scores = []
+
+    used_indices = set()
+    normalized_scores = []
+
+    for i, (question, answer) in enumerate(zip(questions, answers)):
+        selected = None
+
+        # Highest confidence match: same question and same answer.
+        for idx, entry in enumerate(raw_scores):
+            if idx in used_indices or not isinstance(entry, dict):
+                continue
+            if entry.get("question") == question and entry.get("answer") == answer:
+                selected = entry
+                used_indices.add(idx)
+                break
+
+        # Fallback: match by question text only.
+        if selected is None:
+            for idx, entry in enumerate(raw_scores):
+                if idx in used_indices or not isinstance(entry, dict):
+                    continue
+                if entry.get("question") == question:
+                    selected = entry
+                    used_indices.add(idx)
+                    break
+
+        # Final fallback: positional entry.
+        if selected is None and i < len(raw_scores) and isinstance(raw_scores[i], dict):
+            selected = raw_scores[i]
+
+        normalized_entry = {
+            "question": question,
+            "answer": answer,
+            "score": _coerce_score(selected.get("score") if selected else 0),
+        }
+
+        if selected and isinstance(selected.get("feedback"), str):
+            normalized_entry["feedback"] = selected["feedback"]
+
+        normalized_scores.append(normalized_entry)
+
+    feedback = ""
+    if isinstance(raw_result, dict) and isinstance(raw_result.get("feedback"), str):
+        feedback = raw_result.get("feedback", "")
+
+    average_score = 0.0
+    if normalized_scores:
+        average_score = round(
+            sum(item["score"] for item in normalized_scores) / len(normalized_scores), 1
+        )
+
+    return {
+        "scores": normalized_scores,
+        "average_score": average_score,
+        "feedback": feedback,
+    }
+
 def require_authenticated_user(request: Request):
     auth_header = request.headers.get("authorization")
     token_cookie = request.cookies.get("token")
@@ -299,6 +422,7 @@ async def interview_ack(
             
     response = ollama_client.chat(
         model='mistral',
+        format='json',
         messages=[
             {"role": "system", "content": "You are a helpful AI that generates interview responses. Always return valid JSON."},
             {"role": "user", "content": prompt}
@@ -306,8 +430,7 @@ async def interview_ack(
     )
     
     try:
-        import json
-        result = json.loads(response['message']['content'])
+        result = _parse_model_json_content(response['message']['content'])
         return result
     except:
         # Fallback if JSON parsing fails
@@ -342,6 +465,11 @@ You are an expert technical interviewer and grader. You will be given 5 intervie
 - Clarity: Is the answer clear, well-explained, and easy to understand?
 
 Short, off-topic, or nonsense answers should be penalized. Every answer must receive a grade, even if it is completely off-topic or nonsense. If an answer is unrelated, set accuracy to 0. Be consistent and robust.
+Important constraints:
+- Evaluate only the 5 provided candidate answers.
+- Do not add example/corrected answers.
+- Do not add extra score entries.
+- "scores" must contain exactly 5 entries in the same order as the input questions/answers.
 
 Return a JSON object with:
 - "scores": a list of 5 objects, each with "question", "answer", and "score" (0-100)
@@ -356,32 +484,48 @@ Questions:
     for i, a in enumerate(answers, 1):
         grading_prompt += f"{i}. {a}\n"
 
-    response = ollama_client.chat(
-        model='mistral',
-        messages=[
-            {"role": "system", "content": "You are a strict, fair, and robust technical interview grader. Always return valid JSON."},
-            {"role": "user", "content": grading_prompt}
-        ]
-    )
-    import json
+    response = None
+    for attempt in range(2):
+        response = ollama_client.chat(
+            model='mistral',
+            format='json',
+            messages=[
+                {"role": "system", "content": "You are a strict, fair, and robust technical interview grader. Always return valid JSON."},
+                {"role": "user", "content": grading_prompt}
+            ]
+        )
+        try:
+            result = _parse_model_json_content(response['message']['content'])
+            result = _normalize_grading_result(result, questions, answers)
+            
+            # If interview_id is provided, save the grading result to Spring Boot
+            if interview_id:
+                try:
+                    grading_update_response = requests.put(
+                        f"{SPRING_API_BASE}/interviews/{interview_id}/grading",
+                        json={"gradingResult": result},
+                        headers={"Content-Type": "application/json"}
+                    )
+                    if grading_update_response.status_code != 200:
+                        print(f"Warning: Failed to save grading result to database: {grading_update_response.text}")
+                except Exception as e:
+                    print(f"Warning: Failed to save grading result to database: {str(e)}")
+            
+            return result
+        except Exception:
+            logger.exception(
+                "Failed to parse grading response from model on attempt %s. Content preview: %s",
+                attempt + 1,
+                str(response.get('message', {}).get('content', ''))[:500],
+            )
+
+    if response is not None:
+        logger.error(
+            "All grading parse attempts failed. Last content preview: %s",
+            str(response.get('message', {}).get('content', ''))[:500],
+        )
+
     try:
-        result = json.loads(response['message']['content'])
-        
-        # If interview_id is provided, save the grading result to Spring Boot
-        if interview_id:
-            try:
-                grading_update_response = requests.put(
-                    f"{SPRING_API_BASE}/interviews/{interview_id}/grading",
-                    json={"gradingResult": result},
-                    headers={"Content-Type": "application/json"}
-                )
-                if grading_update_response.status_code != 200:
-                    print(f"Warning: Failed to save grading result to database: {grading_update_response.text}")
-            except Exception as e:
-                print(f"Warning: Failed to save grading result to database: {str(e)}")
-        
-        return result
-    except Exception as e:
         # Fallback: basic structure if parsing fails
         scores = []
         for q, a in zip(questions, answers):
@@ -391,6 +535,8 @@ Questions:
             "average_score": 0.0,
             "feedback": "There was an error grading the answers. Please try again."
         }
+    except Exception:
+        return {"error": "Unable to grade interview at this time."}
 
 if __name__ == "__main__":
     import uvicorn
