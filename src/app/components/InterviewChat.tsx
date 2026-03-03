@@ -24,6 +24,88 @@ const getBarColor = (percent: number) => {
   return 'bg-red-400';
 };
 
+const EXPECTED_QUESTION_COUNT = 5;
+
+const clampScore = (score: unknown): number => {
+  const parsed = Number(score);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.min(100, Math.round(parsed)));
+};
+
+const extractCandidateAnswers = (messages: Message[], questions: string[]): string[] => {
+  const questionSet = new Set(questions);
+  return questions.map((question) => {
+    const qIdx = messages.findIndex((m) => m.role === 'interviewer' && m.content === question);
+    if (qIdx === -1) return '';
+
+    for (let i = qIdx + 1; i < messages.length; i++) {
+      const msg = messages[i];
+      if (msg.role === 'candidate') return msg.content ?? '';
+      if (msg.role === 'interviewer' && questionSet.has(msg.content)) break;
+    }
+    return '';
+  });
+};
+
+const normalizeGradingResult = (raw: any, questions: string[], answers: string[]) => {
+  if (!raw || typeof raw !== 'object' || raw.error) return raw;
+  if (!Array.isArray(raw.scores)) return raw;
+
+  const canonicalQuestions = questions.slice(0, EXPECTED_QUESTION_COUNT);
+  const canonicalAnswers = answers.slice(0, EXPECTED_QUESTION_COUNT);
+  const used = new Set<number>();
+  const normalizedScores = canonicalQuestions.map((question, index) => {
+    const answer = canonicalAnswers[index] ?? '';
+    let selected: any = null;
+
+    for (let i = 0; i < raw.scores.length; i++) {
+      const entry = raw.scores[i];
+      if (used.has(i) || !entry || typeof entry !== 'object') continue;
+      if (entry.question === question && entry.answer === answer) {
+        selected = entry;
+        used.add(i);
+        break;
+      }
+    }
+
+    if (!selected) {
+      for (let i = 0; i < raw.scores.length; i++) {
+        const entry = raw.scores[i];
+        if (used.has(i) || !entry || typeof entry !== 'object') continue;
+        if (entry.question === question) {
+          selected = entry;
+          used.add(i);
+          break;
+        }
+      }
+    }
+
+    const normalizedEntry: any = {
+      question,
+      answer,
+      score: clampScore(selected?.score),
+    };
+
+    if (selected && typeof selected.feedback === 'string') {
+      normalizedEntry.feedback = selected.feedback;
+    }
+
+    return normalizedEntry;
+  });
+
+  const average_score = normalizedScores.length
+    ? Number(
+        (normalizedScores.reduce((sum: number, item: any) => sum + item.score, 0) / normalizedScores.length).toFixed(1)
+      )
+    : 0;
+
+  return {
+    ...raw,
+    scores: normalizedScores,
+    average_score,
+  };
+};
+
 // Simple ThinkingDots component
 const ThinkingDots = () => {
   const [dots, setDots] = useState('');
@@ -76,7 +158,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
           const response = await interviewService.getInterviewById(Number(interview.id));
           if (response.gradingResult) {
             const parsedGrading = JSON.parse(response.gradingResult);
-            setGradingResult(parsedGrading);
+            const questions = interview.questions || [];
+            const answers = extractCandidateAnswers(interview.messages || [], questions);
+            setGradingResult(normalizeGradingResult(parsedGrading, questions, answers));
           }
         } catch (error) {
           console.error('Failed to load grading result: ', error);
@@ -245,19 +329,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
 
       // Build previous Q&A context
       const previousQA = [];
+      const priorAnswers = extractCandidateAnswers(interview.messages, questions);
       for (let i = 0; i < currentQuestionIndex; i++) {
-        const question = questions[i];
-        // Find the corresponding answer in messages
-        const questionMessageIndex = interview.messages.findIndex(m => m.content === question);
-        if (questionMessageIndex !== -1 && questionMessageIndex + 1 < interview.messages.length) {
-          const answerMessage = interview.messages[questionMessageIndex + 1];
-          if (answerMessage.role === 'candidate') {
-            previousQA.push({
-              question: question,
-              answer: answerMessage.content
-            });
-          }
-        }
+        previousQA.push({
+          question: questions[i],
+          answer: priorAnswers[i] || ''
+        });
       }
 
       // Call the interview acknowledgement endpoint
@@ -340,25 +417,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
   // --- Grading logic: trigger after last answer ---
   if (isLastQuestion) {
     // Collect 5 questions and 5 user answers
-    const questions = updated.questions || [];
-    // Find candidate answers in messages (after each question)
-    const userAnswers: string[] = [];
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      // Find the message after the question with role 'candidate'
-      const qIdx = updated.messages.findIndex(m => m.content === q);
-      if (qIdx !== -1 && qIdx + 1 < updated.messages.length) {
-        const answerMsg = updated.messages[qIdx + 1];
-        if (answerMsg.role === 'candidate') {
-          userAnswers.push(answerMsg.content);
-        } else {
-          userAnswers.push('');
-        }
-      } else {
-        userAnswers.push('');
-      }
-    }
-    if (questions.length === 5 && userAnswers.length === 5) {
+    const questions = (updated.questions || []).slice(0, EXPECTED_QUESTION_COUNT);
+    const userAnswers = extractCandidateAnswers(updated.messages, questions);
+    if (questions.length === EXPECTED_QUESTION_COUNT && userAnswers.length === EXPECTED_QUESTION_COUNT) {
       setGradingLoading(true);
       setGradingResult(null);
       try {
@@ -373,8 +434,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
           })
         });
         const gradeData = await gradeRes.json();
-        setGradingResult(gradeData);
-        await interviewService.updateGradingResult(Number(interview.id), {gradingResult: gradeData});
+        const normalizedGradeData = normalizeGradingResult(gradeData, questions, userAnswers);
+        setGradingResult(normalizedGradeData);
+        await interviewService.updateGradingResult(Number(interview.id), {gradingResult: normalizedGradeData});
         // Update interview status to completed
         if (!isNaN(Number(interview.id))) {
           try {
