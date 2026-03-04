@@ -48,6 +48,8 @@ export default function Settings() {
     return null;
   }
 
+  const canChangePassword = !user.authProvider || user.authProvider.toUpperCase() === 'LOCAL';
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -59,6 +61,17 @@ export default function Settings() {
     setLoading(true);
 
     try {
+      const isPasswordChangeRequested = canChangePassword && formData.password.trim().length > 0;
+      const payload: Record<string, string> = {
+        firstname: formData.firstname,
+        lastname: formData.lastname,
+      };
+
+      if (isPasswordChangeRequested) {
+        payload.password = formData.password;
+        payload.currentpassword = formData.currentpassword;
+      }
+
       const csrfToken = await getCsrfToken();
       const response = await fetch(`${API_BASE}/user/update`, {
         method: 'PATCH',
@@ -67,12 +80,17 @@ export default function Settings() {
           [CSRF_HEADER_NAME]: csrfToken,
         },
         credentials: "include",
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const text = await response.text();
       if (response.ok) {
         setMessage('✅ Profile updated successfully.');
+        setFormData((prev) => ({
+          ...prev,
+          password: '',
+          currentpassword: '',
+        }));
       } else {
         setMessage(`❌ ${text}`);
       }
@@ -149,24 +167,31 @@ export default function Settings() {
                   name="email"
                   type="email"
                   value={formData.email}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
+                  readOnly
+                  disabled
+                  className="mt-1 block w-full border rounded-md px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">New Password</label>
-                <input
-                  name="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="Leave blank to keep current password"
-                  className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
-                />
-              </div>
+              {canChangePassword ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">New Password</label>
+                  <input
+                    name="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="Leave blank to keep current password"
+                    className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  Password changes are managed by your social login provider.
+                </p>
+              )}
 
-              {formData.password && (
+              {canChangePassword && formData.password.trim().length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Current Password</label>
                   <input
