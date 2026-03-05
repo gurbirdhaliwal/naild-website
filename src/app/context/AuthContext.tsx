@@ -1,10 +1,9 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
 import { User } from '../types/Users';
 import { API_BASE } from '../services/api';
-import { getSafeRedirectPath, POST_AUTH_REDIRECT_STORAGE_KEY } from '../services/safeRedirect';
+import { LOGOUT_BROADCAST_KEY } from '../services/authSession';
  
 interface AuthContextType {
   user: User | null;
@@ -17,8 +16,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     fetch(`${API_BASE}/user/me`, {
@@ -36,23 +33,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (loading || !user) return;
+    const handleStorageEvent = (event: StorageEvent) => {
+      if (event.key !== LOGOUT_BROADCAST_KEY || !event.newValue) return;
+      setUser(null);
+    };
 
-    const pendingRedirect = window.sessionStorage.getItem(POST_AUTH_REDIRECT_STORAGE_KEY);
-    if (!pendingRedirect) return;
-
-    const targetPath = getSafeRedirectPath(pendingRedirect, '/interview');
-    const isAuthEntryPath = pathname === '/' || pathname === '/login' || pathname === '/signup';
-
-    if (pathname === targetPath) {
-      window.sessionStorage.removeItem(POST_AUTH_REDIRECT_STORAGE_KEY);
-      return;
-    }
-
-    if (isAuthEntryPath) {
-      router.replace(targetPath);
-    }
-  }, [loading, pathname, router, user]);
+    window.addEventListener('storage', handleStorageEvent);
+    return () => window.removeEventListener('storage', handleStorageEvent);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, setUser }}>

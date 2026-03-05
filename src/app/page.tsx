@@ -4,12 +4,13 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './context/AuthContext';
-import { getSafeRedirectPath, POST_AUTH_REDIRECT_STORAGE_KEY } from './services/safeRedirect';
+import { broadcastLogout, clearOAuthHandoffRedirect, getOAuthHandoffRedirect, requestLogout } from './services/authSession';
 
 const NaildLanding = () => {
   const [activeTab, setActiveTab] = useState('feedback');
   const [isVideoMuted, setIsVideoMuted] = useState(true);
-  const [isPostAuthTransition, setIsPostAuthTransition] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isRedirectingToInterview, setIsRedirectingToInterview] = useState(false);
 
   const tabs = [
     { id: 'feedback', label: 'Feedback' },
@@ -19,36 +20,51 @@ const NaildLanding = () => {
   ];
 
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, setUser } = useAuth();
 
   React.useEffect(() => {
-    if (loading) return;
+    if (loading || !user) return;
 
-    const pendingRedirect = window.sessionStorage.getItem(POST_AUTH_REDIRECT_STORAGE_KEY);
-    if (!pendingRedirect) return;
-
-    const targetPath = getSafeRedirectPath(pendingRedirect, '/interview');
-    setIsPostAuthTransition(true);
-
-    if (user) {
-      router.replace(targetPath);
+    const oauthTarget = getOAuthHandoffRedirect();
+    if (oauthTarget) {
+      setIsRedirectingToInterview(true);
+      router.replace(oauthTarget);
       return;
     }
 
-    router.replace(`/login?redirect=${encodeURIComponent(targetPath)}`);
-  }, [loading, router, user]);
+    let active = true;
+    setIsLoggingOut(true);
+
+    (async () => {
+      try {
+        await requestLogout();
+      } catch (err) {
+        console.error('Landing auto-logout failed:', err);
+      } finally {
+        if (!active) return;
+        setUser(null);
+        broadcastLogout();
+        setIsLoggingOut(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [loading, router, user, setUser]);
+
+  React.useEffect(() => {
+    if (loading || user) return;
+    clearOAuthHandoffRedirect();
+  }, [loading, user]);
 
   const handleGetStarted = () => {
-    if (loading) return;
-    if (user) {
-      router.push('/interview');
-    } else {
-      window.history.pushState({}, '', '/');
-      router.push('/login?redirect=/interview');
-    }
+    if (loading || isLoggingOut) return;
+    window.history.pushState({}, '', '/');
+    router.push('/login?redirect=/interview');
   };
 
-  if (loading || isPostAuthTransition) {
+  if (loading || isLoggingOut || isRedirectingToInterview) {
     return <div className="min-h-screen bg-white" />;
   }
 

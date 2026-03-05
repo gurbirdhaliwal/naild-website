@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import InterviewSetup from '../components/InterviewSetup'
 import InterviewChat from '../components/InterviewChat'
@@ -12,8 +12,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { MdOutlinePersonPin, MdLogout } from 'react-icons/md'
 import { IoSettingsOutline } from 'react-icons/io5'
 import { interviewService } from '../services/interviewService'
-import { API_BASE, AI_BASE } from '../services/api'
-import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
+import { AI_BASE } from '../services/api'
+import { broadcastLogout, clearOAuthHandoffRedirect, requestLogout } from '../services/authSession'
 
 export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
@@ -22,20 +22,20 @@ export default function InterviewPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { user, loading, setUser } = useAuth()
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement | null>(null)
   const router = useRouter()
   const [loadingInterviews, setLoadingInterviews] = useState(false)
 
   // Handle authentication redirect
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login?redirect=/interview')
+      router.push('/')
     }
   }, [loading, user, router])
 
   // Load saved interviews when user is authenticated
   useEffect(() => {
     if (user && !loading) {
+      clearOAuthHandoffRedirect();
       loadSavedInterviews();
     }
   }, [user, loading]);
@@ -73,18 +73,13 @@ export default function InterviewPage() {
 
   const handleLogout = async () => {
     try {
-      const csrfToken = await getCsrfToken()
-      await fetch(`${API_BASE}/auth/logout`, {
-        method: 'POST',
-        headers: {
-          [CSRF_HEADER_NAME]: csrfToken,
-        },
-        credentials: 'include',
-      })
-      setUser(null)
-      window.location.href = '/'
+      await requestLogout()
     } catch (err) {
       console.error('Logout failed:', err)
+    } finally {
+      setUser(null)
+      broadcastLogout()
+      window.location.href = '/'
     }
   }
 
