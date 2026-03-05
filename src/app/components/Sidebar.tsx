@@ -1,9 +1,20 @@
-
-import React from 'react';
-import { Plus, MessageSquare, ChevronLeft, ChevronRight, Search, Library, Trash2, Loader2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Plus,
+  MessageSquare,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  Library,
+  Trash2,
+  Loader2,
+  User,
+  Settings,
+  CircleHelp,
+  LogOut,
+} from 'lucide-react';
 import { Interview } from '../types/Interview';
-import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
+import Link from 'next/link';
 
 interface SidebarProps {
   interviews: Interview[];
@@ -13,6 +24,12 @@ interface SidebarProps {
   onDeleteInterview: (interviewId: string) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  userInitial: string;
+  userName: string;
+  userEmail: string;
+  onOpenProfile: () => void;
+  onOpenSettings: () => void;
+  onLogout: () => void;
   loading?: boolean;
 }
 
@@ -24,29 +41,50 @@ const Sidebar: React.FC<SidebarProps> = ({
   onDeleteInterview,
   collapsed,
   onToggleCollapse,
-  loading = false
+  userInitial,
+  userName,
+  userEmail,
+  onOpenProfile,
+  onOpenSettings,
+  onLogout,
+  loading = false,
 }) => {
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <div className={`fixed left-0 top-0 h-full bg-gray-50 border-r border-gray-200 transition-all duration-300 z-10 ${
-      collapsed ? 'w-16' : 'w-64'
-    }`}>
+    <div
+      className={`fixed left-0 top-0 h-full bg-gray-50 border-r border-gray-200 transition-all duration-300 z-10 ${
+        collapsed ? 'w-16' : 'w-64'
+      }`}
+    >
       <div className="flex flex-col h-full">
-        {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             {!collapsed && (
               <div>
                 <div className="flex items-center space-x-2 -ml-3">
-                <Link href="/" className="flex items-center space-x-2">
-                 <img
-                src="/naild_logo.png"
-                alt="Naild Logo"
-                className="h-10 w-10 object-contain mr-0 mb-1"
-                />
-                <span className="text-2xl font-regular text-black tracking-tight font-naild">
-                    naild.
-                </span>
-                </Link>
+                  <Link href="/" className="flex items-center space-x-2">
+                    <img
+                      src="/naild_logo.png"
+                      alt="Naild Logo"
+                      className="h-10 w-10 object-contain mr-0 mb-1"
+                    />
+                    <span className="text-2xl font-regular text-black tracking-tight font-naild">
+                      naild.
+                    </span>
+                  </Link>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">powered by AI</p>
               </div>
@@ -60,9 +98,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        
-
-        {/* Navigation */}
         {!collapsed && (
           <div className="p-4 space-y-2">
             <button className="w-full flex items-center gap-3 p-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-left">
@@ -80,40 +115,33 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        {/* New Interview Button */}
         <div className="p-4">
           <button
             onClick={onStartNew}
-            className={`w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2 ${
-              collapsed ? 'p-3' : 'p-3'
-            }`}
+            className="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2 p-3"
           >
             <Plus size={18} />
             {!collapsed && <span>New Interview</span>}
           </button>
         </div>
 
-        {/* Recent Section */}
         {!collapsed && interviews.length > 0 && (
           <div className="px-4 pb-2">
             <p className="text-sm font-medium text-gray-500 mb-2">Recent</p>
           </div>
         )}
 
-        {/* Interview List */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center p-4">
               <Loader2 className="animate-spin text-gray-400" size={20} />
-              {!collapsed && <span className="ml-2 text-sm text-gray-500">Loading interviews...</span>}
+              {!collapsed && (
+                <span className="ml-2 text-sm text-gray-500">Loading interviews...</span>
+              )}
             </div>
           ) : interviews.length === 0 ? (
             <div className="p-4 text-center">
-              {!collapsed && (
-                <div className="text-sm text-gray-500">
-                  No interviews yet
-                </div>
-              )}
+              {!collapsed && <div className="text-sm text-gray-500">No interviews yet</div>}
             </div>
           ) : (
             interviews.map((interview) => (
@@ -160,20 +188,71 @@ const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Footer */}
-        {!collapsed && (
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-teal-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                D
-              </div>
-              <div className="text-xs text-gray-500">
-                <p>Upgrade Plan</p>
-                <p>More access to best models</p>
-              </div>
+        <div ref={accountMenuRef} className="p-4 border-t border-gray-200 relative">
+          <button
+            onClick={() => setAccountMenuOpen((prev) => !prev)}
+            className="w-full flex items-center gap-2 hover:bg-gray-200 rounded-lg p-2 transition-colors"
+          >
+            <div className="w-8 h-8 bg-teal-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+              {userInitial || 'U'}
             </div>
-          </div>
-        )}
+            {!collapsed && (
+              <p className="text-sm text-gray-800 truncate">{userName}</p>
+            )}
+          </button>
+
+          {accountMenuOpen && (
+            <div
+              className={`absolute z-30 bg-white border border-gray-200 rounded-md shadow-lg ${
+                collapsed ? 'left-16 bottom-4 w-80' : 'left-4 bottom-16 w-80'
+              }`}
+            >
+              <div className="px-5 py-4 border-b border-gray-200">
+                <p className="text-sm text-gray-500 break-all">{userEmail}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setAccountMenuOpen(false);
+                  onOpenProfile();
+                }}
+                className="dropdown-link py-4"
+              >
+                <User size={18} />
+                Profile
+              </button>
+              <button
+                onClick={() => {
+                  setAccountMenuOpen(false);
+                  onOpenSettings();
+                }}
+                className="dropdown-link py-4"
+              >
+                <Settings size={18} />
+                Settings
+              </button>
+              <button
+                onClick={() => {
+                  setAccountMenuOpen(false);
+                }}
+                className="dropdown-link py-4"
+              >
+                <CircleHelp size={18} />
+                Help
+              </button>
+              <div className="border-t border-gray-200" />
+              <button
+                onClick={() => {
+                  setAccountMenuOpen(false);
+                  onLogout();
+                }}
+                className="dropdown-link py-4 text-red-600"
+              >
+                <LogOut size={18} />
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
