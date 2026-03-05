@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Sidebar from '../components/Sidebar'
 import InterviewSetup from '../components/InterviewSetup'
 import InterviewChat from '../components/InterviewChat'
@@ -32,6 +32,7 @@ export default function InterviewPage() {
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
   const [showConfirmDelete, setShowConfirmDelete] = useState(false)
+  const messagePersistQueueRef = useRef<Map<string, Promise<void>>>(new Map())
 
   // Handle authentication redirect
   useEffect(() => {
@@ -192,21 +193,38 @@ export default function InterviewPage() {
     }
   };
 
-  const handleUpdate = async (updated: Interview) => {
+  const queueInterviewMessageSave = (updated: Interview) => {
+    if (isNaN(Number(updated.id))) return
+    const lastMessage = updated.messages[updated.messages.length - 1]
+    if (lastMessage?.isThinking) return
+
+    const interviewId = updated.id
+    const previousSave = messagePersistQueueRef.current.get(interviewId) ?? Promise.resolve()
+    const nextSave = previousSave
+      .catch(() => undefined)
+      .then(async () => {
+        await interviewService.updateInterviewMessages(Number(interviewId), {
+          messages: updated.messages,
+        })
+      })
+      .catch((error) => {
+        console.error('Failed to save interview messages:', error)
+      })
+      .finally(() => {
+        if (messagePersistQueueRef.current.get(interviewId) === nextSave) {
+          messagePersistQueueRef.current.delete(interviewId)
+        }
+      })
+
+    messagePersistQueueRef.current.set(interviewId, nextSave)
+  }
+
+  const handleUpdate = (updated: Interview) => {
     setInterviews((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))
     setCurrentInterview(updated)
-    
-    // Save to database if interview has a numeric ID (from database)
-    if (!isNaN(Number(updated.id))) {
-      try {
-        await interviewService.updateInterviewMessages(Number(updated.id), {
-          messages: updated.messages
-        });
-      } catch (error) {
-        console.error('Failed to save interview messages:', error);
-        // Continue with in-memory updates even if backend fails
-      }
-    }
+
+    // Persist updates sequentially per interview to avoid out-of-order writes.
+    queueInterviewMessageSave(updated)
   }
 
   const handleDeleteInterview = async (interviewId: string) => {

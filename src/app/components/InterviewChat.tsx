@@ -399,6 +399,15 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         currentQuestionIndex: currentQuestionIndex + 1
       };
       onUpdateInterview(updated);
+      if (!isNaN(Number(interview.id))) {
+        try {
+          await interviewService.updateInterviewMessages(Number(interview.id), {
+            messages: messagesWithoutThinking,
+          });
+        } catch (error) {
+          console.error('Failed to persist final interview messages:', error);
+        }
+      }
       try {
         const csrfToken = await getCsrfToken();
         await fetch(`${API_BASE}/interviews/${interview.id}/current_question_index`, {
@@ -453,7 +462,15 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
           } catch (e) {
             console.error('Failed to update interview status:', e);
           }
+          try {
+            await interviewService.updateInterviewMessages(Number(interview.id), {
+              messages: messagesWithoutThinking,
+            });
+          } catch (error) {
+            console.error('Failed to re-persist interview messages after completion:', error);
+          }
         }
+        onUpdateInterview({ ...updated, status: 'completed' });
       } catch (e) {
         setGradingResult({ error: 'Failed to grade answers. Please try again.' });
       } finally {
