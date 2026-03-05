@@ -7,12 +7,12 @@ import InterviewChat from '../components/InterviewChat'
 import { Interview } from '../types/Interview'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { MdOutlinePersonPin, MdLogout } from 'react-icons/md'
 import { IoSettingsOutline } from 'react-icons/io5'
 import { interviewService } from '../services/interviewService'
-import { AI_BASE } from '../services/api'
+import { AI_BASE, API_BASE } from '../services/api'
+import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
 import { broadcastLogout, clearOAuthHandoffRedirect, requestLogout } from '../services/authSession'
 
 export default function InterviewPage() {
@@ -24,6 +24,17 @@ export default function InterviewPage() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const router = useRouter()
   const [loadingInterviews, setLoadingInterviews] = useState(false)
+  const [activeModal, setActiveModal] = useState<'profile' | 'settings' | null>(null)
+  const [profileFormData, setProfileFormData] = useState({
+    firstname: '',
+    lastname: '',
+    email: '',
+    password: '',
+    currentpassword: '',
+  })
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileMessage, setProfileMessage] = useState('')
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false)
 
   // Handle authentication redirect
   useEffect(() => {
@@ -39,6 +50,24 @@ export default function InterviewPage() {
       loadSavedInterviews();
     }
   }, [user, loading]);
+
+  useEffect(() => {
+    getCsrfToken().catch((err) => {
+      console.error('Failed to initialize CSRF token:', err)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!user) return
+    setProfileFormData((prev) => ({
+      ...prev,
+      firstname: user.firstname,
+      lastname: user.lastname,
+      email: user.email,
+      password: '',
+      currentpassword: '',
+    }))
+  }, [user])
 
   const loadSavedInterviews = async () => {
     try {
@@ -200,6 +229,103 @@ export default function InterviewPage() {
     }
   }
 
+  const canChangePassword = !user.authProvider || user.authProvider.toUpperCase() === 'LOCAL'
+
+  const openModal = (modal: 'profile' | 'settings') => {
+    setDropdownOpen(false)
+    setProfileMessage('')
+    setShowConfirmDelete(false)
+    setActiveModal(modal)
+  }
+
+  const closeModal = () => {
+    setActiveModal(null)
+    setProfileMessage('')
+    setShowConfirmDelete(false)
+  }
+
+  const handleProfileFieldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setProfileFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setProfileMessage('')
+    setProfileLoading(true)
+
+    try {
+      const isPasswordChangeRequested = canChangePassword && profileFormData.password.trim().length > 0
+      const payload: Record<string, string> = {
+        firstname: profileFormData.firstname,
+        lastname: profileFormData.lastname,
+      }
+
+      if (isPasswordChangeRequested) {
+        payload.password = profileFormData.password
+        payload.currentpassword = profileFormData.currentpassword
+      }
+
+      const csrfToken = await getCsrfToken()
+      const response = await fetch(`${API_BASE}/user/update`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          [CSRF_HEADER_NAME]: csrfToken,
+        },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      })
+
+      const text = await response.text()
+      if (response.ok) {
+        setUser({
+          ...user,
+          firstname: profileFormData.firstname,
+          lastname: profileFormData.lastname,
+        })
+        setProfileMessage('✅ Profile updated successfully.')
+        setProfileFormData((prev) => ({
+          ...prev,
+          password: '',
+          currentpassword: '',
+        }))
+      } else {
+        setProfileMessage(`❌ ${text}`)
+      }
+    } catch {
+      setProfileMessage('❌ An error occurred. Try again.')
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    setProfileLoading(true)
+    try {
+      const csrfToken = await getCsrfToken()
+      const response = await fetch(`${API_BASE}/user/delete`, {
+        method: 'DELETE',
+        headers: {
+          [CSRF_HEADER_NAME]: csrfToken,
+        },
+        credentials: 'include',
+      })
+
+      if (response.ok) {
+        window.location.href = '/signup'
+      } else {
+        const errMsg = await response.text()
+        setProfileMessage(`❌ ${errMsg}`)
+      }
+    } catch {
+      setProfileMessage('❌ Error deleting account.')
+    } finally {
+      setProfileLoading(false)
+      setShowConfirmDelete(false)
+    }
+  }
+
   return (
     <div className="flex h-screen bg-white overflow-hidden font-['Space_Grotesk']">
       <Sidebar
@@ -238,14 +364,14 @@ export default function InterviewPage() {
                     transition={{ duration: 0.2 }}
                     className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10"
                   >
-                    <Link href="/profile" className="dropdown-link">
+                    <button onClick={() => openModal('profile')} className="dropdown-link">
                       <MdOutlinePersonPin className="text-lg text-green-600" />
                       Profile
-                    </Link>
-                    <Link href="/settings" className="dropdown-link">
+                    </button>
+                    <button onClick={() => openModal('settings')} className="dropdown-link">
                       <IoSettingsOutline className="text-lg text-green-600" />
                       Settings
-                    </Link>
+                    </button>
                     <button onClick={handleLogout} className="dropdown-link text-red-600">
                       <MdLogout className="text-lg" />
                       Logout
@@ -327,6 +453,169 @@ export default function InterviewPage() {
           )}
         </div>
       </main>
+
+      <AnimatePresence>
+        {activeModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={closeModal}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {activeModal === 'profile' ? 'Profile' : 'Settings'}
+                </h2>
+                <button
+                  onClick={closeModal}
+                  className="rounded-md px-2 py-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {activeModal === 'profile' ? (
+                <div className="px-6 py-5">
+                  <form onSubmit={handleProfileSubmit} className="space-y-6">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">First Name</label>
+                        <input
+                          name="firstname"
+                          type="text"
+                          value={profileFormData.firstname}
+                          onChange={handleProfileFieldChange}
+                          className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Last Name</label>
+                        <input
+                          name="lastname"
+                          type="text"
+                          value={profileFormData.lastname}
+                          onChange={handleProfileFieldChange}
+                          className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Email</label>
+                        <input
+                          name="email"
+                          type="email"
+                          value={profileFormData.email}
+                          readOnly
+                          disabled
+                          className="mt-1 block w-full border rounded-md px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed"
+                        />
+                      </div>
+
+                      {canChangePassword ? (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">New Password</label>
+                          <input
+                            name="password"
+                            type="password"
+                            value={profileFormData.password}
+                            onChange={handleProfileFieldChange}
+                            placeholder="Leave blank to keep current password"
+                            className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-600">
+                          Password changes are managed by your social login provider.
+                        </p>
+                      )}
+
+                      {canChangePassword && profileFormData.password.trim().length > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Current Password</label>
+                          <input
+                            name="currentpassword"
+                            type="password"
+                            value={profileFormData.currentpassword}
+                            onChange={handleProfileFieldChange}
+                            className="mt-1 block w-full border rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {profileMessage && (
+                      <p
+                        className={`text-sm text-center ${
+                          profileMessage.startsWith('✅') ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        {profileMessage}
+                      </p>
+                    )}
+
+                    <div>
+                      <button
+                        type="submit"
+                        disabled={profileLoading}
+                        className={`w-full py-3 px-4 text-white font-medium rounded-md shadow-sm bg-green-600 hover:bg-green-700 focus:outline-none ${
+                          profileLoading ? 'opacity-75 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {profileLoading ? 'Saving...' : 'Update Profile'}
+                      </button>
+                    </div>
+                  </form>
+
+                  <div className="mt-10 text-center">
+                    <button
+                      onClick={() => setShowConfirmDelete(true)}
+                      className="text-red-600 hover:underline text-sm"
+                    >
+                      Delete My Account
+                    </button>
+                  </div>
+
+                  {showConfirmDelete && (
+                    <div className="mt-6 bg-red-50 border border-red-200 p-4 rounded-md">
+                      <p className="text-sm text-red-700">
+                        Are you sure you want to permanently delete your account?
+                      </p>
+                      <div className="mt-4 flex justify-between">
+                        <button
+                          onClick={handleDeleteAccount}
+                          className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+                        >
+                          Yes, delete it
+                        </button>
+                        <button
+                          onClick={() => setShowConfirmDelete(false)}
+                          className="text-sm text-gray-600 underline"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="px-6 py-8 text-center text-gray-500">
+                  Settings content coming soon.
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
