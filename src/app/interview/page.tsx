@@ -8,8 +8,6 @@ import { Interview } from '../types/Interview'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { MdOutlinePersonPin, MdLogout } from 'react-icons/md'
-import { IoSettingsOutline } from 'react-icons/io5'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
@@ -21,7 +19,6 @@ export default function InterviewPage() {
   const [showSetup, setShowSetup] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { user, loading, setUser } = useAuth()
-  const [dropdownOpen, setDropdownOpen] = useState(false)
   const router = useRouter()
   const [loadingInterviews, setLoadingInterviews] = useState(false)
   const [activeModal, setActiveModal] = useState<'profile' | 'settings' | null>(null)
@@ -232,7 +229,6 @@ export default function InterviewPage() {
   const canChangePassword = !user.authProvider || user.authProvider.toUpperCase() === 'LOCAL'
 
   const openModal = (modal: 'profile' | 'settings') => {
-    setDropdownOpen(false)
     setProfileMessage('')
     setShowConfirmDelete(false)
     setActiveModal(modal)
@@ -336,53 +332,18 @@ export default function InterviewPage() {
         onDeleteInterview={handleDeleteInterview}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        userInitial={user.firstname?.charAt(0).toUpperCase() || 'U'}
+        userName={`${user.firstname} ${user.lastname}`.trim() || user.email}
+        userEmail={user.email}
+        onOpenProfile={() => openModal('profile')}
+        onOpenSettings={() => openModal('settings')}
+        onLogout={handleLogout}
         loading={loadingInterviews}
       />
 
       <main className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
         sidebarCollapsed ? 'ml-16' : 'ml-64'
       }`}>
-        {/* Top-right Profile */}
-        <div className="flex justify-end items-center p-4 border-b border-gray-200 relative">
-          {user && (
-            <div className="relative">
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2 hover:bg-gray-100 px-3 py-2 rounded-full transition"
-              >
-                <div className="w-8 h-8 bg-teal-500 rounded-full flex items-center justify-center text-white text-lg">
-                  {user.firstname?.charAt(0).toUpperCase() || 'U'}
-                </div>
-              </button>
-
-              <AnimatePresence>
-                {dropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10"
-                  >
-                    <button onClick={() => openModal('profile')} className="dropdown-link">
-                      <MdOutlinePersonPin className="text-lg text-green-600" />
-                      Profile
-                    </button>
-                    <button onClick={() => openModal('settings')} className="dropdown-link">
-                      <IoSettingsOutline className="text-lg text-green-600" />
-                      Settings
-                    </button>
-                    <button onClick={handleLogout} className="dropdown-link text-red-600">
-                      <MdLogout className="text-lg" />
-                      Logout
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-        </div>
-
         {/* Interview Section */}
         <div className="flex-1 overflow-hidden">
           {showSetup ? (
