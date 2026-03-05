@@ -1,50 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
-import { VscAccount } from "react-icons/vsc";
-import { MdOutlinePersonPin, MdLogout } from "react-icons/md";
-import { IoSettingsOutline } from "react-icons/io5";
 import { useAuth } from "../context/AuthContext";
-import { API_BASE } from "../services/api";
-import { CSRF_HEADER_NAME, getCsrfToken } from "../services/csrf";
 
 export default function Navbar() {
-  const { user, loading, setUser } = useAuth();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      const csrfToken = await getCsrfToken();
-      await fetch(`${API_BASE}/auth/logout`, {
-        method: "POST",
-        headers: {
-          [CSRF_HEADER_NAME]: csrfToken,
-        },
-        credentials: "include",
-      });
-      setUser(null);
-      window.location.href = "/";
-    } catch (err) {
-      console.error("Logout failed:", err);
-    }
-  };
+  const { user, loading } = useAuth();
 
   return (
     <nav className="fixed top-3 left-1/2 transform -translate-x-1/2 z-50 w-[100%] max-w-7xl rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-md px-15 py-0 font-['Space_Grotesk']">
@@ -72,42 +32,8 @@ export default function Navbar() {
           </div>
 
           {/* Auth Section */}
-          <div className="hidden sm:flex sm:items-center sm:space-x-4 relative -mr-20" ref={dropdownRef}>
-            {!loading && user ? (
-              <div className="relative">
-                <button
-                  onClick={() => setDropdownOpen((prev) => !prev)}
-                  className="flex items-center space-x-2 text-sm text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md font-medium cursor-pointer hover:bg-gray-100 transition"
-                >
-                  <VscAccount className="text-xl text-green-600" />
-                  <span>Hi {user.firstname}</span>
-                </button>
-                <AnimatePresence>
-                  {dropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10"
-                    >
-                      <Link href="/profile" className="dropdown-link">
-                        <MdOutlinePersonPin className="text-lg text-green-600" />
-                        Profile
-                      </Link>
-                      <Link href="/settings" className="dropdown-link">
-                        <IoSettingsOutline className="text-lg text-green-600" />
-                        Settings
-                      </Link>
-                      <button onClick={handleLogout} className="dropdown-link text-red-600">
-                        <MdLogout className="text-lg" />
-                        Logout
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ) : !loading ? (
+          <div className="hidden sm:flex sm:items-center sm:space-x-4 relative -mr-20">
+            {!loading && !user ? (
               <>
                 <Link href="/login" className="nav-link font-['Space_Grotesk'] px-6 py-2 bg-gray-200 border border-gray-400 rounded-full">Log in</Link>
                 <Link
