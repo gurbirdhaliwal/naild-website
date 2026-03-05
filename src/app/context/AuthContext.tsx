@@ -1,9 +1,10 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { User } from '../types/Users';
 import { API_BASE } from '../services/api';
+import { getSafeRedirectPath, POST_AUTH_REDIRECT_STORAGE_KEY } from '../services/safeRedirect';
  
 interface AuthContextType {
   user: User | null;
@@ -17,6 +18,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     fetch(`${API_BASE}/user/me`, {
@@ -32,6 +34,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (loading || !user) return;
+
+    const pendingRedirect = window.sessionStorage.getItem(POST_AUTH_REDIRECT_STORAGE_KEY);
+    if (!pendingRedirect) return;
+
+    const targetPath = getSafeRedirectPath(pendingRedirect, '/interview');
+    const isAuthEntryPath = pathname === '/' || pathname === '/login' || pathname === '/signup';
+
+    if (pathname === targetPath) {
+      window.sessionStorage.removeItem(POST_AUTH_REDIRECT_STORAGE_KEY);
+      return;
+    }
+
+    if (isAuthEntryPath) {
+      router.replace(targetPath);
+    }
+  }, [loading, pathname, router, user]);
 
   return (
     <AuthContext.Provider value={{ user, loading, setUser }}>
