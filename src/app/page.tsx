@@ -4,10 +4,12 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './context/AuthContext';
+import { getSafeRedirectPath, POST_AUTH_REDIRECT_STORAGE_KEY } from './services/safeRedirect';
 
 const NaildLanding = () => {
   const [activeTab, setActiveTab] = useState('feedback');
   const [isVideoMuted, setIsVideoMuted] = useState(true);
+  const [isPostAuthTransition, setIsPostAuthTransition] = useState(false);
 
   const tabs = [
     { id: 'feedback', label: 'Feedback' },
@@ -19,6 +21,23 @@ const NaildLanding = () => {
   const router = useRouter();
   const { user, loading } = useAuth();
 
+  React.useEffect(() => {
+    if (loading) return;
+
+    const pendingRedirect = window.sessionStorage.getItem(POST_AUTH_REDIRECT_STORAGE_KEY);
+    if (!pendingRedirect) return;
+
+    const targetPath = getSafeRedirectPath(pendingRedirect, '/interview');
+    setIsPostAuthTransition(true);
+
+    if (user) {
+      router.replace(targetPath);
+      return;
+    }
+
+    router.replace(`/login?redirect=${encodeURIComponent(targetPath)}`);
+  }, [loading, router, user]);
+
   const handleGetStarted = () => {
     if (loading) return;
     if (user) {
@@ -28,6 +47,10 @@ const NaildLanding = () => {
       router.push('/login?redirect=/interview');
     }
   };
+
+  if (loading || isPostAuthTransition) {
+    return <div className="min-h-screen bg-white" />;
+  }
 
   return (
     <div className="font-['Space_Grotesk'] text-center">

@@ -7,11 +7,12 @@ import { useSearchParams } from 'next/navigation';
 import { FaGoogle, FaLinkedin, FaGithub, FaArrowLeft } from 'react-icons/fa';
 import { API_BASE, API_ORIGIN } from '../services/api';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
-import { getSafeRedirectPath } from '../services/safeRedirect';
+import { getSafeRedirectPath, POST_AUTH_REDIRECT_STORAGE_KEY } from '../services/safeRedirect';
 
 export default function Signup() {
   const searchParams = useSearchParams();
   const redirectPath = getSafeRedirectPath(searchParams.get('redirect'));
+  const googleOauthHref = `${API_ORIGIN}/oauth2/authorization/google?redirect=${encodeURIComponent(redirectPath)}`;
 
   const [step, setStep] = useState<'email' | 'details'>('email');
   const [formData, setFormData] = useState({
@@ -84,6 +85,10 @@ export default function Signup() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOAuthStart = () => {
+    window.sessionStorage.setItem(POST_AUTH_REDIRECT_STORAGE_KEY, redirectPath);
   };
 
   return (
@@ -218,7 +223,8 @@ export default function Signup() {
         {/* SOCIAL SIGNUP */}
         <div className="space-y-3">
           <a
-            href={`${API_ORIGIN}/oauth2/authorization/google`}
+            href={googleOauthHref}
+            onClick={handleOAuthStart}
             className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-md py-2 text-sm font-medium bg-white hover:bg-gray-50"
           >
             <FaGoogle />
@@ -243,7 +249,10 @@ export default function Signup() {
         {/* Redirect to login */}
         <div className="mt-6 text-center text-sm text-gray-600">
           Already have an account?{' '}
-          <Link href="/login" className="text-green-600 font-medium hover:text-green-500">
+          <Link
+            href={`/login?redirect=${encodeURIComponent(redirectPath)}`}
+            className="text-green-600 font-medium hover:text-green-500"
+          >
             Log in
           </Link>
         </div>
