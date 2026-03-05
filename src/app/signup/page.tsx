@@ -7,7 +7,8 @@ import { useSearchParams } from 'next/navigation';
 import { FaGoogle, FaLinkedin, FaGithub, FaArrowLeft } from 'react-icons/fa';
 import { API_BASE, API_ORIGIN } from '../services/api';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
-import { getSafeRedirectPath, POST_AUTH_REDIRECT_STORAGE_KEY } from '../services/safeRedirect';
+import { getSafeRedirectPath } from '../services/safeRedirect';
+import { setOAuthHandoffRedirect } from '../services/authSession';
 
 export default function Signup() {
   const searchParams = useSearchParams();
@@ -87,8 +88,8 @@ export default function Signup() {
     }
   };
 
-  const handleOAuthStart = () => {
-    window.sessionStorage.setItem(POST_AUTH_REDIRECT_STORAGE_KEY, redirectPath);
+  const handleGoogleOAuthStart = () => {
+    setOAuthHandoffRedirect(redirectPath);
   };
 
   return (
@@ -224,7 +225,7 @@ export default function Signup() {
         <div className="space-y-3">
           <a
             href={googleOauthHref}
-            onClick={handleOAuthStart}
+            onClick={handleGoogleOAuthStart}
             className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-md py-2 text-sm font-medium bg-white hover:bg-gray-50"
           >
             <FaGoogle />
