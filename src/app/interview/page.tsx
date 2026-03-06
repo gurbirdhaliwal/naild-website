@@ -426,9 +426,57 @@ export default function InterviewPage() {
               </div>
             </motion.div>
           ) : (
-            <div className="h-full flex items-center justify-center p-8 text-gray-500">
-              Select an interview from the sidebar or start a new one
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="h-full flex items-center justify-center p-8"
+            >
+              <div className="text-center max-w-md">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="w-24 h-24 mx-auto mb-2 flex items-center justify-center"
+                >
+                  <img
+                    src="/naild_logo.png"
+                    alt="Naild Logo"
+                    className="w-20 h-20 object-contain"
+                  />
+                </motion.div>
+                <motion.h3
+                  initial={{ opacity: 0, y: 0 }}
+                  animate={{ opacity: 1, y: -10 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  className="text-3xl text-gray-900 mb-2 font-['Space_Grotesk'] mt-4"
+                >
+                  Welcome back, {user?.firstname || 'there'}
+                </motion.h3>
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                  className="text-gray-600 mb-6"
+                >
+                  Select an interview from the sidebar or start a new one
+                </motion.p>
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.5 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowSetup(true)}
+                  className="inline-flex items-center px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg transition-colors mt-1"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Create New Interview
+                </motion.button>
+              </div>
+            </motion.div>
           )}
         </div>
       </main>
