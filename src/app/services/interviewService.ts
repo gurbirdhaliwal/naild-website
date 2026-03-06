@@ -34,6 +34,10 @@ export interface UpdateGradingRequest {
   gradingResult: GradingResult;
 }
 
+export interface UpdateInterviewTitleRequest {
+  title: string;
+}
+
 class InterviewService {
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
     try {
@@ -177,6 +181,39 @@ class InterviewService {
         updatedAt: new Date().toISOString(),
       };
       return mockResponse;
+    }
+  }
+
+  async updateInterviewTitle(id: number, data: UpdateInterviewTitleRequest): Promise<InterviewResponse> {
+    try {
+      return await this.makeRequest(`/interviews/${id}/title`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    } catch {
+      try {
+        return await this.makeRequest(`/interviews/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+        });
+      } catch {
+        console.log('Backend not available, skipping interview title update');
+        const mockResponse: InterviewResponse = {
+          id: id,
+          title: data.title,
+          role: 'Developer',
+          languages: '["JavaScript"]',
+          difficulty: 'mid',
+          status: 'active',
+          questions: '[]',
+          messages: '[]',
+          currentQuestionIndex: 0,
+          gradingResult: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        return mockResponse;
+      }
     }
   }
 

@@ -244,6 +244,31 @@ export default function InterviewPage() {
     }
   }
 
+  const handleRenameInterview = async (interviewId: string, title: string) => {
+    const normalizedTitle = title.trim()
+    if (!normalizedTitle) return
+
+    setInterviews((prev) =>
+      prev.map((interview) =>
+        interview.id === interviewId ? { ...interview, title: normalizedTitle } : interview
+      )
+    )
+
+    setCurrentInterview((prev) =>
+      prev?.id === interviewId ? { ...prev, title: normalizedTitle } : prev
+    )
+
+    if (isNaN(Number(interviewId))) return
+
+    try {
+      await interviewService.updateInterviewTitle(Number(interviewId), {
+        title: normalizedTitle,
+      })
+    } catch (error) {
+      console.error('Failed to rename interview:', error)
+    }
+  }
+
   const canChangePassword = !user.authProvider || user.authProvider.toUpperCase() === 'LOCAL'
 
   const openModal = (modal: 'profile' | 'settings') => {
@@ -348,6 +373,7 @@ export default function InterviewPage() {
         onStartNew={() => setShowSetup(true)}
         onSelectInterview={setCurrentInterview}
         onDeleteInterview={handleDeleteInterview}
+        onRenameInterview={handleRenameInterview}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         userInitial={user.firstname?.charAt(0).toUpperCase() || 'U'}

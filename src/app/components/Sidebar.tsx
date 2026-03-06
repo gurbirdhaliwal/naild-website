@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   MessageSquare,
@@ -12,6 +12,9 @@ import {
   Settings,
   CircleHelp,
   LogOut,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
 import { Interview } from '../types/Interview';
 import Link from 'next/link';
@@ -22,6 +25,7 @@ interface SidebarProps {
   onStartNew: () => void;
   onSelectInterview: (interview: Interview) => void;
   onDeleteInterview: (interviewId: string) => void;
+  onRenameInterview: (interviewId: string, title: string) => Promise<void> | void;
   collapsed: boolean;
   onToggleCollapse: () => void;
   userInitial: string;
@@ -39,6 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onStartNew,
   onSelectInterview,
   onDeleteInterview,
+  onRenameInterview,
   collapsed,
   onToggleCollapse,
   userInitial,
@@ -50,7 +55,29 @@ const Sidebar: React.FC<SidebarProps> = ({
   loading = false,
 }) => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingInterviewId, setEditingInterviewId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [savingRenameId, setSavingRenameId] = useState<string | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+
+  const filteredInterviews = useMemo(() => {
+    if (!normalizedSearchQuery) return interviews;
+
+    return interviews.filter((interview) => {
+      const title = interview.title.toLowerCase();
+      const role = interview.role.toLowerCase();
+      const languages = interview.languages.join(' ').toLowerCase();
+
+      return (
+        title.includes(normalizedSearchQuery) ||
+        role.includes(normalizedSearchQuery) ||
+        languages.includes(normalizedSearchQuery)
+      );
+    });
+  }, [interviews, normalizedSearchQuery]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -62,6 +89,53 @@ const Sidebar: React.FC<SidebarProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const handleGlobalEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (searchOpen) setSearchOpen(false);
+      if (editingInterviewId) {
+        setEditingInterviewId(null);
+        setEditingTitle('');
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalEscape);
+    return () => document.removeEventListener('keydown', handleGlobalEscape);
+  }, [searchOpen, editingInterviewId]);
+
+  const openSearchModal = () => {
+    setSearchQuery('');
+    setSearchOpen(true);
+  };
+
+  const beginRename = (interview: Interview) => {
+    setEditingInterviewId(interview.id);
+    setEditingTitle(interview.title);
+  };
+
+  const cancelRename = () => {
+    setEditingInterviewId(null);
+    setEditingTitle('');
+  };
+
+  const saveRename = async (interview: Interview) => {
+    const nextTitle = editingTitle.trim();
+    if (!nextTitle || nextTitle === interview.title) {
+      cancelRename();
+      return;
+    }
+
+    try {
+      setSavingRenameId(interview.id);
+      await Promise.resolve(onRenameInterview(interview.id, nextTitle));
+      cancelRename();
+    } catch (error) {
+      console.error('Failed to rename interview:', error);
+    } finally {
+      setSavingRenameId(null);
+    }
+  };
 
   return (
     <div
@@ -100,7 +174,10 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {!collapsed && (
           <div className="p-4 space-y-2">
-            <button className="w-full flex items-center gap-3 p-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-left">
+            <button
+              onClick={openSearchModal}
+              className="w-full flex items-center gap-3 p-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-left"
+            >
               <Search size={18} />
               <span>Search</span>
             </button>
@@ -153,40 +230,170 @@ const Sidebar: React.FC<SidebarProps> = ({
                     : ''
                 }`}
               >
-                <button
-                  onClick={() => onSelectInterview(interview)}
-                  className="w-full text-left p-4 hover:bg-gray-100 transition-colors"
+                <div
+                  onClick={() => {
+                    if (editingInterviewId !== interview.id) {
+                      onSelectInterview(interview);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ' ') && editingInterviewId !== interview.id) {
+                      e.preventDefault();
+                      onSelectInterview(interview);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  className="w-full text-left p-4 hover:bg-gray-100 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <MessageSquare size={16} className="text-gray-400 flex-shrink-0" />
                     {!collapsed && (
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 truncate">
-                          {interview.title}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {interview.status === 'completed' ? 'Completed' : 'In Progress'}
-                        </div>
+                      <div className="flex-1 min-w-0 pr-14">
+                        {editingInterviewId === interview.id ? (
+                          <input
+                            value={editingTitle}
+                            onChange={(e) => setEditingTitle(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                void saveRename(interview);
+                              }
+                              if (e.key === 'Escape') {
+                                e.preventDefault();
+                                cancelRename();
+                              }
+                            }}
+                            disabled={savingRenameId === interview.id}
+                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm text-gray-900 focus:border-gray-500 focus:outline-none"
+                            autoFocus
+                          />
+                        ) : (
+                          <>
+                            <div className="text-sm font-medium text-gray-900 truncate">
+                              {interview.title}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {interview.status === 'completed' ? 'Completed' : 'In Progress'}
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
-                </button>
+                </div>
                 {!collapsed && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteInterview(interview.id);
-                    }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded"
-                    title="Delete interview"
-                  >
-                    <Trash2 size={14} className="text-red-500" />
-                  </button>
+                  editingInterviewId === interview.id ? (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void saveRename(interview);
+                        }}
+                        disabled={savingRenameId === interview.id}
+                        className="p-1 hover:bg-green-100 rounded transition-colors"
+                        title="Save name"
+                      >
+                        <Check size={14} className="text-green-600" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          cancelRename();
+                        }}
+                        disabled={savingRenameId === interview.id}
+                        className="p-1 hover:bg-gray-200 rounded transition-colors"
+                        title="Cancel rename"
+                      >
+                        <X size={14} className="text-gray-600" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          beginRename(interview);
+                        }}
+                        className="p-1 hover:bg-gray-200 rounded transition-colors"
+                        title="Rename interview"
+                      >
+                        <Pencil size={14} className="text-gray-500" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteInterview(interview.id);
+                        }}
+                        className="p-1 hover:bg-red-100 rounded transition-colors"
+                        title="Delete interview"
+                      >
+                        <Trash2 size={14} className="text-red-500" />
+                      </button>
+                    </div>
+                  )
                 )}
               </div>
             ))
           )}
         </div>
+
+        {searchOpen && (
+          <div
+            className="fixed inset-0 z-40 flex items-start justify-center bg-black/30 p-4 pt-20"
+            onClick={() => setSearchOpen(false)}
+          >
+            <div
+              className="w-full max-w-2xl rounded-xl border border-gray-200 bg-white shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="border-b border-gray-200 p-4">
+                <div className="flex items-center gap-2">
+                  <Search size={18} className="text-gray-400" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search interviews by name, role, or technology"
+                    className="w-full bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => setSearchOpen(false)}
+                    className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    title="Close search"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-[420px] overflow-y-auto py-2">
+                {filteredInterviews.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-sm text-gray-500">
+                    No interviews found
+                  </p>
+                ) : (
+                  filteredInterviews.map((interview) => (
+                    <button
+                      key={`search-${interview.id}`}
+                      onClick={() => {
+                        onSelectInterview(interview);
+                        setSearchOpen(false);
+                      }}
+                      className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="text-sm font-medium text-gray-900">{interview.title}</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        {interview.role} • {interview.languages.join(', ')}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div ref={accountMenuRef} className="p-4 border-t border-gray-200 relative">
           <button
