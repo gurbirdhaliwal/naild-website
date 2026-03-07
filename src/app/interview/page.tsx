@@ -377,6 +377,7 @@ export default function InterviewPage() {
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         userInitial={user.firstname?.charAt(0).toUpperCase() || 'U'}
+        userFirstName={user.firstname}
         userName={`${user.firstname} ${user.lastname}`.trim() || user.email}
         userEmail={user.email}
         onOpenProfile={() => openModal('profile')}

@@ -15,9 +15,11 @@ import {
   Pencil,
   Check,
   X,
+  BarChart3,
 } from 'lucide-react';
 import { Interview } from '../types/Interview';
 import Link from 'next/link';
+import MetricsDashboard from './MetricsDashboard';
 
 interface SidebarProps {
   interviews: Interview[];
@@ -29,6 +31,7 @@ interface SidebarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   userInitial: string;
+  userFirstName?: string;
   userName: string;
   userEmail: string;
   onOpenProfile: () => void;
@@ -47,6 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
   onToggleCollapse,
   userInitial,
+  userFirstName,
   userName,
   userEmail,
   onOpenProfile,
@@ -56,6 +60,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [metricsOpen, setMetricsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingInterviewId, setEditingInterviewId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -94,6 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     const handleGlobalEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (searchOpen) setSearchOpen(false);
+      if (metricsOpen) setMetricsOpen(false);
       if (editingInterviewId) {
         setEditingInterviewId(null);
         setEditingTitle('');
@@ -102,7 +108,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     document.addEventListener('keydown', handleGlobalEscape);
     return () => document.removeEventListener('keydown', handleGlobalEscape);
-  }, [searchOpen, editingInterviewId]);
+  }, [searchOpen, metricsOpen, editingInterviewId]);
 
   const openSearchModal = () => {
     setSearchQuery('');
@@ -181,9 +187,12 @@ const Sidebar: React.FC<SidebarProps> = ({
               <Search size={18} />
               <span>Search</span>
             </button>
-            <button className="w-full flex items-center gap-3 p-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-left">
-              <MessageSquare size={18} />
-              <span>Interviews</span>
+            <button
+              onClick={() => setMetricsOpen(true)}
+              className="w-full flex items-center gap-3 p-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-left"
+            >
+              <BarChart3 size={18} />
+              <span>Metrics</span>
             </button>
             <button className="w-full flex items-center gap-3 p-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-left">
               <Library size={18} />
@@ -391,6 +400,33 @@ const Sidebar: React.FC<SidebarProps> = ({
                   ))
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {metricsOpen && (
+          <div
+            className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-3 sm:p-4"
+            onClick={() => setMetricsOpen(false)}
+          >
+            <div
+              className="w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+                <div className="flex items-center gap-2 text-gray-900">
+                  <BarChart3 size={18} />
+                  <h2 className="text-sm font-semibold">Metrics</h2>
+                </div>
+                <button
+                  onClick={() => setMetricsOpen(false)}
+                  className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                  title="Close metrics"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <MetricsDashboard interviews={interviews} userFirstName={userFirstName} />
             </div>
           </div>
         )}
