@@ -570,7 +570,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
             
             {/* Timer display in top right corner */}
             {isTimerRunning && (
-              <div className="absolute top-4 right-4 z-20 bg-black bg-opacity-70 text-white px-3 py-2 rounded-lg font-mono text-lg font-bold">
+              <div className="absolute top-4 right-4 z-[2] bg-black bg-opacity-70 text-white px-3 py-2 rounded-lg font-mono text-lg font-bold">
                 {formatTime(timer)}
               </div>
             )}
@@ -578,7 +578,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
             {/* Center-bottom camera toggle button */}
             <button
               onClick={() => setCameraOn((prev) => !prev)}
-              className="absolute left-1/2 -translate-x-1/2 -bottom-6 z-10 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-3 shadow-md transition border border-gray-200"
+              className="absolute left-1/2 -translate-x-1/2 -bottom-6 z-[1] bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-3 shadow-md transition border border-gray-200"
               title={cameraOn ? 'Turn camera off' : 'Turn camera on'}
             >
               {cameraOn ? (
