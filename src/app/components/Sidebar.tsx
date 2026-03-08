@@ -20,6 +20,7 @@ import {
 import { Interview } from '../types/Interview';
 import Link from 'next/link';
 import MetricsDashboard from './MetricsDashboard';
+import { AnimatePresence, motion } from 'framer-motion';
 
 interface SidebarProps {
   interviews: Interview[];
@@ -40,6 +41,57 @@ interface SidebarProps {
   onLogout: () => void;
   loading?: boolean;
 }
+
+const LIBRARY_CATEGORIES = [
+  {
+    title: 'Data Structures & Algorithms',
+    description: 'Sharpen pattern recognition for arrays, trees, graphs, and dynamic programming.',
+    tags: ['Arrays', 'Graphs', 'DP'],
+    icon: BarChart3,
+  },
+  {
+    title: 'System Design',
+    description: 'Practice designing scalable services, APIs, and data flow under realistic constraints.',
+    tags: ['Scalability', 'APIs', 'Databases'],
+    icon: Settings,
+  },
+  {
+    title: 'Behavioral Interviewing',
+    description: 'Craft STAR-based stories that show ownership, impact, and collaboration.',
+    tags: ['STAR', 'Leadership', 'Teamwork'],
+    icon: User,
+  },
+  {
+    title: 'Object-Oriented Design',
+    description: 'Master class design, SOLID principles, and common engineering tradeoffs.',
+    tags: ['SOLID', 'Patterns', 'Tradeoffs'],
+    icon: Library,
+  },
+  {
+    title: 'OS & Networks',
+    description: 'Review concurrency, memory, processes, latency, and networking fundamentals.',
+    tags: ['Concurrency', 'Memory', 'TCP/IP'],
+    icon: Search,
+  },
+  {
+    title: 'Communication Skills',
+    description: 'Explain your thought process clearly while coding and problem-solving aloud.',
+    tags: ['Clarity', 'Structure', 'Confidence'],
+    icon: MessageSquare,
+  },
+  {
+    title: 'Resume & Pitch',
+    description: 'Align projects and achievements to role expectations with concise talking points.',
+    tags: ['Impact', 'Projects', 'Positioning'],
+    icon: Check,
+  },
+  {
+    title: 'Problem-Solving Frameworks',
+    description: 'Use repeatable frameworks to break down unknown questions with confidence.',
+    tags: ['Decompose', 'Validate', 'Iterate'],
+    icon: CircleHelp,
+  },
+];
 
 const Sidebar: React.FC<SidebarProps> = ({
   interviews,
@@ -63,6 +115,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [metricsOpen, setMetricsOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingInterviewId, setEditingInterviewId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -102,6 +155,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       if (event.key !== 'Escape') return;
       if (searchOpen) setSearchOpen(false);
       if (metricsOpen) setMetricsOpen(false);
+      if (libraryOpen) setLibraryOpen(false);
       if (editingInterviewId) {
         setEditingInterviewId(null);
         setEditingTitle('');
@@ -110,11 +164,25 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     document.addEventListener('keydown', handleGlobalEscape);
     return () => document.removeEventListener('keydown', handleGlobalEscape);
-  }, [searchOpen, metricsOpen, editingInterviewId]);
+  }, [searchOpen, metricsOpen, libraryOpen, editingInterviewId]);
 
   const openSearchModal = () => {
     setSearchQuery('');
+    setMetricsOpen(false);
+    setLibraryOpen(false);
     setSearchOpen(true);
+  };
+
+  const openMetricsModal = () => {
+    setSearchOpen(false);
+    setLibraryOpen(false);
+    setMetricsOpen(true);
+  };
+
+  const openLibraryModal = () => {
+    setSearchOpen(false);
+    setMetricsOpen(false);
+    setLibraryOpen(true);
   };
 
   const beginRename = (interview: Interview) => {
@@ -190,13 +258,16 @@ const Sidebar: React.FC<SidebarProps> = ({
               <span>Search</span>
             </button>
             <button
-              onClick={() => setMetricsOpen(true)}
+              onClick={openMetricsModal}
               className="w-full flex items-center gap-3 p-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-left"
             >
               <BarChart3 size={18} />
               <span>Metrics</span>
             </button>
-            <button className="w-full flex items-center gap-3 p-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-left">
+            <button
+              onClick={openLibraryModal}
+              className="w-full flex items-center gap-3 p-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-left"
+            >
               <Library size={18} />
               <span>Library</span>
             </button>
@@ -350,92 +421,190 @@ const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {searchOpen && (
-          <div
-            className="fixed inset-0 z-40 flex items-start justify-center bg-black/30 p-4 pt-20"
-            onClick={() => setSearchOpen(false)}
-          >
-            <div
-              className="w-full max-w-2xl rounded-xl border border-gray-200 bg-white shadow-xl"
-              onClick={(e) => e.stopPropagation()}
+        <AnimatePresence>
+          {searchOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 pt-20"
+              onClick={() => setSearchOpen(false)}
             >
-              <div className="border-b border-gray-200 p-4">
-                <div className="flex items-center gap-2">
-                  <Search size={18} className="text-gray-400" />
-                  <input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search interviews by name, role, or technology"
-                    className="w-full bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
-                    autoFocus
-                  />
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                className="w-full max-w-2xl rounded-xl border border-gray-200 bg-white shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="border-b border-gray-200 p-4">
+                  <div className="flex items-center gap-2">
+                    <Search size={18} className="text-gray-400" />
+                    <input
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search interviews by name, role, or technology"
+                      className="w-full bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => setSearchOpen(false)}
+                      className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                      title="Close search"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="max-h-[420px] overflow-y-auto py-2">
+                  {filteredInterviews.length === 0 ? (
+                    <p className="px-4 py-8 text-center text-sm text-gray-500">
+                      No interviews found
+                    </p>
+                  ) : (
+                    filteredInterviews.map((interview) => (
+                      <button
+                        key={`search-${interview.id}`}
+                        onClick={() => {
+                          onSelectInterview(interview);
+                          setSearchOpen(false);
+                        }}
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="text-sm font-medium text-gray-900">{interview.title}</div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          {interview.role} • {interview.languages.join(', ')}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {metricsOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 sm:p-4"
+              onClick={() => setMetricsOpen(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                className="w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+                  <div className="flex items-center gap-2 text-gray-900">
+                    <BarChart3 size={18} />
+                    <h2 className="text-sm font-semibold">Metrics</h2>
+                  </div>
                   <button
-                    onClick={() => setSearchOpen(false)}
+                    onClick={() => setMetricsOpen(false)}
                     className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                    title="Close search"
+                    title="Close metrics"
                   >
                     <X size={16} />
                   </button>
                 </div>
-              </div>
+                <MetricsDashboard
+                  interviews={interviews}
+                  userFirstName={userFirstName}
+                  userCreatedAt={userCreatedAt}
+                />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-              <div className="max-h-[420px] overflow-y-auto py-2">
-                {filteredInterviews.length === 0 ? (
-                  <p className="px-4 py-8 text-center text-sm text-gray-500">
-                    No interviews found
-                  </p>
-                ) : (
-                  filteredInterviews.map((interview) => (
-                    <button
-                      key={`search-${interview.id}`}
-                      onClick={() => {
-                        onSelectInterview(interview);
-                        setSearchOpen(false);
-                      }}
-                      className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="text-sm font-medium text-gray-900">{interview.title}</div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        {interview.role} • {interview.languages.join(', ')}
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {metricsOpen && (
-          <div
-            className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-3 sm:p-4"
-            onClick={() => setMetricsOpen(false)}
-          >
-            <div
-              className="w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
-              onClick={(e) => e.stopPropagation()}
+        <AnimatePresence>
+          {libraryOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-3 sm:p-4"
+              onClick={() => setLibraryOpen(false)}
             >
-              <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
-                <div className="flex items-center gap-2 text-gray-900">
-                  <BarChart3 size={18} />
-                  <h2 className="text-sm font-semibold">Metrics</h2>
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                className="w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-5">
+                  <div>
+                    <div className="flex items-center gap-2 text-gray-900">
+                      <Library size={18} />
+                      <h2 className="text-sm font-semibold sm:text-base">Interview Library</h2>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500 sm:text-sm">
+                      Curated CS learning paths to improve your interview performance.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setLibraryOpen(false)}
+                    className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    title="Close library"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setMetricsOpen(false)}
-                  className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                  title="Close metrics"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <MetricsDashboard
-                interviews={interviews}
-                userFirstName={userFirstName}
-                userCreatedAt={userCreatedAt}
-              />
-            </div>
-          </div>
-        )}
+
+                <div className="max-h-[calc(92vh-84px)] overflow-y-auto bg-gradient-to-b from-white to-gray-50 p-4 sm:p-5">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {LIBRARY_CATEGORIES.map((category, index) => {
+                      const Icon = category.icon;
+                      return (
+                        <motion.div
+                          key={category.title}
+                          initial={{ opacity: 0, y: 14 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.25, delay: index * 0.06 }}
+                          className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                        >
+                          <div className="mb-3 flex items-start justify-between gap-2">
+                            <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-700">
+                              <Icon size={18} />
+                            </div>
+                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-600">
+                              Curated
+                            </span>
+                          </div>
+
+                          <h3 className="text-sm font-semibold text-gray-900">{category.title}</h3>
+                          <p className="mt-1 text-xs leading-5 text-gray-600">{category.description}</p>
+
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {category.tags.map((tag) => (
+                              <span
+                                key={`${category.title}-${tag}`}
+                                className="rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-700"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div ref={accountMenuRef} className="p-4 border-t border-gray-200 relative">
           <button
