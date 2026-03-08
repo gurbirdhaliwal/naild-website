@@ -492,7 +492,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 sm:p-4"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-3 sm:p-4"
               onClick={() => setMetricsOpen(false)}
             >
               <motion.div
@@ -503,10 +503,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                 className="w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
-                  <div className="flex items-center gap-2 text-gray-900">
-                    <BarChart3 size={18} />
-                    <h2 className="text-sm font-semibold">Metrics</h2>
+                <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-5">
+                  <div>
+                    <div className="flex items-center gap-2 text-gray-900">
+                      <BarChart3 size={18} />
+                      <h2 className="text-sm font-semibold sm:text-base">Metrics</h2>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500 sm:text-sm">
+                      Track interview performance and progress over time.
+                    </p>
                   </div>
                   <button
                     onClick={() => setMetricsOpen(false)}
@@ -516,11 +521,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <X size={16} />
                   </button>
                 </div>
-                <MetricsDashboard
-                  interviews={interviews}
-                  userFirstName={userFirstName}
-                  userCreatedAt={userCreatedAt}
-                />
+                <div className="max-h-[calc(92vh-84px)] overflow-y-auto bg-gradient-to-b from-white to-gray-50">
+                  <MetricsDashboard
+                    interviews={interviews}
+                    userFirstName={userFirstName}
+                    userCreatedAt={userCreatedAt}
+                  />
+                </div>
               </motion.div>
             </motion.div>
           )}

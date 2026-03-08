@@ -240,7 +240,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
   }, [linePath])
 
   return (
-    <div className="bg-gradient-to-b from-white via-gray-50 to-gray-100 p-4 sm:p-5">
+    <div className="p-4 sm:p-5">
       <div className="mx-auto max-w-5xl space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>

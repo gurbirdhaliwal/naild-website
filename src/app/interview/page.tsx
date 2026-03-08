@@ -8,6 +8,7 @@ import { Interview } from '../types/Interview'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Settings, User } from 'lucide-react'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
@@ -370,6 +371,12 @@ export default function InterviewPage() {
     }
   }
 
+  const isProfileModal = activeModal === 'profile'
+  const modalTitle = isProfileModal ? 'Profile' : 'Settings'
+  const modalSubtitle = isProfileModal
+    ? 'Update your account details and interview preferences.'
+    : 'Manage your interview workspace settings.'
+
   return (
     <div className="flex h-screen bg-white overflow-hidden font-['Space_Grotesk']">
       <Sidebar
@@ -520,7 +527,7 @@ export default function InterviewPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4"
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-black/35 p-3 sm:p-4"
             onClick={closeModal}
           >
             <motion.div
@@ -528,23 +535,28 @@ export default function InterviewPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ duration: 0.2 }}
-              className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-xl"
+              className="w-full max-w-xl max-h-[92vh] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {activeModal === 'profile' ? 'Profile' : 'Settings'}
-                </h2>
+              <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-5">
+                <div>
+                  <div className="flex items-center gap-2 text-gray-900">
+                    {isProfileModal ? <User size={18} /> : <Settings size={18} />}
+                    <h2 className="text-sm font-semibold sm:text-base">{modalTitle}</h2>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500 sm:text-sm">{modalSubtitle}</p>
+                </div>
                 <button
                   onClick={closeModal}
-                  className="rounded-md px-2 py-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                  className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                 >
-                  ✕
+                  <span className="text-sm">✕</span>
                 </button>
               </div>
 
-              {activeModal === 'profile' ? (
-                <div className="px-6 py-5">
+              <div className="max-h-[calc(92vh-84px)] overflow-y-auto bg-gradient-to-b from-white to-gray-50">
+                {activeModal === 'profile' ? (
+                <div className="p-4 sm:p-5">
                   <form onSubmit={handleProfileSubmit} className="space-y-6">
                     <div className="space-y-4">
                       <div>
@@ -668,10 +680,11 @@ export default function InterviewPage() {
                   )}
                 </div>
               ) : (
-                <div className="px-6 py-8 text-center text-gray-500">
+                <div className="p-6 text-center text-sm text-gray-500">
                   Settings content coming soon.
                 </div>
               )}
+              </div>
             </motion.div>
           </motion.div>
         )}
