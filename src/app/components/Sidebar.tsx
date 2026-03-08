@@ -32,6 +32,7 @@ interface SidebarProps {
   onToggleCollapse: () => void;
   userInitial: string;
   userFirstName?: string;
+  userCreatedAt?: Date | string;
   userName: string;
   userEmail: string;
   onOpenProfile: () => void;
@@ -51,6 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
   userInitial,
   userFirstName,
+  userCreatedAt,
   userName,
   userEmail,
   onOpenProfile,
@@ -426,7 +428,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <X size={16} />
                 </button>
               </div>
-              <MetricsDashboard interviews={interviews} userFirstName={userFirstName} />
+              <MetricsDashboard
+                interviews={interviews}
+                userFirstName={userFirstName}
+                userCreatedAt={userCreatedAt}
+              />
             </div>
           </div>
         )}
