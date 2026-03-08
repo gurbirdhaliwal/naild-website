@@ -269,6 +269,11 @@ export default function InterviewPage() {
     }
   }
 
+  const handleSelectInterview = (interview: Interview) => {
+    setCurrentInterview(interview)
+    setShowSetup(false)
+  }
+
   const canChangePassword = !user.authProvider || user.authProvider.toUpperCase() === 'LOCAL'
 
   const openModal = (modal: 'profile' | 'settings') => {
@@ -371,7 +376,7 @@ export default function InterviewPage() {
         interviews={interviews}
         currentInterview={currentInterview}
         onStartNew={() => setShowSetup(true)}
-        onSelectInterview={setCurrentInterview}
+        onSelectInterview={handleSelectInterview}
         onDeleteInterview={handleDeleteInterview}
         onRenameInterview={handleRenameInterview}
         collapsed={sidebarCollapsed}
