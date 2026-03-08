@@ -24,13 +24,6 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Navigation Links */}
-          <div className="hidden sm:flex sm:space-x-8 -ml-170 mt-1">
-            <Link href="/features" className="nav-link font-['Space_Grotesk']">Features</Link>
-            <Link href="/pricing" className="nav-link font-['Space_Grotesk']">Pricing</Link>
-            <Link href="/about" className="nav-link font-['Space_Grotesk']">About</Link>
-          </div>
-
           {/* Auth Section */}
           <div className="hidden sm:flex sm:items-center sm:space-x-4 relative -mr-20">
             {!loading && !user ? (
