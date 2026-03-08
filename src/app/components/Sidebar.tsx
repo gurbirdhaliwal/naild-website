@@ -36,7 +36,6 @@ interface SidebarProps {
   userCreatedAt?: Date | string;
   userName: string;
   userEmail: string;
-  onOpenProfile: () => void;
   onOpenSettings: () => void;
   onLogout: () => void;
   loading?: boolean;
@@ -107,7 +106,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   userCreatedAt,
   userName,
   userEmail,
-  onOpenProfile,
   onOpenSettings,
   onLogout,
   loading = false,
@@ -635,16 +633,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div className="px-5 py-4 border-b border-gray-200">
                 <p className="text-sm text-gray-500 break-all">{userEmail}</p>
               </div>
-              <button
-                onClick={() => {
-                  setAccountMenuOpen(false);
-                  onOpenProfile();
-                }}
-                className="dropdown-link py-4"
-              >
-                <User size={18} />
-                Profile
-              </button>
               <button
                 onClick={() => {
                   setAccountMenuOpen(false);
