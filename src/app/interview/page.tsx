@@ -20,6 +20,19 @@ type SidebarPreference = 'standard' | 'compact'
 type ProfileToastType = 'success' | 'error'
 
 const SETTINGS_STORAGE_KEY = 'naild.settings.preferences.v1'
+const isThemePreference = (value: unknown): value is ThemePreference =>
+  value === 'system' || value === 'light' || value === 'dark'
+
+const resolveThemePreference = (
+  preference: ThemePreference,
+  prefersDark: boolean
+): Exclude<ThemePreference, 'system'> => {
+  if (preference === 'system') {
+    return prefersDark ? 'dark' : 'light'
+  }
+
+  return preference
+}
 
 export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
@@ -32,6 +45,7 @@ export default function InterviewPage() {
   const [activeModal, setActiveModal] = useState<'settings' | null>(null)
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('account')
   const [themePreference, setThemePreference] = useState<ThemePreference>('system')
+  const [resolvedTheme, setResolvedTheme] = useState<Exclude<ThemePreference, 'system'>>('light')
   const [sidebarPreference, setSidebarPreference] = useState<SidebarPreference>('standard')
   const [interviewReminderNotifications, setInterviewReminderNotifications] = useState(true)
   const [emailSummaryNotifications, setEmailSummaryNotifications] = useState(true)
@@ -100,11 +114,7 @@ export default function InterviewPage() {
         productUpdatesNotifications: boolean
       }>
 
-      if (
-        parsed.themePreference === 'system' ||
-        parsed.themePreference === 'light' ||
-        parsed.themePreference === 'dark'
-      ) {
+      if (isThemePreference(parsed.themePreference)) {
         setThemePreference(parsed.themePreference)
       }
 
@@ -149,9 +159,43 @@ export default function InterviewPage() {
   ])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
     const rootElement = document.documentElement
-    rootElement.style.colorScheme = themePreference === 'system' ? 'light dark' : themePreference
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+
+    const applyThemePreference = () => {
+      const nextResolvedTheme = resolveThemePreference(themePreference, mediaQuery.matches)
+      rootElement.dataset.themePreference = themePreference
+      rootElement.dataset.theme = nextResolvedTheme
+      rootElement.style.colorScheme = nextResolvedTheme
+      setResolvedTheme(nextResolvedTheme)
+    }
+
+    const handlePreferenceChange = () => {
+      if (themePreference !== 'system') return
+      applyThemePreference()
+    }
+
+    applyThemePreference()
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handlePreferenceChange)
+      return () => mediaQuery.removeEventListener('change', handlePreferenceChange)
+    }
+
+    mediaQuery.addListener(handlePreferenceChange)
+    return () => mediaQuery.removeListener(handlePreferenceChange)
   }, [themePreference])
+
+  useEffect(() => {
+    return () => {
+      const rootElement = document.documentElement
+      rootElement.removeAttribute('data-theme')
+      rootElement.removeAttribute('data-theme-preference')
+      rootElement.style.removeProperty('color-scheme')
+    }
+  }, [])
 
   useEffect(() => {
     if (activeSettingsTab === 'account') return
@@ -523,7 +567,7 @@ export default function InterviewPage() {
   const modalSubtitle = activeSettingsItem.description
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden font-['Space_Grotesk']">
+    <div className="interview-workspace flex h-screen bg-white overflow-hidden font-['Space_Grotesk']">
       <Sidebar
         interviews={interviews}
         currentInterview={currentInterview}
@@ -921,6 +965,12 @@ export default function InterviewPage() {
                               Dark
                             </button>
                           </div>
+                          <p className="mt-3 text-xs text-gray-500">
+                            Current color mode:{' '}
+                            {themePreference === 'system'
+                              ? `System (${resolvedTheme})`
+                              : resolvedTheme.charAt(0).toUpperCase() + resolvedTheme.slice(1)}
+                          </p>
                         </div>
 
                         <div>

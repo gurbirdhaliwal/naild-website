@@ -18,6 +18,151 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+html[data-theme='dark'] .interview-workspace {
+  background-color: #020617;
+  color: #e2e8f0;
+}
+
+html[data-theme='dark'] .interview-workspace .bg-white {
+  background-color: #0f172a !important;
+}
+
+html[data-theme='dark'] .interview-workspace .bg-white\/80 {
+  background-color: rgb(15 23 42 / 0.84) !important;
+}
+
+html[data-theme='dark'] .interview-workspace .bg-gray-50 {
+  background-color: #020617 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .bg-gray-50\/80 {
+  background-color: rgb(2 6 23 / 0.82) !important;
+}
+
+html[data-theme='dark'] .interview-workspace .bg-gray-100 {
+  background-color: #111827 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .bg-gray-200 {
+  background-color: #1f2937 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .bg-gray-900 {
+  background-color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .border-gray-200 {
+  border-color: #1e293b !important;
+}
+
+html[data-theme='dark'] .interview-workspace .border-gray-300 {
+  border-color: #334155 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .border-gray-900 {
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-gray-900 {
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-gray-800 {
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-gray-700 {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-gray-600,
+html[data-theme='dark'] .interview-workspace .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-gray-400 {
+  color: #64748b !important;
+}
+
+html[data-theme='dark'] .interview-workspace .bg-gray-900.text-white {
+  color: #0f172a !important;
+}
+
+html[data-theme='dark'] .interview-workspace .placeholder\:text-gray-500::placeholder {
+  color: #64748b !important;
+}
+
+html[data-theme='dark'] .interview-workspace .focus\:border-gray-500:focus {
+  border-color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .hover\:bg-white\/80:hover {
+  background-color: rgb(15 23 42 / 0.92) !important;
+}
+
+html[data-theme='dark'] .interview-workspace .hover\:bg-gray-50:hover {
+  background-color: #0f172a !important;
+}
+
+html[data-theme='dark'] .interview-workspace .hover\:bg-gray-100:hover {
+  background-color: #111827 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .hover\:bg-gray-200:hover {
+  background-color: #1f2937 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .hover\:bg-gray-800:hover {
+  background-color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .hover\:text-gray-700:hover,
+html[data-theme='dark'] .interview-workspace .hover\:text-gray-900:hover {
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .interview-workspace .from-white {
+  --tw-gradient-from: #0f172a var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(15 23 42 / 0) var(--tw-gradient-to-position) !important;
+}
+
+html[data-theme='dark'] .interview-workspace .to-gray-50 {
+  --tw-gradient-to: #020617 var(--tw-gradient-to-position) !important;
+}
+
+html[data-theme='dark'] .interview-workspace .bg-green-50 {
+  background-color: rgb(21 128 61 / 0.14) !important;
+}
+
+html[data-theme='dark'] .interview-workspace .border-green-200 {
+  border-color: rgb(74 222 128 / 0.26) !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-green-800,
+html[data-theme='dark'] .interview-workspace .text-green-700 {
+  color: #86efac !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-green-600 {
+  color: #4ade80 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .bg-red-50 {
+  background-color: rgb(220 38 38 / 0.14) !important;
+}
+
+html[data-theme='dark'] .interview-workspace .border-red-200 {
+  border-color: rgb(248 113 113 / 0.28) !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-red-700 {
+  color: #fca5a5 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-red-600 {
+  color: #f87171 !important;
+}
+
 .button-gradient {
   background: linear-gradient(90deg, #cbf5cd, #cbf5cd, #26922c);
   background-size: 400% 100%;
