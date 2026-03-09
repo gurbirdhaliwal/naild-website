@@ -118,6 +118,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [editingInterviewId, setEditingInterviewId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [savingRenameId, setSavingRenameId] = useState<string | null>(null);
+  const [interviewPendingDelete, setInterviewPendingDelete] = useState<Interview | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
@@ -154,6 +155,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       if (searchOpen) setSearchOpen(false);
       if (metricsOpen) setMetricsOpen(false);
       if (libraryOpen) setLibraryOpen(false);
+      if (interviewPendingDelete) setInterviewPendingDelete(null);
       if (editingInterviewId) {
         setEditingInterviewId(null);
         setEditingTitle('');
@@ -162,7 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     document.addEventListener('keydown', handleGlobalEscape);
     return () => document.removeEventListener('keydown', handleGlobalEscape);
-  }, [searchOpen, metricsOpen, libraryOpen, editingInterviewId]);
+  }, [searchOpen, metricsOpen, libraryOpen, interviewPendingDelete, editingInterviewId]);
 
   const openSearchModal = () => {
     setSearchQuery('');
@@ -211,6 +213,20 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const promptDeleteInterview = (interview: Interview) => {
+    setInterviewPendingDelete(interview);
+  };
+
+  const closeDeletePrompt = () => {
+    setInterviewPendingDelete(null);
+  };
+
+  const confirmDeleteInterview = () => {
+    if (!interviewPendingDelete) return;
+    onDeleteInterview(interviewPendingDelete.id);
+    setInterviewPendingDelete(null);
+  };
+
   return (
     <div
       className={`fixed left-0 top-0 h-full bg-gray-50 border-r border-gray-200 transition-all duration-300 z-40 ${
@@ -229,7 +245,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       alt="Naild Logo"
                       className="h-10 w-10 object-contain mr-0 mb-1"
                     />
-                    <span className="text-2xl font-regular text-black tracking-tight font-naild">
+                    <span className="text-2xl font-regular text-gray-900 tracking-tight font-naild">
                       naild.
                     </span>
                   </Link>
@@ -354,8 +370,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <div className="text-sm font-medium text-gray-900 truncate">
                               {interview.title}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {interview.status === 'completed' ? 'Completed' : 'In Progress'}
+                            <div
+                              className={`mt-1 text-xs ${
+                                interview.status === 'completed' ? 'text-green-600' : 'text-gray-500'
+                              }`}
+                            >
+                              {interview.status === 'completed' ? 'completed' : 'In Progress'}
                             </div>
                           </>
                         )}
@@ -404,7 +424,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDeleteInterview(interview.id);
+                          promptDeleteInterview(interview);
                         }}
                         className="p-1 hover:bg-red-100 rounded transition-colors"
                         title="Delete interview"
@@ -418,6 +438,67 @@ const Sidebar: React.FC<SidebarProps> = ({
             ))
           )}
         </div>
+
+        <AnimatePresence>
+          {interviewPendingDelete && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4"
+              onClick={closeDeletePrompt}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="border-b border-gray-200 px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-600">
+                      <Trash2 size={18} />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-semibold text-gray-900 sm:text-base">
+                        Delete interview?
+                      </h2>
+                      <p className="mt-1 text-xs text-gray-500 sm:text-sm">
+                        This action cannot be undone.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-4 px-5 py-4">
+                  <p className="min-w-0 text-sm text-gray-700">
+                    Are you sure you want to delete{' '}
+                    <span className="font-medium text-gray-900">
+                      {interviewPendingDelete.title}
+                    </span>
+                    ?
+                  </p>
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    <button
+                      onClick={closeDeletePrompt}
+                      className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmDeleteInterview}
+                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+                      autoFocus
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {searchOpen && (
