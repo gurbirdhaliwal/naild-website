@@ -39,7 +39,6 @@ html[data-theme='dark'] .interview-workspace .bg-white\/85 {
   background-color: rgb(15 23 42 / 0.86) !important;
 }
 
-html[data-theme='dark'] .interview-workspace .bg-white\/75,
 html[data-theme='dark'] .interview-workspace .bg-white\/70 {
   background-color: rgb(15 23 42 / 0.76) !important;
 }
@@ -172,23 +171,6 @@ html[data-theme='dark'] .interview-workspace .text-emerald-600 {
   color: #34d399 !important;
 }
 
-html[data-theme='dark'] .interview-workspace .bg-sky-50 {
-  background-color: rgb(14 165 233 / 0.16) !important;
-}
-
-html[data-theme='dark'] .interview-workspace .bg-sky-100 {
-  background-color: rgb(14 165 233 / 0.22) !important;
-}
-
-html[data-theme='dark'] .interview-workspace .border-sky-200 {
-  border-color: rgb(56 189 248 / 0.26) !important;
-}
-
-html[data-theme='dark'] .interview-workspace .text-sky-800,
-html[data-theme='dark'] .interview-workspace .text-sky-700 {
-  color: #7dd3fc !important;
-}
-
 html[data-theme='dark'] .interview-workspace .bg-red-50 {
   background-color: rgb(220 38 38 / 0.14) !important;
 }
@@ -203,19 +185,6 @@ html[data-theme='dark'] .interview-workspace .text-red-700 {
 
 html[data-theme='dark'] .interview-workspace .text-red-600 {
   color: #f87171 !important;
-}
-
-html[data-theme='dark'] .interview-workspace .bg-amber-50 {
-  background-color: rgb(245 158 11 / 0.16) !important;
-}
-
-html[data-theme='dark'] .interview-workspace .border-amber-200 {
-  border-color: rgb(251 191 36 / 0.28) !important;
-}
-
-html[data-theme='dark'] .interview-workspace .text-amber-800,
-html[data-theme='dark'] .interview-workspace .text-amber-700 {
-  color: #fcd34d !important;
 }
 
 .practice-home-shell {
@@ -235,11 +204,6 @@ html[data-theme='dark'] .interview-workspace .text-amber-700 {
   background: rgba(236, 253, 245, 0.72);
 }
 
-.practice-mode-card--technical {
-  border-color: rgba(14, 165, 233, 0.16);
-  background: rgba(239, 246, 255, 0.72);
-}
-
 html[data-theme='dark'] .practice-home-shell {
   background: #020617;
 }
@@ -255,11 +219,6 @@ html[data-theme='dark'] .practice-mode-card {
 html[data-theme='dark'] .practice-mode-card--behavioral {
   border-color: rgba(52, 211, 153, 0.22);
   background: rgba(6, 78, 59, 0.2);
-}
-
-html[data-theme='dark'] .practice-mode-card--technical {
-  border-color: rgba(56, 189, 248, 0.2);
-  background: rgba(12, 74, 110, 0.2);
 }
 
 .button-gradient {

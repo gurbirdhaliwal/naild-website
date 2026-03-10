@@ -17,7 +17,6 @@ import {
   Moon,
   Palette,
   Settings,
-  Sparkles,
   Sun,
   User,
 } from 'lucide-react'
@@ -30,7 +29,7 @@ type SettingsTab = 'account' | 'appearance' | 'notifications'
 type ThemePreference = 'system' | 'light' | 'dark'
 type SidebarPreference = 'standard' | 'compact'
 type ProfileToastType = 'success' | 'error'
-type WorkspaceLandingView = 'home' | 'behavioral' | 'technical'
+type WorkspaceLandingView = 'home' | 'behavioral'
 
 const SETTINGS_STORAGE_KEY = 'naild.settings.preferences.v1'
 const isThemePreference = (value: unknown): value is ThemePreference =>
@@ -282,11 +281,6 @@ export default function InterviewPage() {
     setCurrentInterview(null)
   }
 
-  const openTechnicalPreview = () => {
-    setActiveLandingView('technical')
-    setCurrentInterview(null)
-  }
-
   const handleCreateInterview = async (config: any) => {
     // Fetch AI-generated questions
     let aiQuestions: string[] = [];
@@ -310,22 +304,25 @@ export default function InterviewPage() {
     } catch (e) {
       aiQuestions = [];
     }
+    const focusAreaSummary = config.languages.join(', ')
+    const questionCount = aiQuestions.length || 5
+    const introCopy = `Welcome to your ${config.role} behavioral interview! I'll be asking you ${questionCount} questions focused on ${focusAreaSummary}. Let's get started!`
     const now = new Date();
     // Add introduction and first question
     const introMessage = {
       id: `${Date.now()}-intro`,
       role: 'interviewer' as const,
-      content: `Welcome to your ${config.role} interview! I'll be asking you ${aiQuestions.length} questions about ${config.languages.join(', ')}. Let's get started!`,
+      content: introCopy,
       timestamp: now,
-      transcription: `[AI Interviewer]: Welcome to your ${config.role} interview! I'll be asking you ${aiQuestions.length} questions about ${config.languages.join(', ')}. Let's get started!`,
+      transcription: `[AI Interviewer]: ${introCopy}`,
       isThinking: false,
     };
     const firstQuestionMessage = {
       id: `${Date.now()}-q0`,
       role: 'interviewer' as const,
-      content: aiQuestions[0] || "Let's start with your first question.",
+      content: aiQuestions[0] || "Tell me about a time you handled a challenging situation at work.",
       timestamp: now,
-      transcription: `[AI Interviewer]: ${aiQuestions[0] || "Let's start with your first question."}`,
+      transcription: `[AI Interviewer]: ${aiQuestions[0] || "Tell me about a time you handled a challenging situation at work."}`,
       isThinking: false,
     };
     const messages = [introMessage, firstQuestionMessage];
@@ -333,7 +330,7 @@ export default function InterviewPage() {
     // Create interview in database
     try {
       const createRequest = {
-        title: `${config.role} Interview`,
+        title: `${config.role} Behavioral Interview`,
         role: config.role,
         languages: config.languages,
         difficulty: config.difficulty,
@@ -354,7 +351,7 @@ export default function InterviewPage() {
       // Fallback to in-memory only - this will work even without backend
       const newInterview: Interview = {
         id: Date.now().toString(),
-        title: `${config.role} Interview`,
+        title: `${config.role} Behavioral Interview`,
         role: config.role,
         languages: config.languages,
         difficulty: config.difficulty,
@@ -595,40 +592,8 @@ export default function InterviewPage() {
   const modalTitle = 'Settings'
   const modalSubtitle = activeSettingsItem.description
   const greetingName = user.firstname || 'there'
-  const activePromptPanel = activeLandingView === 'home' ? 'behavioral' : activeLandingView
 
   const renderPromptPanel = () => {
-    if (activePromptPanel === 'technical') {
-      return (
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 py-8 lg:px-10">
-          <div className="flex items-center justify-center">
-            <button
-              onClick={openHome}
-              className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-            >
-              <ChevronUp size={16} />
-              Back
-            </button>
-          </div>
-
-          <div className="flex items-center justify-center">
-            <section className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-sky-700">
-                Technical
-                <Sparkles size={14} />
-              </div>
-              <h2 className="mt-4 text-2xl font-semibold text-gray-900">
-                Technical setup is coming soon.
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-gray-600">
-                This will become the live coding interview builder.
-              </p>
-            </section>
-          </div>
-        </div>
-      )
-    }
-
     return (
       <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-4 px-6 py-6 lg:px-10">
         <div className="flex items-center justify-center">
@@ -670,12 +635,12 @@ export default function InterviewPage() {
                 Welcome back, {greetingName}
               </h1>
               <p className="mt-3 max-w-xl text-base leading-7 text-gray-600">
-                Pick a practice mode and get started.
+                Practice behavioral stories now, and jump back into saved sessions from the sidebar.
               </p>
             </section>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <section className="practice-mode-card practice-mode-card--behavioral rounded-[28px] border p-6 sm:p-7">
+            <div className="flex justify-center">
+              <section className="practice-mode-card practice-mode-card--behavioral w-full max-w-xl rounded-[28px] border p-6 sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-emerald-700">
@@ -694,33 +659,6 @@ export default function InterviewPage() {
                     className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-black"
                   >
                     Create Interview
-                    <ChevronDown size={16} />
-                  </button>
-                </div>
-              </section>
-
-              <section className="practice-mode-card practice-mode-card--technical rounded-[28px] border p-6 sm:p-7">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="inline-flex items-center gap-2 rounded-full bg-white/75 px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-sky-700">
-                      Technical
-                      <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] tracking-[0.16em] text-sky-800">
-                        Coming Soon
-                      </span>
-                    </div>
-                    <h2 className="mt-4 text-2xl font-semibold text-gray-900">Technical interviews</h2>
-                    <p className="mt-3 max-w-sm text-sm leading-6 text-gray-600">
-                      A separate lane for live coding and LeetCode-style practice.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-8">
-                  <button
-                    onClick={openTechnicalPreview}
-                    className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-5 py-3 text-sm font-medium text-sky-800 transition-colors hover:bg-white"
-                  >
-                    Open Technical Preview
                     <ChevronDown size={16} />
                   </button>
                 </div>

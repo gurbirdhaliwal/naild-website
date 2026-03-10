@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { InterviewConfig } from '../types/Interview';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ChevronLeft, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AI_BASE } from '../services/api';
 
@@ -29,10 +29,19 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
     'Software Engineer'
   ];
 
-  const languages = [
-    'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C#', 'Go',
-    'Rust', 'PHP', 'Ruby', 'Swift', 'Kotlin', 'React', 'Node.js',
-    'Angular', 'Vue.js', 'Django', 'Flask', 'Spring', 'Docker'
+  const focusAreas = [
+    'Communication',
+    'Teamwork',
+    'Leadership',
+    'Conflict Resolution',
+    'Ownership',
+    'Adaptability',
+    'Prioritization',
+    'Decision Making',
+    'Dealing with Failure',
+    'Cross-functional Collaboration',
+    'Mentorship',
+    'Ambiguity'
   ];
 
   const difficulties = [
@@ -43,7 +52,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
 
   const steps = [
     { title: 'Job Title', description: 'Select your target role' },
-    { title: 'Technologies', description: 'Choose relevant technologies' },
+    { title: 'Focus Areas', description: 'Choose the behavioral themes to practice' },
     { title: 'Experience Level', description: 'Set your experience level' },
     { title: 'Confirm', description: 'Review your choices' }
   ];
@@ -81,7 +90,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
         const res = await fetch(`${AI_BASE}/warmup`);
         const data = await res.json();
         if (data.status === 'ready') {
-          setLoadingMsg('AI is ready! Creating your interview...');
+          setLoadingMsg('AI is ready! Building your interview...');
           setTimeout(() => {
             onCreateInterview(config);
           }, 500);
@@ -148,30 +157,30 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
             className="space-y-4"
           >
             <div className="text-center mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-1">Select Technologies</h3>
-              <p className="text-sm text-gray-600">Choose the technologies you want to be tested on</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">Select Focus Areas</h3>
+              <p className="text-sm text-gray-600">Choose the behavioral themes you want to practice</p>
           </div>
             <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
-              {languages.map((language, index) => (
+              {focusAreas.map((focusArea, index) => (
                 <motion.button
-                  key={language}
+                  key={focusArea}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.05 }}
-                  onClick={() => handleLanguageToggle(language)}
+                  onClick={() => handleLanguageToggle(focusArea)}
                   className={`p-2 rounded-md text-xs transition-all ${
-                    config.languages.includes(language)
+                    config.languages.includes(focusArea)
                       ? 'bg-gray-900 text-white scale-105'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  {language}
+                  {focusArea}
                 </motion.button>
               ))}
             </div>
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600">
-              Selected: {config.languages.length} technologies
+              Selected: {config.languages.length} focus areas
             </p>
               <motion.button
                 onClick={handleLanguagesNext}
@@ -251,7 +260,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
                   <span className="text-sm text-gray-900">{config.role}</span>
                 </div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Technologies:</span>
+                  <span className="text-sm font-medium text-gray-700">Focus Areas:</span>
                   <span className="text-sm text-gray-900">{config.languages.join(', ')}</span>
                 </div>
                 <div className="flex items-center justify-between">

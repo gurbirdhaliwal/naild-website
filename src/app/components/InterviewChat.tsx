@@ -522,10 +522,14 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-light text-gray-900">{interview.title}</h1>
-              <div className="flex items-center gap-4 text-sm text-gray-500 mt-2">
+              <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-500">
                 <span className="capitalize">{interview.difficulty} level</span>
-                <span>•</span>
-                <span>{interview.languages.join(', ')}</span>
+                {interview.languages.length > 0 && (
+                  <>
+                    <span>•</span>
+                    <span>Focus areas: {interview.languages.join(', ')}</span>
+                  </>
+                )}
                 {interview.status === 'completed' && (
                   <>
                     <span>•</span>

@@ -9,7 +9,7 @@ Naild is an innovative platform that helps students practice and improve their i
 - AI-powered interview responses using Ollama
 - Live transcription display
 - Interview session management
-- Multiple difficulty levels and technology stacks
+- Multiple difficulty levels and behavioral focus areas
 
 ## Technology Stack
 
@@ -80,7 +80,7 @@ These scripts will automatically:
 
 1. Sign up or log in to your account
 2. Click "Start New Interview" to configure your interview
-3. Select your role, technologies, and experience level
+3. Select your role, focus areas, and experience level
 4. Click the microphone button to begin speaking your answers
 5. The AI will transcribe your speech and provide interview responses
 
@@ -89,7 +89,7 @@ These scripts will automatically:
 FastAPI backend base URL: `http://localhost:8081`
 
 - `POST /transcription` - Accepts uploaded audio and returns `{ "user_input": "..." }`
-- `POST /generate_questions` - Generates interview questions from role/languages/difficulty
+- `POST /generate_questions` - Generates behavioral interview questions from role/focus areas/difficulty
 - `POST /interview_ack` - Returns acknowledgement plus next question (or goodbye on final question)
 - `POST /grade_interview` - Grades 5 Q&A pairs and can persist grading when `interview_id` is provided
 - `GET /warmup` - Warms Whisper/Ollama models and reports readiness/timings

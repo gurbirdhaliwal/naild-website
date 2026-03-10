@@ -368,13 +368,19 @@ async def generate_questions(
 ):
     data = await request.json()
     role = data.get("role", "")
-    languages = data.get("languages", [])
+    focus_areas = data.get("languages", [])
     difficulty = data.get("difficulty", "")
-    prompt = f"You are an expert technical interviewer. Generate 5 unique interview questions for a {role} position, focusing on the following technologies: {', '.join(languages)}. The questions should be appropriate for a {difficulty} level candidate. The questions should not ask the user to code any functions. Return only the questions as a numbered list."
+    prompt = (
+        f"You are an expert behavioral interviewer. Generate 5 unique behavioral interview questions "
+        f"for a {role} position. Focus on these competency areas: {', '.join(focus_areas)}. "
+        f"The questions should be appropriate for a {difficulty} level candidate. Ask about past experiences, "
+        f"judgment, collaboration, ownership, and learning. Do not ask trivia-style or coding questions. "
+        f"Return only the questions as a numbered list."
+    )
     response = ollama_client.chat(
         model='mistral',
         messages=[
-            {"role": "system", "content": "You are an expert technical interviewer that generates interview questions."},
+            {"role": "system", "content": "You are an expert behavioral interviewer that generates interview questions."},
             {"role": "user", "content": prompt}
         ]
     )
@@ -400,24 +406,24 @@ async def interview_ack(
     
     if is_last_question:
         # Generate final acknowledgement and goodbye
-        prompt = f"""You are an expert technical interviewer. The candidate just answered the final question.
+        prompt = f"""You are an expert behavioral interviewer. The candidate just answered the final question.
 
         Current question: {current_question}
         Candidate's answer: {user_answer}
         {context}
 
-        Generate a brief, professional acknowledgement of their answer (1-2 sentences) and a friendly goodbye message (1 sentence). Return as JSON:
+        Generate a brief, warm, professional acknowledgement of their answer (1-2 sentences) and a friendly goodbye message (1 sentence). Return as JSON:
                 {{"acknowledgement": "your acknowledgement here", "goodbye": "your goodbye message here"}}"""
     else:
         # Generate acknowledgement and provide next question
-        prompt = f"""You are an expert technical interviewer that is very thorough. The candidate just answered a question.
+        prompt = f"""You are an expert behavioral interviewer that is very thorough. The candidate just answered a question.
 
         Current question: {current_question}
         Candidate's answer: {user_answer}
         {context}
         Next question: {next_question}
 
-        Generate a brief, professional acknowledgement of their answer (1-2 sentences) that references specific details from their response if relevant, or simply acknowledges their answer if it's off-topic. Return as JSON:
+        Generate a brief, professional acknowledgement of their answer (1-2 sentences) that references specific details from their response when possible. Return as JSON:
                 {{"acknowledgement": "your acknowledgement here", "next_question": "{next_question}"}}"""
             
     response = ollama_client.chat(
@@ -459,12 +465,13 @@ async def grade_interview(
         return {"error": "Must provide exactly 5 questions and 5 answers."}
 
     grading_prompt = f"""
-You are an expert technical interviewer and grader. You will be given 5 interview questions and 5 candidate answers. For each answer, grade it from 0-100 based on these criteria:
-- Accuracy: Is the answer factually correct and addresses the question? (0 if unrelated)
+You are an expert behavioral interviewer and grader. You will be given 5 interview questions and 5 candidate answers. For each answer, grade it from 0-100 based on these criteria:
 - Relevance: Is the answer on-topic and appropriate for the question?
-- Clarity: Is the answer clear, well-explained, and easy to understand?
+- Specificity: Does the answer include concrete details, actions, and outcomes?
+- Structure: Is the answer clear, well-explained, and easy to follow?
+- Reflection: Does the answer show ownership, self-awareness, or learning where appropriate?
 
-Short, off-topic, or nonsense answers should be penalized. Every answer must receive a grade, even if it is completely off-topic or nonsense. If an answer is unrelated, set accuracy to 0. Be consistent and robust.
+Short, vague, off-topic, or nonsense answers should be penalized. Reward clear STAR-style answers that show impact and learning. Every answer must receive a grade, even if it is completely off-topic or nonsense. Be consistent and robust.
 Important constraints:
 - Evaluate only the 5 provided candidate answers.
 - Do not add example/corrected answers.
@@ -490,7 +497,7 @@ Questions:
             model='mistral',
             format='json',
             messages=[
-                {"role": "system", "content": "You are a strict, fair, and robust technical interview grader. Always return valid JSON."},
+                {"role": "system", "content": "You are a strict, fair, and robust behavioral interview grader. Always return valid JSON."},
                 {"role": "user", "content": grading_prompt}
             ]
         )

@@ -43,6 +43,6 @@ export interface Interview {
 export interface InterviewConfig {
   role: string;
   languages: string[];
-  difficulty: 'junior' | 'mid' | 'senior';
+  difficulty: 'intern' | 'mid' | 'senior';
 }
   

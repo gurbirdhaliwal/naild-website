@@ -174,9 +174,9 @@ class InterviewService {
       // Return a mock response
       const mockResponse: InterviewResponse = {
         id: id,
-        title: 'Mock Interview',
-        role: 'Developer',
-        languages: '["JavaScript"]',
+        title: 'Behavioral Interview',
+        role: 'Behavioral Practice',
+        languages: '["Communication"]',
         difficulty: 'mid',
         status: 'active',
         questions: '[]',
@@ -201,9 +201,9 @@ class InterviewService {
       // Return a mock response
       const mockResponse: InterviewResponse = {
         id: id,
-        title: 'Mock Interview',
-        role: 'Developer',
-        languages: '["JavaScript"]',
+        title: 'Behavioral Interview',
+        role: 'Behavioral Practice',
+        languages: '["Communication"]',
         difficulty: 'mid',
         status: 'completed',
         questions: '[]',
@@ -234,8 +234,8 @@ class InterviewService {
         const mockResponse: InterviewResponse = {
           id: id,
           title: data.title,
-          role: 'Developer',
-          languages: '["JavaScript"]',
+          role: 'Behavioral Practice',
+          languages: '["Communication"]',
           difficulty: 'mid',
           status: 'active',
           questions: '[]',

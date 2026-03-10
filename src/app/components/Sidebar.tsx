@@ -46,51 +46,51 @@ interface SidebarProps {
 
 const LIBRARY_CATEGORIES = [
   {
-    title: 'Data Structures & Algorithms',
-    description: 'Sharpen pattern recognition for arrays, trees, graphs, and dynamic programming.',
-    tags: ['Arrays', 'Graphs', 'DP'],
+    title: 'STAR Storytelling',
+    description: 'Structure your answers with clear situation, task, action, and result details.',
+    tags: ['STAR', 'Clarity', 'Impact'],
     icon: BarChart3,
   },
   {
-    title: 'System Design',
-    description: 'Practice designing scalable services, APIs, and data flow under realistic constraints.',
-    tags: ['Scalability', 'APIs', 'Databases'],
+    title: 'Leadership & Ownership',
+    description: 'Practice examples that show initiative, judgment, and accountability.',
+    tags: ['Ownership', 'Initiative', 'Decisions'],
     icon: Settings,
   },
   {
-    title: 'Behavioral Interviewing',
-    description: 'Craft STAR-based stories that show ownership, impact, and collaboration.',
-    tags: ['STAR', 'Leadership', 'Teamwork'],
+    title: 'Teamwork & Collaboration',
+    description: 'Show how you build trust, align across teams, and support shared goals.',
+    tags: ['Teamwork', 'Trust', 'Alignment'],
     icon: User,
   },
   {
-    title: 'Object-Oriented Design',
-    description: 'Master class design, SOLID principles, and common engineering tradeoffs.',
-    tags: ['SOLID', 'Patterns', 'Tradeoffs'],
+    title: 'Conflict & Feedback',
+    description: 'Prepare stories about navigating disagreement and giving or receiving feedback.',
+    tags: ['Conflict', 'Feedback', 'Resolution'],
     icon: Library,
   },
   {
-    title: 'OS & Networks',
-    description: 'Review concurrency, memory, processes, latency, and networking fundamentals.',
-    tags: ['Concurrency', 'Memory', 'TCP/IP'],
+    title: 'Ambiguity & Adaptability',
+    description: 'Practice staying effective when priorities shift or context is incomplete.',
+    tags: ['Ambiguity', 'Change', 'Adaptability'],
     icon: Search,
   },
   {
     title: 'Communication Skills',
-    description: 'Explain your thought process clearly while coding and problem-solving aloud.',
-    tags: ['Clarity', 'Structure', 'Confidence'],
+    description: 'Explain decisions clearly, handle tough conversations, and stay concise under pressure.',
+    tags: ['Clarity', 'Influence', 'Confidence'],
     icon: MessageSquare,
   },
   {
-    title: 'Resume & Pitch',
-    description: 'Align projects and achievements to role expectations with concise talking points.',
-    tags: ['Impact', 'Projects', 'Positioning'],
+    title: 'Prioritization & Execution',
+    description: 'Show how you juggle deadlines, tradeoffs, and competing responsibilities.',
+    tags: ['Priorities', 'Execution', 'Tradeoffs'],
     icon: Check,
   },
   {
-    title: 'Problem-Solving Frameworks',
-    description: 'Use repeatable frameworks to break down unknown questions with confidence.',
-    tags: ['Decompose', 'Validate', 'Iterate'],
+    title: 'Resilience & Growth',
+    description: 'Tell strong stories about mistakes, recovery, and what you learned.',
+    tags: ['Failure', 'Growth', 'Resilience'],
     icon: CircleHelp,
   },
 ];
@@ -539,7 +539,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <input
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search interviews by name, role, or technology"
+                      placeholder="Search interviews by name, role, or focus area"
                       className="w-full bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
                       autoFocus
                     />
@@ -570,7 +570,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div className="text-sm font-medium text-gray-900">{interview.title}</div>
                         <div className="mt-1 text-xs text-gray-500">
-                          {interview.role} • {interview.languages.join(', ')}
+                          {interview.role}
+                          {interview.languages.length > 0 ? ` • ${interview.languages.join(', ')}` : ''}
                         </div>
                       </button>
                     ))
