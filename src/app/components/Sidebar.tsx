@@ -4,6 +4,7 @@ import {
   MessageSquare,
   ChevronLeft,
   ChevronRight,
+  House,
   Search,
   Library,
   Trash2,
@@ -25,6 +26,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 interface SidebarProps {
   interviews: Interview[];
   currentInterview: Interview | null;
+  onGoHome: () => void;
   onStartNew: () => void;
   onSelectInterview: (interview: Interview) => void;
   onDeleteInterview: (interviewId: string) => void;
@@ -39,6 +41,7 @@ interface SidebarProps {
   onOpenSettings: () => void;
   onLogout: () => void;
   loading?: boolean;
+  isHomeActive?: boolean;
 }
 
 const LIBRARY_CATEGORIES = [
@@ -95,6 +98,7 @@ const LIBRARY_CATEGORIES = [
 const Sidebar: React.FC<SidebarProps> = ({
   interviews,
   currentInterview,
+  onGoHome,
   onStartNew,
   onSelectInterview,
   onDeleteInterview,
@@ -109,6 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onOpenSettings,
   onLogout,
   loading = false,
+  isHomeActive = false,
 }) => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -264,6 +269,17 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {!collapsed && (
           <div className="p-4 space-y-2">
+            <button
+              onClick={onGoHome}
+              className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left ${
+                isHomeActive
+                  ? 'border border-green-200 bg-green-50 text-green-700 hover:bg-green-50'
+                  : 'text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <House size={18} />
+              <span>Home</span>
+            </button>
             <button
               onClick={openSearchModal}
               className="w-full flex items-center gap-3 p-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-left"

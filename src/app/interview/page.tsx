@@ -8,7 +8,19 @@ import { Interview } from '../types/Interview'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Bell, LogOut, Monitor, Moon, Palette, Settings, Sun, User } from 'lucide-react'
+import {
+  Bell,
+  ChevronDown,
+  ChevronUp,
+  LogOut,
+  Monitor,
+  Moon,
+  Palette,
+  Settings,
+  Sparkles,
+  Sun,
+  User,
+} from 'lucide-react'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
@@ -18,6 +30,7 @@ type SettingsTab = 'account' | 'appearance' | 'notifications'
 type ThemePreference = 'system' | 'light' | 'dark'
 type SidebarPreference = 'standard' | 'compact'
 type ProfileToastType = 'success' | 'error'
+type WorkspaceLandingView = 'home' | 'behavioral' | 'technical'
 
 const SETTINGS_STORAGE_KEY = 'naild.settings.preferences.v1'
 const isThemePreference = (value: unknown): value is ThemePreference =>
@@ -37,7 +50,7 @@ const resolveThemePreference = (
 export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [currentInterview, setCurrentInterview] = useState<Interview | null>(null)
-  const [showSetup, setShowSetup] = useState(false)
+  const [activeLandingView, setActiveLandingView] = useState<WorkspaceLandingView>('home')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { user, loading, setUser } = useAuth()
   const router = useRouter()
@@ -259,6 +272,21 @@ export default function InterviewPage() {
     }
   }
 
+  const openHome = () => {
+    setActiveLandingView('home')
+    setCurrentInterview(null)
+  }
+
+  const openBehavioralSetup = () => {
+    setActiveLandingView('behavioral')
+    setCurrentInterview(null)
+  }
+
+  const openTechnicalPreview = () => {
+    setActiveLandingView('technical')
+    setCurrentInterview(null)
+  }
+
   const handleCreateInterview = async (config: any) => {
     // Fetch AI-generated questions
     let aiQuestions: string[] = [];
@@ -320,7 +348,7 @@ export default function InterviewPage() {
 
       setInterviews((prev) => [newInterview, ...prev]);
       setCurrentInterview(newInterview);
-      setShowSetup(false);
+      setActiveLandingView('home');
     } catch (error) {
       console.error('Failed to create interview:', error);
       // Fallback to in-memory only - this will work even without backend
@@ -338,7 +366,7 @@ export default function InterviewPage() {
       };
       setInterviews((prev) => [newInterview, ...prev]);
       setCurrentInterview(newInterview);
-      setShowSetup(false);
+      setActiveLandingView('home');
     }
   };
 
@@ -390,6 +418,7 @@ export default function InterviewPage() {
     setInterviews((prev) => prev.filter((i) => i.id !== interviewId));
     if (currentInterview?.id === interviewId) {
       setCurrentInterview(null);
+      setActiveLandingView('home')
     }
   }
 
@@ -419,8 +448,8 @@ export default function InterviewPage() {
   }
 
   const handleSelectInterview = (interview: Interview) => {
+    setActiveLandingView('home')
     setCurrentInterview(interview)
-    setShowSetup(false)
   }
 
   const canChangePassword = !user.authProvider || user.authProvider.toUpperCase() === 'LOCAL'
@@ -565,13 +594,155 @@ export default function InterviewPage() {
     settingsTabs.find((tab) => tab.id === activeSettingsTab) ?? settingsTabs[0]
   const modalTitle = 'Settings'
   const modalSubtitle = activeSettingsItem.description
+  const greetingName = user.firstname || 'there'
+  const activePromptPanel = activeLandingView === 'home' ? 'behavioral' : activeLandingView
+
+  const renderPromptPanel = () => {
+    if (activePromptPanel === 'technical') {
+      return (
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-6 py-8 lg:px-10">
+          <div className="flex items-center justify-center">
+            <button
+              onClick={openHome}
+              className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              <ChevronUp size={16} />
+              Back
+            </button>
+          </div>
+
+          <div className="flex items-center justify-center">
+            <section className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-sky-700">
+                Technical
+                <Sparkles size={14} />
+              </div>
+              <h2 className="mt-4 text-2xl font-semibold text-gray-900">
+                Technical setup is coming soon.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-gray-600">
+                This will become the live coding interview builder.
+              </p>
+            </section>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-4 px-6 py-6 lg:px-10">
+        <div className="flex items-center justify-center">
+          <button
+            onClick={openHome}
+            className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            <ChevronUp size={16} />
+            Back
+          </button>
+        </div>
+
+        <div className="flex-1">
+          <InterviewSetup onCreateInterview={handleCreateInterview} />
+        </div>
+      </div>
+    )
+  }
+
+  const renderPracticeFlow = () => (
+    <div className="practice-home-shell h-full overflow-hidden">
+      <motion.div
+        initial={false}
+        animate={{ y: activeLandingView === 'home' ? '0%' : '-50%' }}
+        transition={{ type: 'spring', stiffness: 170, damping: 26 }}
+        className="flex h-[200%] flex-col"
+      >
+        <section className="flex h-1/2 items-center">
+          <div className="mx-auto flex h-full w-full max-w-5xl flex-col justify-center gap-6 px-6 py-8 lg:px-10">
+            <section className="flex flex-col items-center justify-center px-4 pt-8 pb-2 text-center sm:pt-12">
+              <div className="flex h-24 w-24 items-center justify-center">
+                <img
+                  src="/naild_logo.png"
+                  alt="Naild Logo"
+                  className="h-20 w-20 object-contain"
+                />
+              </div>
+              <h1 className="mt-4 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl">
+                Welcome back, {greetingName}
+              </h1>
+              <p className="mt-3 max-w-xl text-base leading-7 text-gray-600">
+                Pick a practice mode and get started.
+              </p>
+            </section>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <section className="practice-mode-card practice-mode-card--behavioral rounded-[28px] border p-6 sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-emerald-700">
+                      Behavioral
+                    </div>
+                    <h2 className="mt-4 text-2xl font-semibold text-gray-900">Behavioral interviews</h2>
+                    <p className="mt-3 max-w-sm text-sm leading-6 text-gray-600">
+                      Practice story-driven interviews with the AI interviewer.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <button
+                    onClick={openBehavioralSetup}
+                    className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-black"
+                  >
+                    Create Interview
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
+              </section>
+
+              <section className="practice-mode-card practice-mode-card--technical rounded-[28px] border p-6 sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white/75 px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-sky-700">
+                      Technical
+                      <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] tracking-[0.16em] text-sky-800">
+                        Coming Soon
+                      </span>
+                    </div>
+                    <h2 className="mt-4 text-2xl font-semibold text-gray-900">Technical interviews</h2>
+                    <p className="mt-3 max-w-sm text-sm leading-6 text-gray-600">
+                      A separate lane for live coding and LeetCode-style practice.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <button
+                    onClick={openTechnicalPreview}
+                    className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-5 py-3 text-sm font-medium text-sky-800 transition-colors hover:bg-white"
+                  >
+                    Open Technical Preview
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section className="practice-preview-shell flex h-1/2 items-center justify-center">
+          {renderPromptPanel()}
+        </section>
+      </motion.div>
+    </div>
+  )
 
   return (
     <div className="interview-workspace flex h-screen bg-white overflow-hidden font-['Space_Grotesk']">
       <Sidebar
         interviews={interviews}
         currentInterview={currentInterview}
-        onStartNew={() => setShowSetup(true)}
+        onGoHome={openHome}
+        onStartNew={openBehavioralSetup}
         onSelectInterview={handleSelectInterview}
         onDeleteInterview={handleDeleteInterview}
         onRenameInterview={handleRenameInterview}
@@ -585,6 +756,7 @@ export default function InterviewPage() {
         onOpenSettings={openModal}
         onLogout={handleLogout}
         loading={loadingInterviews}
+        isHomeActive={!currentInterview && activeLandingView === 'home'}
       />
 
       <main className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
@@ -592,119 +764,13 @@ export default function InterviewPage() {
       }`}>
         {/* Interview Section */}
         <div className="flex-1 overflow-hidden">
-          {showSetup ? (
-            <div className="w-full overflow-y-auto h-full flex items-center justify-center">
-              <InterviewSetup onCreateInterview={handleCreateInterview} />
-            </div>
-          ) : currentInterview ? (
+          {currentInterview ? (
             <InterviewChat
               interview={currentInterview}
               onUpdateInterview={handleUpdate}
             />
-          ) : interviews.length === 0 ? (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="h-full flex items-start justify-center pt-32 p-8"
-            >
-              <div className="text-center max-w-md">
-                <motion.div 
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                  className="w-24 h-24 mx-auto mb-2 flex items-center justify-center mt-10"
-                >
-                  <img
-                    src="/naild_logo.png"
-                    alt="Naild Logo"
-                    className="w-20 h-20 object-contain"
-                  />
-                </motion.div>
-                <motion.h3 
-                  initial={{ opacity: 0, y: 0 }}
-                  animate={{ opacity: 1, y: -10 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                  className="text-3xl text-gray-900 mb-2 font-['Space_Grotesk'] mt-4"
-                >
-                  Hey {user?.firstname || 'there'}, let's jump into some interviews!
-                </motion.h3>
-                <motion.p 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 }}
-                  className="text-gray-600 mb-6"
-                >
-                  
-                </motion.p>
-                <motion.button
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.5 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowSetup(true)}
-                  className="inline-flex items-center px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg transition-colors mt-1"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  Create Your First Interview
-                </motion.button>
-              </div>
-            </motion.div>
           ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="h-full flex items-center justify-center p-8"
-            >
-              <div className="text-center max-w-md">
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                  className="w-24 h-24 mx-auto mb-2 flex items-center justify-center"
-                >
-                  <img
-                    src="/naild_logo.png"
-                    alt="Naild Logo"
-                    className="w-20 h-20 object-contain"
-                  />
-                </motion.div>
-                <motion.h3
-                  initial={{ opacity: 0, y: 0 }}
-                  animate={{ opacity: 1, y: -10 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                  className="text-3xl text-gray-900 mb-2 font-['Space_Grotesk'] mt-4"
-                >
-                  Welcome back, {user?.firstname || 'there'}
-                </motion.h3>
-                <motion.p
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 }}
-                  className="text-gray-600 mb-6"
-                >
-                  Select an interview from the sidebar or start a new one
-                </motion.p>
-                <motion.button
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.5 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowSetup(true)}
-                  className="inline-flex items-center px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-lg transition-colors mt-1"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  Create New Interview
-                </motion.button>
-              </div>
-            </motion.div>
+            renderPracticeFlow()
           )}
         </div>
       </main>
