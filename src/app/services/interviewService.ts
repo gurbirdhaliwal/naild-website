@@ -2,6 +2,39 @@ import { GradingResult, Interview, Message } from '../types/Interview';
 import { API_BASE } from './api';
 import { CSRF_HEADER_NAME, getCsrfToken } from './csrf';
 
+const toValidDate = (value: unknown, fallback: Date = new Date()): Date => {
+  const date =
+    value instanceof Date
+      ? new Date(value)
+      : typeof value === 'string' || typeof value === 'number'
+        ? new Date(value)
+        : new Date(fallback);
+
+  return Number.isNaN(date.getTime()) ? new Date(fallback) : date;
+};
+
+const normalizeMessages = (messages: string, fallbackTimestamp: Date): Message[] => {
+  const parsed = JSON.parse(messages);
+
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  return parsed.map((message, index) => {
+    const candidate = typeof message === 'object' && message !== null ? message : {};
+    const rawMessage = candidate as Partial<Message> & { timestamp?: unknown };
+
+    return {
+      id: typeof rawMessage.id === 'string' ? rawMessage.id : `message-${index}`,
+      role: rawMessage.role === 'candidate' ? 'candidate' : 'interviewer',
+      content: typeof rawMessage.content === 'string' ? rawMessage.content : '',
+      timestamp: toValidDate(rawMessage.timestamp, fallbackTimestamp),
+      transcription: typeof rawMessage.transcription === 'string' ? rawMessage.transcription : '',
+      isThinking: Boolean(rawMessage.isThinking),
+    };
+  });
+};
+
 export interface InterviewResponse {
   id: number;
   title: string;
@@ -230,14 +263,16 @@ class InterviewService {
 
   // Helper method to convert InterviewResponse to Interview
   convertToInterview(response: InterviewResponse): Interview {
+    const createdAt = toValidDate(response.createdAt);
+
     return {
       id: response.id.toString(),
       title: response.title,
       role: response.role,
       languages: JSON.parse(response.languages),
       difficulty: response.difficulty,
-      createdAt: new Date(response.createdAt),
-      messages: JSON.parse(response.messages),
+      createdAt,
+      messages: normalizeMessages(response.messages, createdAt),
       status: response.status,
       questions: JSON.parse(response.questions),
       currentQuestionIndex: response.currentQuestionIndex,
