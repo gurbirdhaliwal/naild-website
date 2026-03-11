@@ -2,17 +2,33 @@ import React, { useRef, useState } from "react";
 import { LuMic } from "react-icons/lu";
 
 interface CustomMicRecorderProps {
-  onAudioRecorded: (audioBlob: Blob) => void;
+  onAudioRecorded: (audioBlob: Blob) => void | Promise<void>;
   onRecordingStart?: () => void;
   onRecordingStop?: () => void;
+  onRecordingError?: (message: string) => void;
   maxDuration?: number; // max seconds to record
+  wrapperClassName?: string;
+  buttonClassName?: string;
+  recordingButtonClassName?: string;
+  statusClassName?: string;
+  idleText?: string;
+  recordingText?: string;
+  processingText?: string;
 }
 
 const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
   onAudioRecorded,
   onRecordingStart,
   onRecordingStop,
+  onRecordingError,
   maxDuration = 60,
+  wrapperClassName,
+  buttonClassName,
+  recordingButtonClassName,
+  statusClassName,
+  idleText,
+  recordingText,
+  processingText,
 }) => {
   const [recording, setRecording] = useState(false);
   const [status, setStatus] = useState<"idle" | "recording" | "processing">("idle");
@@ -22,44 +38,60 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
   const isRecordingRef = useRef<boolean>(false);
 
   const startRecording = async () => {
-    setStatus("recording");
-    setRecording(true);
-    isRecordingRef.current = true;
-    audioChunks.current = [];
-    
-    // Notify parent component that recording has started
-    onRecordingStart?.();
-    
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new window.MediaRecorder(stream);
-    mediaRecorderRef.current = mediaRecorder;
+    try {
+      setRecording(true);
+      isRecordingRef.current = true;
+      audioChunks.current = [];
 
-    // Max duration timer
-    maxTimer.current = setTimeout(() => {
-      if (isRecordingRef.current) {
-        stopRecording();
-      }
-    }, maxDuration * 1000);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new window.MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
 
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        audioChunks.current.push(e.data);
-      }
-    };
+      // Max duration timer
+      maxTimer.current = setTimeout(() => {
+        if (isRecordingRef.current) {
+          stopRecording();
+        }
+      }, maxDuration * 1000);
 
-    mediaRecorder.onstop = () => {
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunks.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        isRecordingRef.current = false;
+        setRecording(false);
+        setStatus("processing");
+        const audioBlob = new Blob(audioChunks.current, { type: "audio/webm" });
+
+        try {
+          await Promise.resolve(onAudioRecorded(audioBlob));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to process recording";
+          onRecordingError?.(message);
+        } finally {
+          stream.getTracks().forEach((track) => track.stop());
+          if (maxTimer.current) clearTimeout(maxTimer.current);
+          setStatus("idle");
+        }
+      };
+
+      mediaRecorder.start();
+      setStatus("recording");
+      onRecordingStart?.();
+    } catch (error) {
       isRecordingRef.current = false;
       setRecording(false);
-      setStatus("processing");
-      const audioBlob = new Blob(audioChunks.current, { type: "audio/webm" });
-      onAudioRecorded(audioBlob);
-      // Clean up
-      stream.getTracks().forEach((track) => track.stop());
-      if (maxTimer.current) clearTimeout(maxTimer.current);
       setStatus("idle");
-    };
-
-    mediaRecorder.start();
+      if (maxTimer.current) {
+        clearTimeout(maxTimer.current);
+        maxTimer.current = null;
+      }
+      const message = error instanceof Error ? error.message : "Unable to access microphone";
+      onRecordingError?.(message);
+    }
   };
 
   const stopRecording = () => {
@@ -79,23 +111,34 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
     }
   };
 
+  const wrapperClasses = wrapperClassName ?? "flex flex-col items-center gap-2";
+  const idleButtonClasses =
+    buttonClassName ??
+    "bg-gray-900 text-white hover:bg-gray-800 hover:scale-105";
+  const activeButtonClasses =
+    recordingButtonClassName ??
+    "bg-red-100 text-red-600 hover:bg-red-200 scale-110";
+  const statusClasses = statusClassName ?? "text-sm text-gray-600";
+  const idleStatusText = idleText ?? "Click the microphone to speak your answer";
+  const recordingStatusText = recordingText ?? `Recording... (max ${maxDuration} seconds)`;
+  const processingStatusText = processingText ?? "Processing...";
+
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className={wrapperClasses}>
       <button
+        type="button"
         onClick={recording ? stopRecording : startRecording}
         className={`p-6 rounded-full transition-all duration-300 ${
-          recording
-            ? "bg-red-100 text-red-600 hover:bg-red-200 scale-110"
-            : "bg-gray-900 text-white hover:bg-gray-800 hover:scale-105"
+          recording ? activeButtonClasses : idleButtonClasses
         }`}
         disabled={status === "processing"}
       >
         {recording ? "Stop" : <LuMic />}
       </button>
-      <div className="text-sm text-gray-600">
-        {status === "idle" && "Click the microphone to speak your answer"}
-        {status === "recording" && `Recording... (max ${maxDuration} seconds)`}
-        {status === "processing" && "Processing..."}
+      <div className={statusClasses}>
+        {status === "idle" && idleStatusText}
+        {status === "recording" && recordingStatusText}
+        {status === "processing" && processingStatusText}
       </div>
     </div>
   );
