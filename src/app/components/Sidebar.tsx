@@ -9,7 +9,6 @@ import {
   Library,
   Trash2,
   Loader2,
-  User,
   Settings,
   CircleHelp,
   LogOut,
@@ -21,6 +20,7 @@ import {
 import { Interview } from '../types/Interview';
 import Link from 'next/link';
 import MetricsDashboard from './MetricsDashboard';
+import { LIBRARY_TOPICS, type LibraryTopicId } from './InterviewLibrary';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface SidebarProps {
@@ -39,61 +39,12 @@ interface SidebarProps {
   userName: string;
   userEmail: string;
   onOpenSettings: () => void;
+  onSelectLibraryTopic: (topicId: LibraryTopicId) => void;
   onLogout: () => void;
   loading?: boolean;
   isHomeActive?: boolean;
+  isLibraryActive?: boolean;
 }
-
-const LIBRARY_CATEGORIES = [
-  {
-    title: 'STAR Storytelling',
-    description: 'Structure your answers with clear situation, task, action, and result details.',
-    tags: ['STAR', 'Clarity', 'Impact'],
-    icon: BarChart3,
-  },
-  {
-    title: 'Leadership & Ownership',
-    description: 'Practice examples that show initiative, judgment, and accountability.',
-    tags: ['Ownership', 'Initiative', 'Decisions'],
-    icon: Settings,
-  },
-  {
-    title: 'Teamwork & Collaboration',
-    description: 'Show how you build trust, align across teams, and support shared goals.',
-    tags: ['Teamwork', 'Trust', 'Alignment'],
-    icon: User,
-  },
-  {
-    title: 'Conflict & Feedback',
-    description: 'Prepare stories about navigating disagreement and giving or receiving feedback.',
-    tags: ['Conflict', 'Feedback', 'Resolution'],
-    icon: Library,
-  },
-  {
-    title: 'Ambiguity & Adaptability',
-    description: 'Practice staying effective when priorities shift or context is incomplete.',
-    tags: ['Ambiguity', 'Change', 'Adaptability'],
-    icon: Search,
-  },
-  {
-    title: 'Communication Skills',
-    description: 'Explain decisions clearly, handle tough conversations, and stay concise under pressure.',
-    tags: ['Clarity', 'Influence', 'Confidence'],
-    icon: MessageSquare,
-  },
-  {
-    title: 'Prioritization & Execution',
-    description: 'Show how you juggle deadlines, tradeoffs, and competing responsibilities.',
-    tags: ['Priorities', 'Execution', 'Tradeoffs'],
-    icon: Check,
-  },
-  {
-    title: 'Resilience & Growth',
-    description: 'Tell strong stories about mistakes, recovery, and what you learned.',
-    tags: ['Failure', 'Growth', 'Resilience'],
-    icon: CircleHelp,
-  },
-];
 
 const Sidebar: React.FC<SidebarProps> = ({
   interviews,
@@ -111,9 +62,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   userName,
   userEmail,
   onOpenSettings,
+  onSelectLibraryTopic,
   onLogout,
   loading = false,
   isHomeActive = false,
+  isLibraryActive = false,
 }) => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -184,10 +137,15 @@ const Sidebar: React.FC<SidebarProps> = ({
     setMetricsOpen(true);
   };
 
-  const openLibraryModal = () => {
+  const openLibraryChooser = () => {
     setSearchOpen(false);
     setMetricsOpen(false);
     setLibraryOpen(true);
+  };
+
+  const selectLibraryTopic = (topicId: LibraryTopicId) => {
+    onSelectLibraryTopic(topicId);
+    setLibraryOpen(false);
   };
 
   const beginRename = (interview: Interview) => {
@@ -295,8 +253,12 @@ const Sidebar: React.FC<SidebarProps> = ({
               <span>Metrics</span>
             </button>
             <button
-              onClick={openLibraryModal}
-              className="w-full flex items-center gap-3 p-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-left"
+              onClick={openLibraryChooser}
+              className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left ${
+                isLibraryActive || libraryOpen
+                  ? 'border border-green-200 bg-green-50 text-green-700 hover:bg-green-50'
+                  : 'text-gray-700 hover:bg-gray-200'
+              }`}
             >
               <Library size={18} />
               <span>Library</span>
@@ -667,15 +629,18 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                 <div className="max-h-[calc(92vh-84px)] overflow-y-auto bg-gradient-to-b from-white to-gray-50 p-4 sm:p-5">
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {LIBRARY_CATEGORIES.map((category, index) => {
-                      const Icon = category.icon;
+                    {LIBRARY_TOPICS.map((topic, index) => {
+                      const Icon = topic.icon;
+
                       return (
-                        <motion.div
-                          key={category.title}
+                        <motion.button
+                          key={topic.id}
+                          type="button"
                           initial={{ opacity: 0, y: 14 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.25, delay: index * 0.06 }}
-                          className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                          onClick={() => selectLibraryTopic(topic.id)}
+                          className="rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
                         >
                           <div className="mb-3 flex items-start justify-between gap-2">
                             <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-700">
@@ -686,20 +651,20 @@ const Sidebar: React.FC<SidebarProps> = ({
                             </span>
                           </div>
 
-                          <h3 className="text-sm font-semibold text-gray-900">{category.title}</h3>
-                          <p className="mt-1 text-xs leading-5 text-gray-600">{category.description}</p>
+                          <h3 className="text-sm font-semibold text-gray-900">{topic.title}</h3>
+                          <p className="mt-1 text-xs leading-5 text-gray-600">{topic.description}</p>
 
                           <div className="mt-3 flex flex-wrap gap-1.5">
-                            {category.tags.map((tag) => (
+                            {topic.tags.map((tag) => (
                               <span
-                                key={`${category.title}-${tag}`}
+                                key={`${topic.id}-${tag}`}
                                 className="rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-700"
                               >
                                 {tag}
                               </span>
                             ))}
                           </div>
-                        </motion.div>
+                        </motion.button>
                       );
                     })}
                   </div>

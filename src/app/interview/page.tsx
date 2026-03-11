@@ -4,6 +4,10 @@ import React, { useState, useEffect, useRef } from 'react'
 import Sidebar from '../components/Sidebar'
 import InterviewSetup from '../components/InterviewSetup'
 import InterviewChat from '../components/InterviewChat'
+import InterviewLibrary, {
+  LIBRARY_TOPICS,
+  type LibraryTopicId,
+} from '../components/InterviewLibrary'
 import { Interview } from '../types/Interview'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
@@ -29,7 +33,7 @@ type SettingsTab = 'account' | 'appearance' | 'notifications'
 type ThemePreference = 'system' | 'light' | 'dark'
 type SidebarPreference = 'standard' | 'compact'
 type ProfileToastType = 'success' | 'error'
-type WorkspaceLandingView = 'home' | 'behavioral'
+type WorkspaceLandingView = 'home' | 'behavioral' | 'library'
 
 const SETTINGS_STORAGE_KEY = 'naild.settings.preferences.v1'
 const isThemePreference = (value: unknown): value is ThemePreference =>
@@ -50,6 +54,9 @@ export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [currentInterview, setCurrentInterview] = useState<Interview | null>(null)
   const [activeLandingView, setActiveLandingView] = useState<WorkspaceLandingView>('home')
+  const [selectedLibraryTopicId, setSelectedLibraryTopicId] = useState<LibraryTopicId>(
+    LIBRARY_TOPICS[0].id
+  )
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { user, loading, setUser } = useAuth()
   const router = useRouter()
@@ -278,6 +285,12 @@ export default function InterviewPage() {
 
   const openBehavioralSetup = () => {
     setActiveLandingView('behavioral')
+    setCurrentInterview(null)
+  }
+
+  const handleSelectLibraryTopic = (topicId: LibraryTopicId) => {
+    setSelectedLibraryTopicId(topicId)
+    setActiveLandingView('library')
     setCurrentInterview(null)
   }
 
@@ -692,9 +705,11 @@ export default function InterviewPage() {
         userName={`${user.firstname} ${user.lastname}`.trim() || user.email}
         userEmail={user.email}
         onOpenSettings={openModal}
+        onSelectLibraryTopic={handleSelectLibraryTopic}
         onLogout={handleLogout}
         loading={loadingInterviews}
         isHomeActive={!currentInterview && activeLandingView === 'home'}
+        isLibraryActive={!currentInterview && activeLandingView === 'library'}
       />
 
       <main className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
@@ -706,6 +721,11 @@ export default function InterviewPage() {
             <InterviewChat
               interview={currentInterview}
               onUpdateInterview={handleUpdate}
+            />
+          ) : activeLandingView === 'library' ? (
+            <InterviewLibrary
+              selectedTopicId={selectedLibraryTopicId}
+              onSelectTopic={setSelectedLibraryTopicId}
             />
           ) : (
             renderPracticeFlow()
