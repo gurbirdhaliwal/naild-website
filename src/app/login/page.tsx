@@ -98,6 +98,14 @@ export default function Login() {
             onChange={handleChange}
             className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500 focus:outline-none"
           />
+          <div className="flex justify-end">
+            <Link
+              href={`/forgot-password?redirect=${encodeURIComponent(redirectPath)}`}
+              className="text-sm font-medium text-green-700 hover:text-green-600"
+            >
+              Forgot password?
+            </Link>
+          </div>
 
           {error && <div className="text-red-500 text-sm text-center">{error}</div>}
 
