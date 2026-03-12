@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { CalendarDays, ChevronDown, Flame, Target, Trophy } from 'lucide-react'
+import { CalendarDays, ChevronDown, Target, Trophy } from 'lucide-react'
 import { GradingSuccessResult, Interview } from '../types/Interview'
 
 interface MetricsDashboardProps {
@@ -27,6 +27,12 @@ interface HeatmapCell extends DailyActivityRecord {
   isFuture: boolean
 }
 
+interface WeeklyActivityRecord {
+  weekStart: Date
+  count: number
+  averageScore: number | null
+}
+
 type TimeRange = '1m' | '3m' | '6m' | '1y' | 'all'
 
 const TIME_RANGE_OPTIONS: Array<{ value: TimeRange; label: string }> = [
@@ -39,6 +45,7 @@ const TIME_RANGE_OPTIONS: Array<{ value: TimeRange; label: string }> = [
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const HEATMAP_COLORS = ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39']
+const WEEKLY_INTERVIEW_TARGET = 3
 
 const hasAverageScore = (
   gradingResult: Interview['gradingResult']
@@ -101,46 +108,6 @@ const dateKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
     date.getDate()
   ).padStart(2, '0')}`
-
-const toDayStamp = (date: Date) => startOfDay(date).getTime()
-
-const getCurrentStreak = (dates: Date[]) => {
-  const daySet = new Set(dates.map(toDayStamp))
-  const today = startOfDay(new Date())
-  const todayStamp = today.getTime()
-  let cursor = daySet.has(todayStamp) ? today : addDays(today, -1)
-
-  if (!daySet.has(cursor.getTime())) {
-    return 0
-  }
-
-  let streak = 0
-  while (daySet.has(cursor.getTime())) {
-    streak += 1
-    cursor = addDays(cursor, -1)
-  }
-
-  return streak
-}
-
-const getLongestStreak = (dates: Date[]) => {
-  const uniqueDays = Array.from(new Set(dates.map(toDayStamp))).sort((a, b) => a - b)
-  if (uniqueDays.length === 0) return 0
-
-  let best = 1
-  let current = 1
-
-  for (let index = 1; index < uniqueDays.length; index += 1) {
-    if (uniqueDays[index] - uniqueDays[index - 1] === 24 * 60 * 60 * 1000) {
-      current += 1
-    } else {
-      current = 1
-    }
-    best = Math.max(best, current)
-  }
-
-  return best
-}
 
 const getRangeStart = (range: TimeRange) => {
   if (range === 'all') return null
@@ -238,18 +205,48 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
     return records
   }, [completedInterviews])
 
+  const weeklyActivity = useMemo(() => {
+    const records = new Map<
+      string,
+      {
+        weekStart: Date
+        count: number
+        totalScore: number
+        scoredCount: number
+      }
+    >()
+
+    completedInterviews.forEach((interview) => {
+      const weekStart = startOfWeek(toDate(interview.createdAt))
+      const key = dateKey(weekStart)
+      const existing = records.get(key) ?? {
+        weekStart,
+        count: 0,
+        totalScore: 0,
+        scoredCount: 0,
+      }
+
+      existing.count += 1
+      if (hasAverageScore(interview.gradingResult)) {
+        existing.totalScore += interview.gradingResult.average_score
+        existing.scoredCount += 1
+      }
+
+      records.set(key, existing)
+    })
+
+    return Array.from(records.values())
+      .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime())
+      .map<WeeklyActivityRecord>((record) => ({
+        weekStart: record.weekStart,
+        count: record.count,
+        averageScore:
+          record.scoredCount > 0 ? record.totalScore / record.scoredCount : null,
+      }))
+  }, [completedInterviews])
+
   const today = startOfDay(new Date())
-  const todayStamp = today.getTime()
-  const completedDates = useMemo(
-    () => completedInterviews.map((interview) => toDate(interview.createdAt)),
-    [completedInterviews]
-  )
-  const currentStreak = useMemo(() => getCurrentStreak(completedDates), [completedDates])
-  const longestStreak = useMemo(() => getLongestStreak(completedDates), [completedDates])
-  const hasCompletedToday = useMemo(
-    () => completedDates.some((date) => toDayStamp(date) === todayStamp),
-    [completedDates, todayStamp]
-  )
+  const currentWeekStart = useMemo(() => startOfWeek(today), [today])
 
   const rangeStart = useMemo(() => getRangeStart(timeRange), [timeRange])
 
@@ -341,9 +338,23 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
   const bestScoreInRange = scoredInRange.length
     ? Math.max(...scoredInRange.map((interview) => interview.score))
     : null
-  const thisWeekSessions = completedInterviews.filter(
-    (interview) => toDate(interview.createdAt) >= addDays(today, -6)
+  const currentWeekRecord = useMemo(
+    () =>
+      weeklyActivity.find(
+        (record) => record.weekStart.getTime() === currentWeekStart.getTime()
+      ) ?? null,
+    [currentWeekStart, weeklyActivity]
+  )
+  const thisWeekSessions = currentWeekRecord?.count ?? 0
+  const thisWeekAverageScore = currentWeekRecord?.averageScore ?? null
+  const weeklyGoalProgress = Math.min(thisWeekSessions / WEEKLY_INTERVIEW_TARGET, 1)
+  const weeklyGoalRemaining = Math.max(WEEKLY_INTERVIEW_TARGET - thisWeekSessions, 0)
+  const weeksAtGoal = weeklyActivity.filter(
+    (record) => record.count >= WEEKLY_INTERVIEW_TARGET
   ).length
+  const bestWeekCount = weeklyActivity.length
+    ? Math.max(...weeklyActivity.map((record) => record.count))
+    : 0
   const bestDayCount = visibleActivityDays.length
     ? Math.max(...visibleActivityDays.map((day) => day.count))
     : 0
@@ -357,12 +368,12 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
     [completedInRange, completedInterviews]
   )
 
-  const streakMessage =
-    currentStreak === 0
-      ? 'Complete an interview today to start your streak.'
-      : hasCompletedToday
-        ? 'You already kept the streak alive today.'
-        : 'One completed interview today keeps the streak going.'
+  const weeklyGoalMessage =
+    thisWeekSessions === 0
+      ? `Start the week with your first interview. The goal is ${WEEKLY_INTERVIEW_TARGET} completed sessions.`
+      : weeklyGoalRemaining === 0
+        ? `You hit this week's ${WEEKLY_INTERVIEW_TARGET}-interview goal${thisWeekAverageScore !== null ? ` with a ${thisWeekAverageScore.toFixed(1)}% average score.` : '.'}`
+        : `${weeklyGoalRemaining} more interview${weeklyGoalRemaining === 1 ? '' : 's'} to hit this week's ${WEEKLY_INTERVIEW_TARGET}-session target.`
 
   return (
     <div className="p-4 sm:p-5">
@@ -371,12 +382,12 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
           <div>
             <h1 className="text-xl font-semibold text-gray-900 sm:text-2xl">Metrics</h1>
             <p className="mt-1 text-xs text-gray-600 sm:text-sm">
-              {userFirstName ? `${userFirstName}, ` : ''}track consistency the same way GitHub tracks contributions.
+              {userFirstName ? `${userFirstName}, ` : ''}track your weekly interview rhythm the same way GitHub tracks contributions.
             </p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700">
-            <Flame size={14} className="text-green-600" />
-            Daily streak
+            <Target size={14} className="text-green-600" />
+            {WEEKLY_INTERVIEW_TARGET} interviews / week
           </div>
         </div>
 
@@ -384,39 +395,57 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-white/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-green-700">
-                <Flame size={14} />
-                Streak
+                <Target size={14} />
+                Weekly target
               </div>
 
               <div className="mt-4 flex items-end gap-3">
                 <span className="text-5xl font-semibold tracking-tight text-gray-900 sm:text-6xl">
-                  {currentStreak}
+                  {thisWeekSessions}
                 </span>
-                <span className="pb-2 text-sm font-medium uppercase tracking-[0.18em] text-gray-500">
-                  days
-                </span>
+                <div className="pb-2">
+                  <div className="text-sm font-medium uppercase tracking-[0.18em] text-gray-500">
+                    of {WEEKLY_INTERVIEW_TARGET}
+                  </div>
+                  <div className="text-sm font-medium uppercase tracking-[0.18em] text-gray-500">
+                    sessions
+                  </div>
+                </div>
               </div>
 
-              <p className="mt-3 max-w-lg text-sm leading-6 text-gray-600">{streakMessage}</p>
+              <div className="mt-4 h-2.5 w-full max-w-md overflow-hidden rounded-full bg-white/90">
+                <div
+                  className="h-full rounded-full bg-green-500 transition-all duration-300"
+                  style={{
+                    width: `${thisWeekSessions === 0 ? 0 : Math.max(8, weeklyGoalProgress * 100)}%`,
+                  }}
+                />
+              </div>
+
+              <p className="mt-3 max-w-lg text-sm leading-6 text-gray-600">{weeklyGoalMessage}</p>
             </div>
 
             <div className="grid w-full gap-3 sm:grid-cols-2 lg:max-w-xl">
               <div className="rounded-2xl border border-white/80 bg-white/85 p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
                   <Trophy size={14} className="text-amber-500" />
-                  Best Streak
+                  Goal Hit Weeks
                 </div>
-                <div className="mt-3 text-2xl font-semibold text-gray-900">{longestStreak} days</div>
-                <p className="mt-1 text-sm text-gray-500">Longest run of consecutive interview days.</p>
+                <div className="mt-3 text-2xl font-semibold text-gray-900">{weeksAtGoal}</div>
+                <p className="mt-1 text-sm text-gray-500">
+                  Weeks where you reached the {WEEKLY_INTERVIEW_TARGET}-interview target.
+                </p>
               </div>
 
               <div className="rounded-2xl border border-white/80 bg-white/85 p-4 shadow-sm">
                 <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
                   <CalendarDays size={14} className="text-sky-500" />
-                  This Week
+                  Best Week
                 </div>
-                <div className="mt-3 text-2xl font-semibold text-gray-900">{thisWeekSessions}</div>
-                <p className="mt-1 text-sm text-gray-500">Completed interviews in the last 7 days.</p>
+                <div className="mt-3 text-2xl font-semibold text-gray-900">
+                  {bestWeekCount} interview{bestWeekCount === 1 ? '' : 's'}
+                </div>
+                <p className="mt-1 text-sm text-gray-500">Most completed interviews in a single week.</p>
               </div>
 
               <div className="rounded-2xl border border-white/80 bg-white/85 p-4 shadow-sm">
@@ -639,10 +668,15 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
 
               <div className="rounded-2xl border border-gray-100 bg-gray-50/80 px-4 py-3">
                 <div className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
-                  Best day
+                  This week
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-gray-900">
-                  {bestDayCount} interview{bestDayCount === 1 ? '' : 's'}
+                  {thisWeekSessions} / {WEEKLY_INTERVIEW_TARGET}
+                </div>
+                <div className="mt-1 text-sm text-gray-500">
+                  {weeklyGoalRemaining === 0
+                    ? 'Weekly target complete.'
+                    : `${weeklyGoalRemaining} more interview${weeklyGoalRemaining === 1 ? '' : 's'} to go.`}
                 </div>
               </div>
 
@@ -655,10 +689,10 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
 
               <div className="rounded-2xl border border-gray-100 bg-gray-50/80 px-4 py-3">
                 <div className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
-                  Best score
+                  Best day
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-gray-900">
-                  {bestScoreInRange !== null ? `${bestScoreInRange.toFixed(1)}%` : 'N/A'}
+                  {bestDayCount} interview{bestDayCount === 1 ? '' : 's'}
                 </div>
               </div>
             </div>
