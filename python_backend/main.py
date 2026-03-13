@@ -204,6 +204,169 @@ def _normalize_grading_result(raw_result, questions, answers):
         "feedback": feedback,
     }
 
+
+COMMUNICATION_CATEGORY_LABELS = {
+    "clarity": "Clarity",
+    "correctness": "Correctness",
+    "depth": "Depth",
+    "audience_fit": "Audience fit",
+}
+
+
+def _display_label(value):
+    if not isinstance(value, str):
+        return ""
+    return value.replace("-", " ").strip()
+
+
+def _display_practice_mode(practice_mode):
+    labels = {
+        "explain-concept": "Explain a concept",
+        "explain-decision": "Explain a decision",
+        "explain-tradeoff": "Explain a tradeoff",
+    }
+    return labels.get(practice_mode, "Practice session")
+
+
+def _normalize_string_list(value, limit=4):
+    if not isinstance(value, list):
+        return []
+    normalized = []
+    for item in value:
+        if isinstance(item, str):
+            stripped = item.strip()
+            if stripped:
+                normalized.append(stripped)
+        if len(normalized) >= limit:
+            break
+    return normalized
+
+
+def _normalize_generated_prompt(raw_prompt, field, practice_mode, audience, topic):
+    prompt = raw_prompt if isinstance(raw_prompt, dict) else {}
+    resolved_topic = (
+        prompt.get("topic").strip()
+        if isinstance(prompt.get("topic"), str) and prompt.get("topic").strip()
+        else topic.strip()
+        if isinstance(topic, str) and topic.strip()
+        else f"{field.lower()} communication scenario"
+    )
+    audience_label = (
+        prompt.get("audience").strip()
+        if isinstance(prompt.get("audience"), str) and prompt.get("audience").strip()
+        else _display_label(audience).title()
+    )
+
+    default_cover = [
+        "Lead with the core point",
+        "Explain the mechanism or decision clearly",
+        "Name the most important tradeoff or implication",
+    ]
+    what_to_cover = _normalize_string_list(prompt.get("what_to_cover"), limit=4) or default_cover
+    focus_areas = _normalize_string_list(prompt.get("focus_areas"), limit=4) or [
+        "Clarity",
+        "Correctness",
+        "Depth",
+        "Audience fit",
+    ]
+
+    return {
+        "title": prompt.get("title").strip()
+        if isinstance(prompt.get("title"), str) and prompt.get("title").strip()
+        else f"{field} • {_display_practice_mode(practice_mode)}",
+        "scenario": prompt.get("scenario").strip()
+        if isinstance(prompt.get("scenario"), str) and prompt.get("scenario").strip()
+        else f"You are explaining {resolved_topic} to a {audience_label.lower()}.",
+        "prompt": prompt.get("prompt").strip()
+        if isinstance(prompt.get("prompt"), str) and prompt.get("prompt").strip()
+        else f"Explain {resolved_topic} to a {audience_label.lower()} in a way that is clear, technically accurate, and useful.",
+        "audience": audience_label,
+        "practice_mode": practice_mode,
+        "field": field,
+        "topic": resolved_topic,
+        "what_to_cover": what_to_cover,
+        "time_guidance": prompt.get("time_guidance").strip()
+        if isinstance(prompt.get("time_guidance"), str) and prompt.get("time_guidance").strip()
+        else "Aim for 60 to 90 seconds.",
+        "focus_areas": focus_areas,
+    }
+
+
+def _normalize_communication_grading_result(raw_result):
+    if not isinstance(raw_result, dict):
+        raw_result = {}
+
+    raw_categories = raw_result.get("categories", [])
+    if not isinstance(raw_categories, list):
+        raw_categories = []
+
+    categories = []
+    for key, label in COMMUNICATION_CATEGORY_LABELS.items():
+        selected = next(
+            (
+                entry
+                for entry in raw_categories
+                if isinstance(entry, dict) and entry.get("key") == key
+            ),
+            {},
+        )
+        categories.append(
+            {
+                "key": key,
+                "label": label,
+                "score": _coerce_score(selected.get("score")),
+                "feedback": selected.get("feedback").strip()
+                if isinstance(selected.get("feedback"), str) and selected.get("feedback").strip()
+                else f"No specific {label.lower()} feedback was returned.",
+            }
+        )
+
+    overall_score = raw_result.get("overall_score")
+    if not isinstance(overall_score, (int, float)):
+        overall_score = round(sum(category["score"] for category in categories) / len(categories), 1)
+    overall_score = _coerce_score(overall_score)
+
+    strengths = _normalize_string_list(raw_result.get("strengths"), limit=4)
+    missing_points = _normalize_string_list(raw_result.get("missing_points"), limit=4)
+    improved_outline = _normalize_string_list(raw_result.get("improved_outline"), limit=5)
+    retry_advice = raw_result.get("retry_advice")
+    feedback = raw_result.get("feedback")
+
+    return {
+        "overall_score": overall_score,
+        "average_score": overall_score,
+        "categories": categories,
+        "strengths": strengths,
+        "missing_points": missing_points,
+        "improved_outline": improved_outline,
+        "retry_advice": retry_advice.strip()
+        if isinstance(retry_advice, str) and retry_advice.strip()
+        else "Retry the answer once more, but make the structure more explicit and surface the key tradeoff sooner.",
+        "feedback": feedback.strip()
+        if isinstance(feedback, str) and feedback.strip()
+        else "The answer was scored on clarity, correctness, depth, and audience fit.",
+    }
+
+
+def _persist_grading_result(session_id, result):
+    if not session_id:
+        return
+
+    try:
+        grading_update_response = requests.put(
+            f"{SPRING_API_BASE}/interviews/{session_id}/grading",
+            json={"gradingResult": result},
+            headers={"Content-Type": "application/json"},
+        )
+        if grading_update_response.status_code != 200:
+            logger.warning(
+                "Failed to save grading result for session %s: %s",
+                session_id,
+                grading_update_response.text,
+            )
+    except Exception:
+        logger.exception("Failed to save grading result for session %s.", session_id)
+
 def require_authenticated_user(request: Request):
     auth_header = request.headers.get("authorization")
     token_cookie = request.cookies.get("token")
@@ -349,7 +512,7 @@ def warmup():
         response = ollama_client.chat(
             model='mistral',
             messages=[
-                {"role": "system", "content": "You are a mock interview assistant."},
+                {"role": "system", "content": "You are a technical communication coach."},
                 {"role": "user", "content": "hi"}
             ]
         )
@@ -360,6 +523,164 @@ def warmup():
     except Exception:
         logger.exception("Warmup failed.")
         return {"status": "error", "error": "Warmup failed."}
+
+
+@app.post("/generate_drill")
+async def generate_drill(
+    request: Request,
+    _: dict = Depends(require_authenticated_user),
+):
+    data = await request.json()
+    field = data.get("field", "Software Engineer")
+    practice_mode = data.get("practice_mode", "explain-concept")
+    audience = data.get("audience", "peer-engineer")
+    topic = data.get("topic", "")
+    additional_context = data.get("additional_context", "")
+    difficulty = data.get("difficulty", "mid")
+
+    generation_prompt = f"""
+You are designing a high-quality technical communication drill for developers.
+
+Return a JSON object with exactly these keys:
+- title
+- scenario
+- prompt
+- audience
+- topic
+- what_to_cover (array of 3-4 short strings)
+- time_guidance
+- focus_areas (array of 4 strings)
+
+Drill inputs:
+- field: {field}
+- practice_mode: {practice_mode}
+- audience: {audience}
+- topic preference: {topic or "let the coach choose"}
+- extra context: {additional_context or "none"}
+- experience level: {difficulty}
+
+Rules:
+- The drill must sound like a real engineering communication moment, not a classroom quiz.
+- Keep the prompt answerable in 60 to 90 seconds.
+- Match the audience difficulty. A non-technical stakeholder needs a different framing than a senior engineer.
+- If no topic is provided, choose a realistic topic from the field.
+- "focus_areas" must be these exact values in this order: ["Clarity", "Correctness", "Depth", "Audience fit"].
+- Do not return markdown. Return valid JSON only.
+"""
+
+    response = ollama_client.chat(
+        model='mistral',
+        format='json',
+        messages=[
+            {
+                "role": "system",
+                "content": "You create concise, realistic technical communication drills for developers. Always return valid JSON.",
+            },
+            {"role": "user", "content": generation_prompt},
+        ],
+    )
+
+    try:
+        result = _parse_model_json_content(response['message']['content'])
+    except Exception:
+        logger.exception("Failed to parse generated drill response.")
+        result = {}
+
+    return _normalize_generated_prompt(result, field, practice_mode, audience, topic)
+
+
+@app.post("/evaluate_drill")
+async def evaluate_drill(
+    request: Request,
+    _: dict = Depends(require_authenticated_user),
+):
+    data = await request.json()
+    field = data.get("field", "Software Engineer")
+    practice_mode = data.get("practice_mode", "explain-concept")
+    audience = data.get("audience", "peer-engineer")
+    topic = data.get("topic", "")
+    additional_context = data.get("additional_context", "")
+    generated_prompt = _normalize_generated_prompt(
+        data.get("generated_prompt", {}),
+        field,
+        practice_mode,
+        audience,
+        topic,
+    )
+    transcript = data.get("transcript", "")
+    session_id = data.get("session_id")
+
+    if not isinstance(transcript, str) or not transcript.strip():
+        return {"error": "A transcript is required to evaluate the drill."}
+
+    evaluation_prompt = f"""
+You are an expert technical communication coach for developers.
+
+You are evaluating a spoken answer. Score it on:
+- clarity
+- correctness
+- depth
+- audience_fit
+
+Drill context:
+- field: {field}
+- practice mode: {_display_practice_mode(practice_mode)}
+- audience: {_display_label(audience)}
+- topic: {generated_prompt.get("topic")}
+- scenario: {generated_prompt.get("scenario")}
+- prompt: {generated_prompt.get("prompt")}
+- what the answer should cover: {generated_prompt.get("what_to_cover")}
+- extra context: {additional_context or "none"}
+
+Transcript:
+{transcript}
+
+Return valid JSON with exactly these keys:
+- overall_score (number 0-100)
+- categories (array of 4 objects with keys: key, score, feedback)
+- strengths (array of 2-4 strings)
+- missing_points (array of 2-4 strings)
+- improved_outline (array of 3-5 strings)
+- retry_advice (string)
+- feedback (string)
+
+Rules:
+- categories must contain exactly these keys in this order: clarity, correctness, depth, audience_fit
+- be strict but fair
+- reward explanations that lead with the point, stay technically accurate, and match the audience
+- penalize vague explanations, missing tradeoffs, technical inaccuracies, and audience mismatch
+- do not include markdown
+"""
+
+    response = None
+    for attempt in range(2):
+        response = ollama_client.chat(
+            model='mistral',
+            format='json',
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a strict, fair technical communication coach. Always return valid JSON.",
+                },
+                {"role": "user", "content": evaluation_prompt},
+            ],
+        )
+
+        try:
+            result = _parse_model_json_content(response['message']['content'])
+            result = _normalize_communication_grading_result(result)
+            _persist_grading_result(session_id, result)
+            return result
+        except Exception:
+            logger.exception(
+                "Failed to parse technical drill evaluation on attempt %s. Content preview: %s",
+                attempt + 1,
+                str(response.get('message', {}).get('content', ''))[:500],
+            )
+
+    fallback = _normalize_communication_grading_result({})
+    _persist_grading_result(session_id, fallback)
+    return fallback
 
 @app.post("/generate_questions")
 async def generate_questions(
@@ -504,20 +825,7 @@ Questions:
         try:
             result = _parse_model_json_content(response['message']['content'])
             result = _normalize_grading_result(result, questions, answers)
-            
-            # If interview_id is provided, save the grading result to Spring Boot
-            if interview_id:
-                try:
-                    grading_update_response = requests.put(
-                        f"{SPRING_API_BASE}/interviews/{interview_id}/grading",
-                        json={"gradingResult": result},
-                        headers={"Content-Type": "application/json"}
-                    )
-                    if grading_update_response.status_code != 200:
-                        print(f"Warning: Failed to save grading result to database: {grading_update_response.text}")
-                except Exception as e:
-                    print(f"Warning: Failed to save grading result to database: {str(e)}")
-            
+            _persist_grading_result(interview_id, result)
             return result
         except Exception:
             logger.exception(
