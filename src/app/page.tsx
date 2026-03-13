@@ -1,23 +1,70 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './context/AuthContext';
-import { broadcastLogout, clearOAuthHandoffRedirect, getOAuthHandoffRedirect, requestLogout } from './services/authSession';
+import {
+  broadcastLogout,
+  clearOAuthHandoffRedirect,
+  getOAuthHandoffRedirect,
+  requestLogout,
+} from './services/authSession';
+
+const tabs = [
+  {
+    id: 'feedback',
+    label: 'Feedback',
+    title: 'Get feedback that improves how you explain technical ideas.',
+    description:
+      'Naild scores clarity, correctness, depth, and audience fit so every drill ends with specific direction for the next retry.',
+    previewLabel: 'AI Coach Feedback',
+    previewTitle: 'Explain why you chose retrieval-augmented generation over fine-tuning.',
+    previewDetail: 'Audience: Non-technical stakeholder',
+    bullets: ['Clarity: 82', 'Correctness: 79', 'Depth: 74', 'Audience fit: 88'],
+  },
+  {
+    id: 'scores',
+    label: 'Scores',
+    title: 'Track communication as a skill, not just a one-off practice session.',
+    description:
+      'Watch your strongest and weakest communication instincts over time instead of treating each drill like an isolated exercise.',
+    previewLabel: 'Progress Snapshot',
+    previewTitle: 'Weekly practice target: 4 drills',
+    previewDetail: '2-week trend: +11 clarity, +8 depth',
+    bullets: ['4 drills completed', '3 retries', 'Best audience: PM', 'Needs work: tradeoffs'],
+  },
+  {
+    id: 'personas',
+    label: 'Audience',
+    title: 'Practice the same idea for different listeners.',
+    description:
+      'A product manager, recruiter, and senior engineer should not hear the same explanation. Naild changes the drill and grading based on audience.',
+    previewLabel: 'Audience Variation',
+    previewTitle: 'Precision vs recall',
+    previewDetail: 'Compare how you explain it to a PM vs a peer engineer',
+    bullets: ['Product manager', 'Peer engineer', 'Senior engineer', 'Recruiter'],
+  },
+  {
+    id: 'replay',
+    label: 'Replay',
+    title: 'Retry the same drill until the explanation actually lands.',
+    description:
+      'Use the transcript, missing points, and improved outline to tighten the answer instead of guessing what to change.',
+    previewLabel: 'Retry Loop',
+    previewTitle: 'Redis vs database caching for a high-read service',
+    previewDetail: 'Try again with sharper tradeoff framing',
+    bullets: ['Transcript saved', 'Missing point highlighted', 'Improved outline suggested', 'Retry advice generated'],
+  },
+] as const;
+
+type LandingTab = (typeof tabs)[number]['id'];
 
 const NaildLanding = () => {
-  const [activeTab, setActiveTab] = useState('feedback');
+  const [activeTab, setActiveTab] = useState<LandingTab>('feedback');
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRedirectingToInterview, setIsRedirectingToInterview] = useState(false);
-
-  const tabs = [
-    { id: 'feedback', label: 'Feedback' },
-    { id: 'scores', label: 'Scores' },
-    { id: 'personas', label: 'Personas' },
-    { id: 'replay', label: 'Replay' }
-  ];
 
   const router = useRouter();
   const { user, loading, setUser } = useAuth();
@@ -64,20 +111,28 @@ const NaildLanding = () => {
     router.push('/login?redirect=/interview');
   };
 
+  const activeFeature = useMemo(
+    () => tabs.find((tab) => tab.id === activeTab) ?? tabs[0],
+    [activeTab]
+  );
+
   if (loading || isLoggingOut || isRedirectingToInterview) {
     return <div className="min-h-screen bg-white" />;
   }
 
   return (
     <div className="font-['Space_Grotesk'] text-center">
-
-      {/* Hero Section */}
-      <section className="bg-white pt-24 px-5">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="my-30 text-6xl md:text-7xl font-regular mb-10 text-black leading-tight">
-            from nervous to naild<br />
-            — we’ve got <span className="text-green-500">you</span>.
+      <section className="bg-white px-5 pt-24">
+        <div className="mx-auto max-w-6xl">
+          <h1 className="my-30 mb-10 text-6xl font-regular leading-tight text-black md:text-7xl">
+            make technical ideas click
+            <br />
+            with <span className="text-green-500">naild</span>.
           </h1>
+          <p className="mx-auto max-w-3xl text-xl font-normal leading-9 text-gray-500">
+            Practice role-specific speaking drills and get AI feedback on how clearly,
+            correctly, and convincingly you explain the work.
+          </p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -86,31 +141,30 @@ const NaildLanding = () => {
           >
             <button
               onClick={handleGetStarted}
-              className="px-8 py-3 rounded-xl outline outline-green-500 outline-offset-2 font-medium text-lg button-gradient"
+              className="button-gradient rounded-xl px-8 py-3 text-lg font-medium outline outline-green-500 outline-offset-2"
             >
-              Get Started
+              Start Practicing
             </button>
           </motion.div>
         </div>
       </section>
 
-      {/* Demo Section */}
-      <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e0fdee_30%,_#b2f5cb_60%,_#ffffff_100%)] py-24 px-5">
-        <div className="max-w-6xl mx-auto">
-          <div className="relative max-w-4xl mx-auto mb-16 rounded-3xl overflow-hidden shadow-2xl bg-gray-400 aspect-video flex items-center justify-center">
+      <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e0fdee_30%,_#b2f5cb_60%,_#ffffff_100%)] px-5 py-24">
+        <div className="mx-auto max-w-6xl">
+          <div className="relative mx-auto mb-16 flex aspect-video max-w-4xl items-center justify-center overflow-hidden rounded-3xl bg-gray-400 shadow-2xl">
             <button
               onClick={() => setIsVideoMuted(!isVideoMuted)}
-              className="absolute top-5 left-5 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-all duration-200 z-10"
+              className="absolute left-5 top-5 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 transition-all duration-200 hover:bg-white"
               aria-label="Toggle video sound"
             >
               {isVideoMuted ? '🔇' : '🔊'}
             </button>
-            <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-500 flex items-center justify-center text-white/70 text-lg">
-              Demo Video Placeholder
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-300 to-gray-500 text-lg text-white/70">
+              Technical Communication Demo Placeholder
             </div>
           </div>
 
-          <div className="flex justify-center items-center gap-8 md:gap-12 flex-wrap opacity-80 mb-10">
+          <div className="mb-10 flex flex-wrap items-center justify-center gap-8 opacity-80 md:gap-12">
             {[
               { name: 'Princeton', bg: 'bg-gradient-to-br from-orange-500 to-orange-400', shape: 'rounded-full' },
               { name: 'Blackstone', bg: 'bg-black', shape: 'polygon' },
@@ -118,15 +172,15 @@ const NaildLanding = () => {
               { name: 'Harvard', bg: 'bg-red-800', shape: 'rounded-full' },
               { name: 'MIT', bg: 'bg-red-900', shape: 'rounded' },
               { name: 'Stanford', bg: 'bg-red-700', shape: 'rounded-full' },
-              { name: 'Yale', bg: 'bg-blue-900', shape: 'rounded' }
+              { name: 'Yale', bg: 'bg-blue-900', shape: 'rounded' },
             ].map((logo, index) => (
               <div
                 key={index}
-                className={`flex items-center justify-center ${logo.bg} ${logo.shape} hover:opacity-100 transition-opacity duration-200`}
+                className={`flex items-center justify-center ${logo.bg} ${logo.shape} transition-opacity duration-200 hover:opacity-100`}
                 style={{
                   width: '60px',
                   height: '60px',
-                  clipPath: logo.name === 'Blackstone' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : 'none'
+                  clipPath: logo.name === 'Blackstone' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : 'none',
                 }}
                 title={logo.name}
               />
@@ -135,26 +189,26 @@ const NaildLanding = () => {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="bg-white pt-24 pb-24 px-5">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-5xl font-normal mb-4 text-black">
-            Level up your interview skills with <span className="text-green-500">naild</span>.
+      <section className="bg-white px-5 pb-24 pt-24">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="mb-4 text-5xl font-normal text-black">
+            Train the communication skills strong engineers use every week.
           </h2>
-          <p className="text-xl text-gray-500 mb-10 font-normal">
-            Feed in the job details, watch AI craft targeted questions, and start<br />
-            practicing instantly.
+          <p className="mb-10 text-xl font-normal text-gray-500">
+            Pick your field, audience, and scenario. Naild generates the drill,
+            <br />
+            listens to your answer, and tells you how to tighten it.
           </p>
 
-          <div className="flex justify-center gap-4 mb-14 flex-wrap">
+          <div className="mb-14 flex flex-wrap justify-center gap-4">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-6 py-3 border rounded-full transition-all duration-200 font-normal shadow-sm ${
+                className={`rounded-full border px-6 py-3 font-normal shadow-sm transition-all duration-200 ${
                   activeTab === tab.id
-                    ? 'bg-green-500 text-white border-green-500'
-                    : 'bg-white/80 text-gray-600 border-black/10 hover:bg-white'
+                    ? 'border-green-500 bg-green-500 text-white'
+                    : 'border-black/10 bg-white/80 text-gray-600 hover:bg-white'
                 }`}
               >
                 {tab.label}
@@ -162,41 +216,63 @@ const NaildLanding = () => {
             ))}
           </div>
 
-          <div className="max-w-4xl mx-auto bg-gray-400 rounded-3xl aspect-video overflow-hidden shadow-2xl flex">
-            <div className="w-2/5 bg-gray-300/90 flex items-center justify-center rounded-l-3xl">
-              <div className="text-gray-600 text-center">
-                <div className="text-lg font-medium mb-2">{tabs.find(t => t.id === activeTab)?.label}</div>
-                <div className="text-sm">Feature demo for {activeTab}</div>
+          <div className="mx-auto flex aspect-video max-w-4xl overflow-hidden rounded-3xl bg-gray-400 shadow-2xl">
+            <div className="flex w-2/5 items-center justify-center rounded-l-3xl bg-gray-300/90">
+              <div className="px-8 text-center text-gray-700">
+                <div className="mb-2 text-lg font-medium">{activeFeature.previewLabel}</div>
+                <div className="text-sm leading-6">{activeFeature.description}</div>
               </div>
             </div>
-            <div className="w-3/5 flex items-center justify-center text-white/70 text-lg">
-              Main Interface
+            <div className="flex w-3/5 items-center justify-center px-8">
+              <div className="w-full max-w-sm rounded-3xl bg-white/90 p-6 text-left text-gray-700 shadow-lg">
+                <div className="text-xs font-medium uppercase tracking-[0.18em] text-green-600">
+                  {activeFeature.label}
+                </div>
+                <div className="mt-3 text-lg font-medium text-gray-900">
+                  {activeFeature.previewTitle}
+                </div>
+                <div className="mt-2 text-sm text-gray-500">{activeFeature.previewDetail}</div>
+                <div className="mt-5 grid gap-2">
+                  {activeFeature.bullets.map((bullet) => (
+                    <div
+                      key={bullet}
+                      className="rounded-2xl border border-black/5 bg-gray-50 px-4 py-3 text-sm"
+                    >
+                      {bullet}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Plans Section */}
-      <section className="bg-white pt-24 pb-32 px-5">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-5xl font-normal mb-4 text-black">
-            Let’s get you <span className="text-green-500">hired</span>.
+      <section className="bg-white px-5 pb-32 pt-24">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="mb-4 text-5xl font-normal text-black">
+            Build the habit before the high-stakes conversation.
           </h2>
-          <p className="text-xl text-gray-500 mb-20 font-normal">
-            From first interviews to dream jobs, our plans are designed<br />
-            to support you with affordable, effective prep.
+          <p className="mb-20 text-xl font-normal text-gray-500">
+            Whether you are preparing for interviews, design reviews, or stakeholder updates,
+            <br />
+            Naild gives you a repeatable way to practice out loud.
           </p>
 
           <div className="flex justify-center">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl w-full">
-              {['Basic', 'Pro', 'Enterprise'].map((plan, index) => (
+            <div className="grid w-full max-w-4xl grid-cols-1 gap-8 md:grid-cols-3">
+              {[
+                { name: 'Starter', detail: 'Practice communication fundamentals' },
+                { name: 'Growth', detail: 'Sharpen role-specific drills and retries' },
+                { name: 'Teams', detail: 'Train technical communication across your org' },
+              ].map((plan, index) => (
                 <div
                   key={index}
-                  className="bg-gray-300/40 rounded-3xl aspect-[3/4] hover:transform hover:-translate-y-1 hover:shadow-lg transition-all duration-200 flex items-center justify-center"
+                  className="flex aspect-[3/4] items-center justify-center rounded-3xl bg-gray-300/40 transition-all duration-200 hover:-translate-y-1 hover:transform hover:shadow-lg"
                 >
                   <div className="text-center text-gray-600">
-                    <div className="text-xl font-medium mb-2">{plan}</div>
-                    <div className="text-sm">Coming Soon</div>
+                    <div className="mb-2 text-xl font-medium">{plan.name}</div>
+                    <div className="text-sm">{plan.detail}</div>
                   </div>
                 </div>
               ))}
@@ -205,59 +281,59 @@ const NaildLanding = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e6faef_20%,_#c3f3d8_60%,_#b0efcb_100%)] py-32 flex items-center justify-center text-center px-5">
-        <div className="relative bg-white rounded-full px-12 py-8 shadow-lg max-w-xl w-full">
-          <h3 className="text-3xl font-normal mb-6 text-black">
-            Smarter Interviews Start <span className="text-green-500">Here</span>.
+      <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e6faef_20%,_#c3f3d8_60%,_#b0efcb_100%)] px-5 py-32 text-center">
+        <div className="relative mx-auto w-full max-w-xl rounded-full bg-white px-12 py-8 shadow-lg">
+          <h3 className="mb-6 text-3xl font-normal text-black">
+            Practice the way strong
+            <br />
+            engineers <span className="text-green-500">explain</span>.
           </h3>
           <button
             onClick={handleGetStarted}
-            className="px-8 py-3 bg-green-500 text-white rounded-full font-medium hover:bg-green-600 transition-all duration-200"
+            className="rounded-full bg-green-500 px-8 py-3 font-medium text-white transition-all duration-200 hover:bg-green-600"
           >
-            Get Started
+            Start Practicing
           </button>
-          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-t-[16px] border-l-transparent border-r-transparent border-t-white"></div>
+          <div className="absolute -bottom-2 left-1/2 h-0 w-0 -translate-x-1/2 transform border-l-8 border-r-8 border-t-[16px] border-l-transparent border-r-transparent border-t-white"></div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-black/5 pt-12 pb-8 px-5">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-16 mb-8 text-left">
+      <footer className="border-t border-black/5 bg-white px-5 pb-8 pt-12">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-8 grid grid-cols-1 gap-16 text-left md:grid-cols-3">
             <div>
-              <h4 className="font-medium mb-2 text-black text-lg">naild.</h4>
-              <p className="text-gray-500 text-sm mb-4">© 2025 naild. Toronto, ON</p>
+              <h4 className="mb-2 text-lg font-medium text-black">naild.</h4>
+              <p className="mb-4 text-sm text-gray-500">© 2026 naild. Toronto, ON</p>
               <div className="flex gap-4">
                 {['Discord', 'Twitter', 'YouTube', 'Instagram', 'LinkedIn'].map((social, index) => (
                   <a
                     key={index}
                     href="#"
-                    className="w-6 h-6 bg-gray-500 rounded hover:bg-black transition-colors duration-200"
+                    className="h-6 w-6 rounded bg-gray-500 transition-colors duration-200 hover:bg-black"
                     aria-label={social}
                   />
                 ))}
               </div>
             </div>
             <div>
-              <h4 className="font-medium mb-4 text-black">Company</h4>
+              <h4 className="mb-4 font-medium text-black">Company</h4>
               {['Contact Us', 'Careers', 'Ethos', 'Help'].map((link, index) => (
                 <a
                   key={index}
                   href="#"
-                  className="block text-gray-500 text-sm mb-3 hover:text-black transition-colors duration-200"
+                  className="mb-3 block text-sm text-gray-500 transition-colors duration-200 hover:text-black"
                 >
                   {link}
                 </a>
               ))}
             </div>
             <div>
-              <h4 className="font-medium mb-4 text-black">Legal</h4>
+              <h4 className="mb-4 font-medium text-black">Legal</h4>
               {['Terms of Service', 'Privacy Policy', 'Acts Notices', 'Labs'].map((link, index) => (
                 <a
                   key={index}
                   href="#"
-                  className="block text-gray-500 text-sm mb-3 hover:text-black transition-colors duration-200"
+                  className="mb-3 block text-sm text-gray-500 transition-colors duration-200 hover:text-black"
                 >
                   {link}
                 </a>

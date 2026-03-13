@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
 import LayoutWrapper from "./components/LayoutWrapper";
 
-const inter = Inter({ subsets: ["latin"] });
-
 export const metadata: Metadata = {
-  title: "Naild. - AI-Powered Interview Practice",
+  title: "Naild. - AI Technical Communication Trainer",
   description:
-    "Master your interview skills with real-time AI feedback on facial expressions, voice tone, and responses.",
+    "Practice explaining technical ideas out loud with AI feedback on clarity, correctness, depth, and audience fit.",
 };
 
 export default function RootLayout({
@@ -17,7 +14,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body>
         <AuthProvider>
           <LayoutWrapper>{children}</LayoutWrapper>
         </AuthProvider>
