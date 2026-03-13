@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
@@ -10,7 +10,7 @@ import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { getSafeRedirectPath } from '../services/safeRedirect';
 import { setOAuthHandoffRedirect } from '../services/authSession';
 
-export default function Login() {
+function LoginContent() {
   const searchParams = useSearchParams();
   const redirectPath = getSafeRedirectPath(searchParams.get('redirect'));
   const googleOauthHref = `${API_ORIGIN}/oauth2/authorization/google?redirect=${encodeURIComponent(redirectPath)}`;
@@ -165,5 +165,13 @@ export default function Login() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-green-50" />}>
+      <LoginContent />
+    </Suspense>
   );
 }

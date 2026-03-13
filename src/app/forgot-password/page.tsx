@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
@@ -8,7 +8,7 @@ import { API_BASE } from '../services/api';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { getSafeRedirectPath } from '../services/safeRedirect';
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordContent() {
   const searchParams = useSearchParams();
   const redirectPath = getSafeRedirectPath(searchParams.get('redirect'));
 
@@ -108,5 +108,13 @@ export default function ForgotPasswordPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-green-50" />}>
+      <ForgotPasswordContent />
+    </Suspense>
   );
 }

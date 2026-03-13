@@ -78,7 +78,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
   };
 
   const handleDifficultySelect = (difficulty: string) => {
-    setConfig(prev => ({ ...prev, difficulty: difficulty as any }));
+    setConfig(prev => ({ ...prev, difficulty: difficulty as InterviewConfig['difficulty'] }));
     setTimeout(() => setCurrentStep(3), 300);
   };
 
@@ -97,7 +97,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
         } else {
           setLoadingMsg('Error warming up AI. Please try again.');
         }
-      } catch (e) {
+      } catch {
         setLoadingMsg('Error connecting to AI backend.');
       }
     }
@@ -127,7 +127,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
           >
             <div className="text-center mb-6">
               <h3 className="text-lg font-medium text-gray-900 mb-1">Select Job Title</h3>
-              <p className="text-sm text-gray-600">Choose the role you're interviewing for</p>
+              <p className="text-sm text-gray-600">Choose the role you&apos;re interviewing for</p>
           </div>
             <div className="grid grid-cols-2 gap-3">
               {roles.map((role, index) => (
