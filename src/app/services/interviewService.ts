@@ -1,6 +1,7 @@
-import { GradingResult, Interview, Message } from '../types/Interview';
+import { GeneratedPrompt, GradingResult, Interview, Message, SessionType, PracticeMode, AudienceType } from '../types/Interview';
 import { API_BASE } from './api';
 import { CSRF_HEADER_NAME, getCsrfToken } from './csrf';
+import { normalizeGeneratedPrompt } from '../lib/practiceConfig';
 
 const toValidDate = (value: unknown, fallback: Date = new Date()): Date => {
   const date =
@@ -14,26 +15,74 @@ const toValidDate = (value: unknown, fallback: Date = new Date()): Date => {
 };
 
 const normalizeMessages = (messages: string, fallbackTimestamp: Date): Message[] => {
-  const parsed = JSON.parse(messages);
+  try {
+    const parsed = JSON.parse(messages);
 
-  if (!Array.isArray(parsed)) {
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.map((message, index) => {
+      const candidate = typeof message === 'object' && message !== null ? message : {};
+      const rawMessage = candidate as Partial<Message> & { timestamp?: unknown };
+
+      return {
+        id: typeof rawMessage.id === 'string' ? rawMessage.id : `message-${index}`,
+        role: rawMessage.role === 'candidate' ? 'candidate' : 'interviewer',
+        content: typeof rawMessage.content === 'string' ? rawMessage.content : '',
+        timestamp: toValidDate(rawMessage.timestamp, fallbackTimestamp),
+        transcription: typeof rawMessage.transcription === 'string' ? rawMessage.transcription : '',
+        isThinking: Boolean(rawMessage.isThinking),
+      };
+    });
+  } catch {
     return [];
   }
-
-  return parsed.map((message, index) => {
-    const candidate = typeof message === 'object' && message !== null ? message : {};
-    const rawMessage = candidate as Partial<Message> & { timestamp?: unknown };
-
-    return {
-      id: typeof rawMessage.id === 'string' ? rawMessage.id : `message-${index}`,
-      role: rawMessage.role === 'candidate' ? 'candidate' : 'interviewer',
-      content: typeof rawMessage.content === 'string' ? rawMessage.content : '',
-      timestamp: toValidDate(rawMessage.timestamp, fallbackTimestamp),
-      transcription: typeof rawMessage.transcription === 'string' ? rawMessage.transcription : '',
-      isThinking: Boolean(rawMessage.isThinking),
-    };
-  });
 };
+
+const parseStringArray = (value: string | null | undefined): string[] => {
+  if (!value) return []
+
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+const parseGeneratedPrompt = (value: string | null | undefined): GeneratedPrompt | null => {
+  if (!value) return null
+
+  try {
+    const parsed = JSON.parse(value)
+    if (!parsed || typeof parsed !== 'object') return null
+    return normalizeGeneratedPrompt(parsed as Partial<GeneratedPrompt>, {
+      title: 'Practice Session',
+      scenario: 'Practice communicating a technical idea clearly.',
+      prompt: 'Explain the technical idea clearly and helpfully.',
+      audience: 'Audience',
+      practice_mode: 'explain-concept',
+      field: 'Developer',
+      topic: 'Technical communication',
+      what_to_cover: [],
+      time_guidance: 'Aim for 60 to 90 seconds.',
+      focus_areas: [],
+    })
+  } catch {
+    return null
+  }
+}
+
+const parseGradingResult = (value: string | null | undefined): GradingResult | null => {
+  if (!value) return null
+
+  try {
+    return JSON.parse(value) as GradingResult
+  } catch {
+    return null
+  }
+}
 
 export interface InterviewResponse {
   id: number;
@@ -41,6 +90,12 @@ export interface InterviewResponse {
   role: string;
   languages: string;
   difficulty: string;
+  sessionType?: SessionType | null;
+  practiceMode?: PracticeMode | null;
+  audience?: AudienceType | null;
+  topic?: string | null;
+  promptContext?: string | null;
+  generatedPrompt?: string | null;
   status: string;
   questions: string;
   messages: string;
@@ -56,6 +111,12 @@ export interface CreateInterviewRequest {
   languages: string[];
   difficulty: string;
   questions: string[];
+  sessionType?: SessionType;
+  practiceMode?: PracticeMode | null;
+  audience?: AudienceType | null;
+  topic?: string | null;
+  promptContext?: string | null;
+  generatedPrompt?: GeneratedPrompt | null;
 }
 
 
@@ -70,6 +131,9 @@ export interface UpdateGradingRequest {
 export interface UpdateInterviewTitleRequest {
   title: string;
 }
+
+const isHttpError = (error: unknown) =>
+  error instanceof Error && error.message.startsWith('HTTP error!')
 
 class InterviewService {
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
@@ -110,10 +174,6 @@ class InterviewService {
       return data;
     } catch (error) {
       console.error(`Network error for ${endpoint}:`, error);
-      // Return mock responses for testing when backend is not available
-      if (endpoint === '/interviews') {
-        return [];
-      }
       throw error;
     }
   }
@@ -141,7 +201,10 @@ class InterviewService {
         method: 'POST',
         body: JSON.stringify(data),
       });
-    } catch {
+    } catch (error) {
+      if (isHttpError(error)) {
+        throw error
+      }
       // Return a mock response for testing
       const mockResponse: InterviewResponse = {
         id: Date.now(),
@@ -149,6 +212,12 @@ class InterviewService {
         role: data.role,
         languages: JSON.stringify(data.languages),
         difficulty: data.difficulty,
+        sessionType: data.sessionType ?? 'behavioral-interview',
+        practiceMode: data.practiceMode ?? null,
+        audience: data.audience ?? null,
+        topic: data.topic ?? null,
+        promptContext: data.promptContext ?? null,
+        generatedPrompt: data.generatedPrompt ? JSON.stringify(data.generatedPrompt) : null,
         status: 'active',
         questions: JSON.stringify(data.questions),
         messages: '[]',
@@ -169,15 +238,24 @@ class InterviewService {
         method: 'PUT',
         body: JSON.stringify(data),
       });
-    } catch {
+    } catch (error) {
+      if (isHttpError(error)) {
+        throw error
+      }
       console.log('Backend not available, skipping message update');
       // Return a mock response
       const mockResponse: InterviewResponse = {
         id: id,
-        title: 'Behavioral Interview',
-        role: 'Behavioral Practice',
-        languages: '["Communication"]',
+        title: 'Practice Session',
+        role: 'Software Engineer',
+        languages: '[]',
         difficulty: 'mid',
+        sessionType: 'technical-communication',
+        practiceMode: 'explain-concept',
+        audience: 'peer-engineer',
+        topic: null,
+        promptContext: null,
+        generatedPrompt: null,
         status: 'active',
         questions: '[]',
         messages: JSON.stringify(data.messages),
@@ -196,15 +274,24 @@ class InterviewService {
         method: 'PUT',
         body: JSON.stringify(data),
       });
-    } catch {
+    } catch (error) {
+      if (isHttpError(error)) {
+        throw error
+      }
       console.log('Backend not available, skipping grading update');
       // Return a mock response
       const mockResponse: InterviewResponse = {
         id: id,
-        title: 'Behavioral Interview',
-        role: 'Behavioral Practice',
-        languages: '["Communication"]',
+        title: 'Practice Session',
+        role: 'Software Engineer',
+        languages: '[]',
         difficulty: 'mid',
+        sessionType: 'technical-communication',
+        practiceMode: 'explain-concept',
+        audience: 'peer-engineer',
+        topic: null,
+        promptContext: null,
+        generatedPrompt: null,
         status: 'completed',
         questions: '[]',
         messages: '[]',
@@ -223,20 +310,32 @@ class InterviewService {
         method: 'PUT',
         body: JSON.stringify(data),
       });
-    } catch {
+    } catch (error) {
+      if (isHttpError(error)) {
+        throw error
+      }
       try {
         return await this.makeRequest(`/interviews/${id}`, {
           method: 'PATCH',
           body: JSON.stringify(data),
         });
-      } catch {
+      } catch (patchError) {
+        if (isHttpError(patchError)) {
+          throw patchError
+        }
         console.log('Backend not available, skipping interview title update');
         const mockResponse: InterviewResponse = {
           id: id,
           title: data.title,
-          role: 'Behavioral Practice',
-          languages: '["Communication"]',
+          role: 'Software Engineer',
+          languages: '[]',
           difficulty: 'mid',
+          sessionType: 'technical-communication',
+          practiceMode: 'explain-concept',
+          audience: 'peer-engineer',
+          topic: null,
+          promptContext: null,
+          generatedPrompt: null,
           status: 'active',
           questions: '[]',
           messages: '[]',
@@ -255,7 +354,10 @@ class InterviewService {
       return await this.makeRequest(`/interviews/${id}`, {
         method: 'DELETE',
       });
-    } catch {
+    } catch (error) {
+      if (isHttpError(error)) {
+        throw error
+      }
       console.log('Backend not available, skipping delete');
       // Don't throw error, just log it
     }
@@ -263,20 +365,34 @@ class InterviewService {
 
   // Helper method to convert InterviewResponse to Interview
   convertToInterview(response: InterviewResponse): Interview {
-    const createdAt = toValidDate(response.createdAt);
+    const safeResponse = (response ?? {}) as Partial<InterviewResponse>
+    const createdAt = toValidDate(safeResponse.createdAt);
 
     return {
-      id: response.id.toString(),
-      title: response.title,
-      role: response.role,
-      languages: JSON.parse(response.languages),
-      difficulty: response.difficulty,
+      id:
+        typeof safeResponse.id === 'number' || typeof safeResponse.id === 'string'
+          ? safeResponse.id.toString()
+          : Date.now().toString(),
+      title: typeof safeResponse.title === 'string' && safeResponse.title.trim() ? safeResponse.title : 'Practice Session',
+      role: typeof safeResponse.role === 'string' && safeResponse.role.trim() ? safeResponse.role : 'Software Engineer',
+      languages: parseStringArray(safeResponse.languages),
+      difficulty:
+        typeof safeResponse.difficulty === 'string' && safeResponse.difficulty.trim()
+          ? safeResponse.difficulty
+          : 'mid',
+      sessionType: safeResponse.sessionType ?? 'behavioral-interview',
+      practiceMode: safeResponse.practiceMode ?? null,
+      audience: safeResponse.audience ?? null,
+      topic: safeResponse.topic ?? null,
+      promptContext: safeResponse.promptContext ?? null,
+      generatedPrompt: parseGeneratedPrompt(safeResponse.generatedPrompt),
       createdAt,
-      messages: normalizeMessages(response.messages, createdAt),
-      status: response.status,
-      questions: JSON.parse(response.questions),
-      currentQuestionIndex: response.currentQuestionIndex,
-      gradingResult: response.gradingResult ? (JSON.parse(response.gradingResult) as GradingResult) : null,
+      messages: normalizeMessages(typeof safeResponse.messages === 'string' ? safeResponse.messages : '[]', createdAt),
+      status: typeof safeResponse.status === 'string' ? safeResponse.status : 'active',
+      questions: parseStringArray(safeResponse.questions),
+      currentQuestionIndex:
+        typeof safeResponse.currentQuestionIndex === 'number' ? safeResponse.currentQuestionIndex : 0,
+      gradingResult: parseGradingResult(safeResponse.gradingResult),
     };
   }
 
@@ -288,6 +404,12 @@ class InterviewService {
       languages: interview.languages,
       difficulty: interview.difficulty,
       questions: interview.questions || [],
+      sessionType: interview.sessionType,
+      practiceMode: interview.practiceMode ?? null,
+      audience: interview.audience ?? null,
+      topic: interview.topic ?? null,
+      promptContext: interview.promptContext ?? null,
+      generatedPrompt: interview.generatedPrompt ?? null,
     };
   }
 }
