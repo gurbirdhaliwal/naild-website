@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { CalendarDays, ChevronDown, Target, Trophy } from 'lucide-react'
-import { GradingSuccessResult, Interview } from '../types/Interview'
+import { Interview } from '../types/Interview'
+import { getOverallScore } from '../lib/practiceConfig'
 
 interface MetricsDashboardProps {
   interviews: Interview[]
@@ -45,17 +46,7 @@ const TIME_RANGE_OPTIONS: Array<{ value: TimeRange; label: string }> = [
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const HEATMAP_COLORS = ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39']
-const WEEKLY_INTERVIEW_TARGET = 3
-
-const hasAverageScore = (
-  gradingResult: Interview['gradingResult']
-): gradingResult is GradingSuccessResult =>
-  Boolean(
-    gradingResult &&
-      typeof gradingResult === 'object' &&
-      'average_score' in gradingResult &&
-      typeof gradingResult.average_score === 'number'
-  )
+const WEEKLY_PRACTICE_TARGET = 3
 
 const toDate = (value?: Date | string | null) => {
   if (!value) return new Date(0)
@@ -88,10 +79,10 @@ const formatDate = (date: Date) =>
 
 const getDayActivityMessage = (day: HeatmapCell) => {
   if (day.count === 0) {
-    return 'No interviews completed on this day'
+    return 'No sessions completed on this day'
   }
 
-  return `${day.count} interview${day.count === 1 ? '' : 's'} completed on this day`
+  return `${day.count} session${day.count === 1 ? '' : 's'} completed on this day`
 }
 
 const getDayActivityAriaLabel = (day: HeatmapCell) => {
@@ -162,12 +153,12 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
   const scoredInterviews = useMemo<ScoredInterview[]>(
     () =>
       completedInterviews
-        .filter((interview) => hasAverageScore(interview.gradingResult))
+        .filter((interview) => getOverallScore(interview.gradingResult) !== null)
         .map((interview) => ({
           id: interview.id,
           title: interview.title,
           createdAt: toDate(interview.createdAt),
-          score: Math.max(0, Math.min(100, interview.gradingResult!.average_score)),
+          score: Math.max(0, Math.min(100, getOverallScore(interview.gradingResult) ?? 0)),
         })),
     [completedInterviews]
   )
@@ -194,8 +185,9 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
       }
 
       existing.count += 1
-      if (hasAverageScore(interview.gradingResult)) {
-        existing.totalScore += interview.gradingResult.average_score
+      const score = getOverallScore(interview.gradingResult)
+      if (score !== null) {
+        existing.totalScore += score
         existing.scoredCount += 1
       }
 
@@ -227,8 +219,9 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
       }
 
       existing.count += 1
-      if (hasAverageScore(interview.gradingResult)) {
-        existing.totalScore += interview.gradingResult.average_score
+      const score = getOverallScore(interview.gradingResult)
+      if (score !== null) {
+        existing.totalScore += score
         existing.scoredCount += 1
       }
 
@@ -347,10 +340,10 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
   )
   const thisWeekSessions = currentWeekRecord?.count ?? 0
   const thisWeekAverageScore = currentWeekRecord?.averageScore ?? null
-  const weeklyGoalProgress = Math.min(thisWeekSessions / WEEKLY_INTERVIEW_TARGET, 1)
-  const weeklyGoalRemaining = Math.max(WEEKLY_INTERVIEW_TARGET - thisWeekSessions, 0)
+  const weeklyGoalProgress = Math.min(thisWeekSessions / WEEKLY_PRACTICE_TARGET, 1)
+  const weeklyGoalRemaining = Math.max(WEEKLY_PRACTICE_TARGET - thisWeekSessions, 0)
   const weeksAtGoal = weeklyActivity.filter(
-    (record) => record.count >= WEEKLY_INTERVIEW_TARGET
+    (record) => record.count >= WEEKLY_PRACTICE_TARGET
   ).length
   const bestWeekCount = weeklyActivity.length
     ? Math.max(...weeklyActivity.map((record) => record.count))
@@ -370,10 +363,10 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
 
   const weeklyGoalMessage =
     thisWeekSessions === 0
-      ? `Start the week with your first interview. The goal is ${WEEKLY_INTERVIEW_TARGET} completed sessions.`
+      ? `Start the week with your first session. The goal is ${WEEKLY_PRACTICE_TARGET} completed sessions.`
       : weeklyGoalRemaining === 0
-        ? `You hit this week's ${WEEKLY_INTERVIEW_TARGET}-interview goal${thisWeekAverageScore !== null ? ` with a ${thisWeekAverageScore.toFixed(1)}% average score.` : '.'}`
-        : `${weeklyGoalRemaining} more interview${weeklyGoalRemaining === 1 ? '' : 's'} to hit this week's ${WEEKLY_INTERVIEW_TARGET}-session target.`
+        ? `You hit this week's ${WEEKLY_PRACTICE_TARGET}-session goal${thisWeekAverageScore !== null ? ` with a ${thisWeekAverageScore.toFixed(1)}% average score.` : '.'}`
+        : `${weeklyGoalRemaining} more session${weeklyGoalRemaining === 1 ? '' : 's'} to hit this week's ${WEEKLY_PRACTICE_TARGET}-session target.`
 
   return (
     <div className="p-4 sm:p-5">
@@ -382,12 +375,12 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
           <div>
             <h1 className="text-xl font-semibold text-gray-900 sm:text-2xl">Metrics</h1>
             <p className="mt-1 text-xs text-gray-600 sm:text-sm">
-              {userFirstName ? `${userFirstName}, ` : ''}track your weekly interview rhythm the same way GitHub tracks contributions.
+              {userFirstName ? `${userFirstName}, ` : ''}track your weekly practice rhythm the same way GitHub tracks contributions.
             </p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700">
             <Target size={14} className="text-green-600" />
-            {WEEKLY_INTERVIEW_TARGET} interviews / week
+            {WEEKLY_PRACTICE_TARGET} sessions / week
           </div>
         </div>
 
@@ -403,9 +396,9 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
                 <span className="text-5xl font-semibold tracking-tight text-gray-900 sm:text-6xl">
                   {thisWeekSessions}
                 </span>
-                <div className="pb-2">
+                  <div className="pb-2">
                   <div className="text-sm font-medium uppercase tracking-[0.18em] text-gray-500">
-                    of {WEEKLY_INTERVIEW_TARGET}
+                    of {WEEKLY_PRACTICE_TARGET}
                   </div>
                   <div className="text-sm font-medium uppercase tracking-[0.18em] text-gray-500">
                     sessions
@@ -433,7 +426,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
                 </div>
                 <div className="mt-3 text-2xl font-semibold text-gray-900">{weeksAtGoal}</div>
                 <p className="mt-1 text-sm text-gray-500">
-                  Weeks where you reached the {WEEKLY_INTERVIEW_TARGET}-interview target.
+                  Weeks where you reached the {WEEKLY_PRACTICE_TARGET}-session target.
                 </p>
               </div>
 
@@ -443,9 +436,9 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
                   Best Week
                 </div>
                 <div className="mt-3 text-2xl font-semibold text-gray-900">
-                  {bestWeekCount} interview{bestWeekCount === 1 ? '' : 's'}
+                  {bestWeekCount} session{bestWeekCount === 1 ? '' : 's'}
                 </div>
-                <p className="mt-1 text-sm text-gray-500">Most completed interviews in a single week.</p>
+                <p className="mt-1 text-sm text-gray-500">Most completed sessions in a single week.</p>
               </div>
 
               <div className="rounded-2xl border border-white/80 bg-white/85 p-4 shadow-sm">
@@ -468,7 +461,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
                 <p className="mt-1 text-sm text-gray-500">
                   {bestScoreInRange !== null
                     ? `Best graded session: ${bestScoreInRange.toFixed(1)}%`
-                    : 'Complete a graded interview to see scoring trends.'}
+                    : 'Complete a graded session to see scoring trends.'}
                 </p>
               </div>
             </div>
@@ -482,10 +475,10 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
                 <CalendarDays size={14} />
                 Activity
               </div>
-              <h2 className="mt-4 text-lg font-semibold text-gray-900 sm:text-xl">Interview calendar</h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Each square is a day. Darker squares mean more completed interviews.
-              </p>
+                  <h2 className="mt-4 text-lg font-semibold text-gray-900 sm:text-xl">Practice calendar</h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Each square is a day. Darker squares mean more completed sessions.
+                  </p>
             </div>
 
             <div className="relative w-full sm:w-56">
@@ -584,7 +577,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
 
           <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-xs text-gray-500">
-              {totalSessionsInRange} completed interview{totalSessionsInRange === 1 ? '' : 's'} on{' '}
+              {totalSessionsInRange} completed session{totalSessionsInRange === 1 ? '' : 's'} on{' '}
               {activeDaysInRange} active day{activeDaysInRange === 1 ? '' : 's'} in {rangeLabel}.
             </div>
 
@@ -608,7 +601,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
               <div>
                 <h3 className="text-base font-semibold text-gray-900">Recent completed sessions</h3>
                 <p className="mt-1 text-sm text-gray-600">
-                  A quick view of your latest interview activity.
+                  A quick view of your latest practice activity.
                 </p>
               </div>
               <div className="rounded-full bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600">
@@ -619,13 +612,11 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
             <div className="mt-4 space-y-3">
               {recentSessions.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
-                  No completed interviews yet. Finish one session to start filling the calendar.
+                  No completed sessions yet. Finish one session to start filling the calendar.
                 </div>
               ) : (
                 recentSessions.map((interview) => {
-                  const score = hasAverageScore(interview.gradingResult)
-                    ? interview.gradingResult.average_score
-                    : null
+                  const score = getOverallScore(interview.gradingResult)
 
                   return (
                     <div
@@ -639,7 +630,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
 
                       <div className="flex flex-shrink-0 items-center gap-2">
                         <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-600">
-                          {interview.languages.length > 0 ? interview.languages[0] : interview.role}
+                          {interview.topic || interview.generatedPrompt?.topic || interview.languages[0] || interview.role}
                         </span>
                         <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-medium text-white">
                           {score !== null ? `${score.toFixed(0)}%` : 'Ungraded'}
@@ -671,12 +662,12 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
                   This week
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-gray-900">
-                  {thisWeekSessions} / {WEEKLY_INTERVIEW_TARGET}
+                  {thisWeekSessions} / {WEEKLY_PRACTICE_TARGET}
                 </div>
                 <div className="mt-1 text-sm text-gray-500">
                   {weeklyGoalRemaining === 0
                     ? 'Weekly target complete.'
-                    : `${weeklyGoalRemaining} more interview${weeklyGoalRemaining === 1 ? '' : 's'} to go.`}
+                    : `${weeklyGoalRemaining} more session${weeklyGoalRemaining === 1 ? '' : 's'} to go.`}
                 </div>
               </div>
 
@@ -692,7 +683,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
                   Best day
                 </div>
                 <div className="mt-2 text-2xl font-semibold text-gray-900">
-                  {bestDayCount} interview{bestDayCount === 1 ? '' : 's'}
+                  {bestDayCount} session{bestDayCount === 1 ? '' : 's'}
                 </div>
               </div>
             </div>

@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import Sidebar from '../components/Sidebar'
+import CommunicationSetup from '../components/CommunicationSetup'
 import InterviewSetup from '../components/InterviewSetup'
 import InterviewChat from '../components/InterviewChat'
-import InterviewLibrary, {
-  LIBRARY_TOPICS,
-  type LibraryTopicId,
-} from '../components/InterviewLibrary'
-import { Interview } from '../types/Interview'
+import CoachNotes, { COACH_NOTES, type CoachNoteId } from '../components/CoachNotes'
+import {
+  CommunicationSessionConfig,
+  GeneratedPrompt,
+  Interview,
+  InterviewConfig,
+} from '../types/Interview'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -28,12 +31,17 @@ import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
 import { broadcastLogout, clearOAuthHandoffRedirect, requestLogout } from '../services/authSession'
+import {
+  getAudienceLabel,
+  getPracticeModeLabel,
+  normalizeGeneratedPrompt,
+} from '../lib/practiceConfig'
 
 type SettingsTab = 'account' | 'appearance' | 'notifications'
 type ThemePreference = 'system' | 'light' | 'dark'
 type SidebarPreference = 'standard' | 'compact'
 type ProfileToastType = 'success' | 'error'
-type WorkspaceLandingView = 'home' | 'behavioral' | 'library'
+type WorkspaceLandingView = 'home' | 'communication' | 'behavioral' | 'notes'
 
 const SETTINGS_STORAGE_KEY = 'naild.settings.preferences.v1'
 const isThemePreference = (value: unknown): value is ThemePreference =>
@@ -54,8 +62,8 @@ export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [currentInterview, setCurrentInterview] = useState<Interview | null>(null)
   const [activeLandingView, setActiveLandingView] = useState<WorkspaceLandingView>('home')
-  const [selectedLibraryTopicId, setSelectedLibraryTopicId] = useState<LibraryTopicId>(
-    LIBRARY_TOPICS[0].id
+  const [selectedLibraryTopicId, setSelectedLibraryTopicId] = useState<CoachNoteId>(
+    COACH_NOTES[0].id
   )
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { user, loading, setUser } = useAuth()
@@ -288,13 +296,147 @@ export default function InterviewPage() {
     setCurrentInterview(null)
   }
 
-  const handleSelectLibraryTopic = (topicId: LibraryTopicId) => {
-    setSelectedLibraryTopicId(topicId)
-    setActiveLandingView('library')
+  const openCommunicationSetup = () => {
+    setActiveLandingView('communication')
     setCurrentInterview(null)
   }
 
-  const handleCreateInterview = async (config: any) => {
+  const handleSelectLibraryTopic = (topicId: CoachNoteId) => {
+    setSelectedLibraryTopicId(topicId)
+    setActiveLandingView('notes')
+    setCurrentInterview(null)
+  }
+
+  const buildFallbackPrompt = (config: CommunicationSessionConfig): GeneratedPrompt => {
+    const audience = getAudienceLabel(config.audience)
+    const topic = config.topic.trim() || `${config.role.toLowerCase()} system choice`
+    const promptLabel = getPracticeModeLabel(config.practiceMode)
+
+    return {
+      title: `${config.role} • ${promptLabel}`,
+      scenario: `You are explaining ${topic} to a ${audience.toLowerCase()}.`,
+      prompt: `Explain ${topic} to a ${audience.toLowerCase()} in a way that is clear, technically accurate, and useful for decision-making.`,
+      audience,
+      practice_mode: config.practiceMode,
+      field: config.role,
+      topic,
+      what_to_cover: [
+        'Lead with the core point',
+        'Explain the mechanism or decision clearly',
+        'Show the most important tradeoff or implication',
+      ],
+      time_guidance: 'Aim for 60 to 90 seconds.',
+      focus_areas: ['Clarity', 'Correctness', 'Depth', 'Audience fit'],
+    }
+  }
+
+  const handleCreateTechnicalSession = async (config: CommunicationSessionConfig) => {
+    const fallbackPrompt = buildFallbackPrompt(config)
+    let generatedPrompt: GeneratedPrompt = fallbackPrompt
+
+    try {
+      const res = await fetch(`${AI_BASE}/generate_drill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          field: config.role,
+          practice_mode: config.practiceMode,
+          audience: config.audience,
+          topic: config.topic,
+          additional_context: config.promptContext,
+          difficulty: config.difficulty,
+        }),
+      })
+
+      if (!res.ok) {
+        throw new Error(`Failed to generate drill: ${res.status}`)
+      }
+
+      const data = await res.json()
+      const rawPrompt =
+        data?.prompt && typeof data.prompt === 'object'
+          ? (data.prompt as Partial<GeneratedPrompt>)
+          : (data as Partial<GeneratedPrompt>)
+
+      generatedPrompt = normalizeGeneratedPrompt(rawPrompt, fallbackPrompt)
+    } catch {
+      generatedPrompt = fallbackPrompt
+    }
+
+    const coachIntro = `Today's drill is for a ${config.role}. Explain this clearly to a ${getAudienceLabel(
+      config.audience
+    ).toLowerCase()}.`
+    const now = new Date()
+    const introMessage = {
+      id: `${Date.now()}-intro`,
+      role: 'interviewer' as const,
+      content: coachIntro,
+      timestamp: now,
+      transcription: `[AI Coach]: ${coachIntro}`,
+      isThinking: false,
+    }
+    const promptMessage = {
+      id: `${Date.now()}-prompt`,
+      role: 'interviewer' as const,
+      content: generatedPrompt.prompt,
+      timestamp: now,
+      transcription: `[AI Coach]: ${generatedPrompt.prompt}`,
+      isThinking: false,
+    }
+    const messages = [introMessage, promptMessage]
+
+    try {
+      const createRequest = {
+        title: generatedPrompt.title,
+        role: config.role,
+        languages: generatedPrompt.focus_areas,
+        difficulty: config.difficulty,
+        questions: [generatedPrompt.prompt],
+        sessionType: 'technical-communication' as const,
+        practiceMode: config.practiceMode,
+        audience: config.audience,
+        topic: generatedPrompt.topic,
+        promptContext: config.promptContext,
+        generatedPrompt,
+      }
+
+      const savedInterview = await interviewService.createInterview(createRequest)
+      const newInterview = interviewService.convertToInterview(savedInterview)
+      newInterview.messages = messages
+      newInterview.currentQuestionIndex = 0
+      await interviewService.updateInterviewMessages(Number(newInterview.id), { messages: newInterview.messages })
+
+      setInterviews((prev) => [newInterview, ...prev])
+      setCurrentInterview(newInterview)
+      setActiveLandingView('home')
+    } catch (error) {
+      console.error('Failed to create technical communication session:', error)
+      const newInterview: Interview = {
+        id: Date.now().toString(),
+        title: generatedPrompt.title,
+        role: config.role,
+        languages: generatedPrompt.focus_areas ?? [],
+        difficulty: config.difficulty,
+        sessionType: 'technical-communication',
+        practiceMode: config.practiceMode,
+        audience: config.audience,
+        topic: generatedPrompt.topic,
+        promptContext: config.promptContext,
+        generatedPrompt,
+        createdAt: now,
+        messages,
+        status: 'active',
+        questions: [generatedPrompt.prompt],
+        currentQuestionIndex: 0,
+      }
+      setInterviews((prev) => [newInterview, ...prev])
+      setCurrentInterview(newInterview)
+      setActiveLandingView('home')
+    }
+  }
+
+  const handleCreateBehavioralInterview = async (config: InterviewConfig) => {
     // Fetch AI-generated questions
     let aiQuestions: string[] = [];
     try {
@@ -314,7 +456,7 @@ export default function InterviewPage() {
         .split(/\n|\r/)
         .map((q: string) => q.replace(/^\d+\.|^\d+\)/, '').trim())
         .filter((q: string) => q.length > 0);
-    } catch (e) {
+    } catch {
       aiQuestions = [];
     }
     const focusAreaSummary = config.languages.join(', ')
@@ -620,7 +762,11 @@ export default function InterviewPage() {
         </div>
 
         <div className="flex-1">
-          <InterviewSetup onCreateInterview={handleCreateInterview} />
+          {activeLandingView === 'behavioral' ? (
+            <InterviewSetup onCreateInterview={handleCreateBehavioralInterview} />
+          ) : (
+            <CommunicationSetup onCreateSession={handleCreateTechnicalSession} />
+          )}
         </div>
       </div>
     )
@@ -648,30 +794,61 @@ export default function InterviewPage() {
                 Welcome back, {greetingName}
               </h1>
               <p className="mt-3 max-w-xl text-base leading-7 text-gray-600">
-                Practice behavioral stories now, and jump back into saved sessions from the sidebar.
+                Practice explaining technical ideas out loud, then jump back into saved sessions from the sidebar.
               </p>
             </section>
 
-            <div className="flex justify-center">
-              <section className="practice-mode-card practice-mode-card--behavioral w-full max-w-xl rounded-[28px] border p-6 sm:p-7">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)]">
+              <section className="practice-mode-card practice-mode-card--technical rounded-[28px] border p-6 sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-emerald-700">
-                      Behavioral
+                      Technical communication
                     </div>
-                    <h2 className="mt-4 text-2xl font-semibold text-gray-900">Behavioral interviews</h2>
-                    <p className="mt-3 max-w-sm text-sm leading-6 text-gray-600">
-                      Practice story-driven interviews with the AI interviewer.
+                    <h2 className="mt-4 text-2xl font-semibold text-gray-900">Role-specific speaking drills</h2>
+                    <p className="mt-3 max-w-lg text-sm leading-6 text-gray-600">
+                      Pick your field, the audience, and the kind of explanation you want to practice. Naild generates one focused drill and scores clarity, correctness, depth, and audience fit.
                     </p>
                   </div>
                 </div>
 
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {['Software engineering', 'Data science', 'AI engineering', 'Decision tradeoffs'].map((pill) => (
+                    <span
+                      key={pill}
+                      className="rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-gray-700"
+                    >
+                      {pill}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-8">
+                  <button
+                    onClick={openCommunicationSetup}
+                    className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-black"
+                  >
+                    Generate drill
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
+              </section>
+
+              <section className="practice-mode-card practice-mode-card--behavioral rounded-[28px] border p-6 sm:p-7">
+                <div className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-emerald-700">
+                  Secondary mode
+                </div>
+                <h2 className="mt-4 text-xl font-semibold text-gray-900">Behavioral interviews</h2>
+                <p className="mt-3 text-sm leading-6 text-gray-600">
+                  Keep practicing the classic story-based interview flow when you need it.
+                </p>
+
                 <div className="mt-8">
                   <button
                     onClick={openBehavioralSetup}
-                    className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-black"
+                    className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                   >
-                    Create Interview
+                    Start interview
                     <ChevronDown size={16} />
                   </button>
                 </div>
@@ -693,7 +870,7 @@ export default function InterviewPage() {
         interviews={interviews}
         currentInterview={currentInterview}
         onGoHome={openHome}
-        onStartNew={openBehavioralSetup}
+        onStartNew={openCommunicationSetup}
         onSelectInterview={handleSelectInterview}
         onDeleteInterview={handleDeleteInterview}
         onRenameInterview={handleRenameInterview}
@@ -709,7 +886,7 @@ export default function InterviewPage() {
         onLogout={handleLogout}
         loading={loadingInterviews}
         isHomeActive={!currentInterview && activeLandingView === 'home'}
-        isLibraryActive={!currentInterview && activeLandingView === 'library'}
+        isLibraryActive={!currentInterview && activeLandingView === 'notes'}
       />
 
       <main className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
@@ -722,8 +899,8 @@ export default function InterviewPage() {
               interview={currentInterview}
               onUpdateInterview={handleUpdate}
             />
-          ) : activeLandingView === 'library' ? (
-            <InterviewLibrary
+          ) : activeLandingView === 'notes' ? (
+            <CoachNotes
               selectedTopicId={selectedLibraryTopicId}
               onSelectTopic={setSelectedLibraryTopicId}
             />
@@ -948,7 +1125,7 @@ export default function InterviewPage() {
                         <div>
                           <h3 className="text-base font-semibold text-gray-900">Appearance</h3>
                           <p className="mt-1 text-sm text-gray-600">
-                            Customize how your interview workspace looks and feels.
+                            Customize how your practice workspace looks and feels.
                           </p>
                         </div>
 
@@ -1042,7 +1219,7 @@ export default function InterviewPage() {
 
                         <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
                           <label className="flex items-center justify-between gap-4 rounded-md border border-gray-100 p-3">
-                            <span className="text-sm text-gray-700">Interview practice reminders</span>
+                            <span className="text-sm text-gray-700">Practice reminders</span>
                             <input
                               type="checkbox"
                               checked={interviewReminderNotifications}
@@ -1051,7 +1228,7 @@ export default function InterviewPage() {
                             />
                           </label>
                           <label className="flex items-center justify-between gap-4 rounded-md border border-gray-100 p-3">
-                            <span className="text-sm text-gray-700">Email interview summaries</span>
+                            <span className="text-sm text-gray-700">Email practice summaries</span>
                             <input
                               type="checkbox"
                               checked={emailSummaryNotifications}

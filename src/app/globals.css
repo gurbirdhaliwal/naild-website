@@ -15,7 +15,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Space Grotesk", Arial, Helvetica, sans-serif;
 }
 
 html[data-theme='dark'] .interview-workspace {
@@ -199,6 +199,11 @@ html[data-theme='dark'] .interview-workspace .text-red-600 {
   box-shadow: 0 16px 40px -32px rgba(15, 23, 42, 0.28);
 }
 
+.practice-mode-card--technical {
+  border-color: rgba(16, 185, 129, 0.18);
+  background: linear-gradient(135deg, rgba(245, 255, 248, 0.95), rgba(236, 253, 245, 0.72));
+}
+
 .practice-mode-card--behavioral {
   border-color: rgba(16, 185, 129, 0.18);
   background: rgba(236, 253, 245, 0.72);
@@ -214,6 +219,11 @@ html[data-theme='dark'] .practice-preview-shell {
 
 html[data-theme='dark'] .practice-mode-card {
   box-shadow: 0 18px 42px -34px rgba(0, 0, 0, 0.85);
+}
+
+html[data-theme='dark'] .practice-mode-card--technical {
+  border-color: rgba(52, 211, 153, 0.22);
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.26), rgba(4, 120, 87, 0.18));
 }
 
 html[data-theme='dark'] .practice-mode-card--behavioral {

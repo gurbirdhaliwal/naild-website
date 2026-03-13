@@ -20,8 +20,15 @@ import {
 import { Interview } from '../types/Interview';
 import Link from 'next/link';
 import MetricsDashboard from './MetricsDashboard';
-import { LIBRARY_TOPICS, type LibraryTopicId } from './InterviewLibrary';
+import { COACH_NOTES, type CoachNoteId } from './CoachNotes';
 import { AnimatePresence, motion } from 'framer-motion';
+import {
+  getAudienceLabel,
+  getPracticeModeLabel,
+  getSessionFocusSummary,
+  getSessionSubtitle,
+  getSessionTypeLabel,
+} from '../lib/practiceConfig';
 
 interface SidebarProps {
   interviews: Interview[];
@@ -39,7 +46,7 @@ interface SidebarProps {
   userName: string;
   userEmail: string;
   onOpenSettings: () => void;
-  onSelectLibraryTopic: (topicId: LibraryTopicId) => void;
+  onSelectLibraryTopic: (topicId: CoachNoteId) => void;
   onLogout: () => void;
   loading?: boolean;
   isHomeActive?: boolean;
@@ -87,11 +94,19 @@ const Sidebar: React.FC<SidebarProps> = ({
       const title = interview.title.toLowerCase();
       const role = interview.role.toLowerCase();
       const languages = interview.languages.join(' ').toLowerCase();
+      const practiceMode = getPracticeModeLabel(interview.practiceMode).toLowerCase();
+      const audience = getAudienceLabel(interview.audience).toLowerCase();
+      const topic = (interview.topic ?? interview.generatedPrompt?.topic ?? '').toLowerCase();
+      const sessionType = getSessionTypeLabel(interview.sessionType).toLowerCase();
 
       return (
         title.includes(normalizedSearchQuery) ||
         role.includes(normalizedSearchQuery) ||
-        languages.includes(normalizedSearchQuery)
+        languages.includes(normalizedSearchQuery) ||
+        practiceMode.includes(normalizedSearchQuery) ||
+        audience.includes(normalizedSearchQuery) ||
+        topic.includes(normalizedSearchQuery) ||
+        sessionType.includes(normalizedSearchQuery)
       );
     });
   }, [interviews, normalizedSearchQuery]);
@@ -143,7 +158,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     setLibraryOpen(true);
   };
 
-  const selectLibraryTopic = (topicId: LibraryTopicId) => {
+  const selectLibraryTopic = (topicId: CoachNoteId) => {
     onSelectLibraryTopic(topicId);
     setLibraryOpen(false);
   };
@@ -253,15 +268,15 @@ const Sidebar: React.FC<SidebarProps> = ({
               <span>Metrics</span>
             </button>
             <button
-              onClick={openLibraryChooser}
-              className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left ${
+            onClick={openLibraryChooser}
+            className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left ${
                 isLibraryActive || libraryOpen
                   ? 'border border-green-200 bg-green-50 text-green-700 hover:bg-green-50'
                   : 'text-gray-700 hover:bg-gray-200'
               }`}
             >
               <Library size={18} />
-              <span>Library</span>
+              <span>Coach Notes</span>
             </button>
           </div>
         )}
@@ -272,13 +287,13 @@ const Sidebar: React.FC<SidebarProps> = ({
             className="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2 p-3"
           >
             <Plus size={18} />
-            {!collapsed && <span>New Interview</span>}
+            {!collapsed && <span>New Drill</span>}
           </button>
         </div>
 
         {!collapsed && interviews.length > 0 && (
           <div className="px-4 pb-2">
-            <p className="text-sm font-medium text-gray-500 mb-2">Recent</p>
+            <p className="text-sm font-medium text-gray-500 mb-2">Recent Sessions</p>
           </div>
         )}
 
@@ -287,12 +302,12 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="flex items-center justify-center p-4">
               <Loader2 className="animate-spin text-gray-400" size={20} />
               {!collapsed && (
-                <span className="ml-2 text-sm text-gray-500">Loading interviews...</span>
+                <span className="ml-2 text-sm text-gray-500">Loading sessions...</span>
               )}
             </div>
           ) : interviews.length === 0 ? (
             <div className="p-4 text-center">
-              {!collapsed && <div className="text-sm text-gray-500">No interviews yet</div>}
+              {!collapsed && <div className="text-sm text-gray-500">No sessions yet</div>}
             </div>
           ) : (
             interviews.map((interview) => (
@@ -348,12 +363,20 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <div className="text-sm font-medium text-gray-900 truncate">
                               {interview.title}
                             </div>
-                            <div
-                              className={`mt-1 text-xs ${
-                                interview.status === 'completed' ? 'text-green-600' : 'text-gray-500'
-                              }`}
-                            >
-                              {interview.status === 'completed' ? 'completed' : 'In Progress'}
+                            <div className="mt-1 text-[11px] text-gray-500 truncate">
+                              {getSessionSubtitle(interview)}
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-600">
+                                {getSessionTypeLabel(interview.sessionType)}
+                              </span>
+                              <span
+                                className={`text-[11px] ${
+                                  interview.status === 'completed' ? 'text-green-600' : 'text-gray-500'
+                                }`}
+                              >
+                                {interview.status === 'completed' ? 'Completed' : 'In Progress'}
+                              </span>
                             </div>
                           </>
                         )}
@@ -441,7 +464,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                     <div>
                       <h2 className="text-sm font-semibold text-gray-900 sm:text-base">
-                        Delete interview?
+                        Delete session?
                       </h2>
                       <p className="mt-1 text-xs text-gray-500 sm:text-sm">
                         This action cannot be undone.
@@ -501,7 +524,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <input
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search interviews by name, role, or focus area"
+                      placeholder="Search sessions by title, field, audience, or topic"
                       className="w-full bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
                       autoFocus
                     />
@@ -518,7 +541,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="max-h-[420px] overflow-y-auto py-2">
                   {filteredInterviews.length === 0 ? (
                     <p className="px-4 py-8 text-center text-sm text-gray-500">
-                      No interviews found
+                      No sessions found
                     </p>
                   ) : (
                     filteredInterviews.map((interview) => (
@@ -532,8 +555,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div className="text-sm font-medium text-gray-900">{interview.title}</div>
                         <div className="mt-1 text-xs text-gray-500">
-                          {interview.role}
-                          {interview.languages.length > 0 ? ` • ${interview.languages.join(', ')}` : ''}
+                          {getSessionSubtitle(interview)}
+                          {getSessionFocusSummary(interview) ? ` • ${getSessionFocusSummary(interview)}` : ''}
                         </div>
                       </button>
                     ))
@@ -562,13 +585,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-5">
-                  <div>
-                    <div className="flex items-center gap-2 text-gray-900">
-                      <BarChart3 size={18} />
-                      <h2 className="text-sm font-semibold sm:text-base">Metrics</h2>
+                    <div>
+                      <div className="flex items-center gap-2 text-gray-900">
+                        <BarChart3 size={18} />
+                      <h2 className="text-sm font-semibold sm:text-base">Practice Metrics</h2>
                     </div>
                     <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-                      Track interview performance and progress over time.
+                      Track drill completion, consistency, and score trends over time.
                     </p>
                   </div>
                   <button
@@ -609,13 +632,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-5">
-                  <div>
-                    <div className="flex items-center gap-2 text-gray-900">
+                    <div>
+                      <div className="flex items-center gap-2 text-gray-900">
                       <Library size={18} />
-                      <h2 className="text-sm font-semibold sm:text-base">Interview Library</h2>
+                      <h2 className="text-sm font-semibold sm:text-base">Coach Notes</h2>
                     </div>
                     <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-                      Curated CS learning paths to improve your interview performance.
+                      Short guidance on the habits that make technical explanations land.
                     </p>
                   </div>
                   <button
@@ -629,7 +652,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                 <div className="max-h-[calc(92vh-84px)] overflow-y-auto bg-gradient-to-b from-white to-gray-50 p-4 sm:p-5">
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {LIBRARY_TOPICS.map((topic, index) => {
+                    {COACH_NOTES.map((topic, index) => {
                       const Icon = topic.icon;
 
                       return (
@@ -647,7 +670,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                               <Icon size={18} />
                             </div>
                             <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-600">
-                              Curated
+                              Coach
                             </span>
                           </div>
 
