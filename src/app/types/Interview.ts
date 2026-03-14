@@ -97,6 +97,8 @@ export interface InterviewConfig {
   role: string;
   languages: string[];
   difficulty: 'intern' | 'mid' | 'senior';
+  topic: string;
+  promptContext: string;
 }
 
 export interface CommunicationSessionConfig {

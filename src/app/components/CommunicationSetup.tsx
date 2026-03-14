@@ -102,13 +102,6 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
             transition={{ duration: 0.24 }}
             className="space-y-5"
           >
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900">Choose your field</h3>
-              <p className="mt-1 text-sm text-gray-600">
-                Naild will generate the scenario using the communication patterns your field actually uses.
-              </p>
-            </div>
-
             <div className="grid gap-3 sm:grid-cols-2">
               {COMMUNICATION_FIELDS.map((field, index) => (
                 <motion.button
@@ -124,9 +117,6 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
                   className="rounded-2xl border border-gray-200 bg-white px-4 py-4 text-left transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm"
                 >
                   <div className="text-sm font-semibold text-gray-900">{field}</div>
-                  <div className="mt-1 text-xs leading-5 text-gray-500">
-                    Generate drills that sound like this role’s real communication moments.
-                  </div>
                 </motion.button>
               ))}
             </div>
@@ -143,13 +133,6 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
             transition={{ duration: 0.24 }}
             className="space-y-5"
           >
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900">Pick your drill mode</h3>
-              <p className="mt-1 text-sm text-gray-600">
-                Keep the scope tight so the feedback stays specific.
-              </p>
-            </div>
-
             <div className="grid gap-3">
               {COMMUNICATION_PRACTICE_MODES.map((mode, index) => {
                 const isSelected = config.practiceMode === mode.value
@@ -198,13 +181,6 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
             transition={{ duration: 0.24 }}
             className="space-y-5"
           >
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900">Choose the audience</h3>
-              <p className="mt-1 text-sm text-gray-600">
-                The coach will change the scoring based on who you are speaking to.
-              </p>
-            </div>
-
             <div className="grid gap-3 sm:grid-cols-2">
               {AUDIENCE_OPTIONS.map((audience, index) => {
                 const isSelected = config.audience === audience.value
@@ -244,13 +220,6 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
             transition={{ duration: 0.24 }}
             className="space-y-5"
           >
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900">Add context</h3>
-              <p className="mt-1 text-sm text-gray-600">
-                Give Naild a topic if you have one. If not, it will generate a realistic one from your field.
-              </p>
-            </div>
-
             <div className="space-y-4 rounded-[24px] border border-gray-200 bg-white p-5">
               <div>
                 <label className="text-sm font-medium text-gray-800">Topic</label>
@@ -287,14 +256,14 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
                         onClick={() => setConfig((prev) => ({ ...prev, difficulty: level.value }))}
                         className={`rounded-xl border px-3 py-3 text-left transition-colors ${
                           isSelected
-                            ? 'border-gray-900 bg-gray-900 text-white'
+                            ? 'border-emerald-300 bg-emerald-50 text-emerald-950 shadow-sm'
                             : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                         }`}
                       >
                         <div className="text-sm font-medium">{level.label}</div>
                         <div
                           className={`mt-1 text-xs leading-5 ${
-                            isSelected ? 'text-gray-200' : 'text-gray-500'
+                            isSelected ? 'text-emerald-800' : 'text-gray-500'
                           }`}
                         >
                           {level.description}
@@ -329,34 +298,23 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
             transition={{ duration: 0.24 }}
             className="space-y-5"
           >
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900">Ready to generate</h3>
-              <p className="mt-1 text-sm text-gray-600">
-                Naild will create one realistic speaking drill and score how well you explain it.
-              </p>
-            </div>
-
             <div className="rounded-[24px] border border-gray-200 bg-white p-5">
               <div className="space-y-4">
                 {summaryRows.map((row) => (
                   <div key={row.label} className="flex flex-col gap-1 border-b border-gray-100 pb-4 last:border-b-0 last:pb-0">
-                    <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black">
                       {row.label}
                     </span>
-                    <span className="text-sm leading-6 text-gray-900">{row.value}</span>
+                    <span className="text-sm leading-6 text-gray-600">{row.value}</span>
                   </div>
                 ))}
-              </div>
-
-              <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-4 text-sm text-emerald-900">
-                The drill will score clarity, correctness, depth, and audience fit. One answer. One sharp feedback loop.
               </div>
 
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={loading}
-                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-950 shadow-sm transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {loading ? loadingMsg || 'Preparing your drill...' : 'Generate drill'}
               </button>

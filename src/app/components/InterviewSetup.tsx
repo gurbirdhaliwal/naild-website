@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronLeft, Check } from 'lucide-react'
+import { ChevronLeft, Check, Sparkles } from 'lucide-react'
 import { InterviewConfig } from '../types/Interview'
 import { AI_BASE } from '../services/api'
 
@@ -44,16 +44,28 @@ const technologies = [
 ]
 
 const difficulties = [
-  { value: 'intern', label: 'Intern (0-2 years)' },
-  { value: 'mid', label: 'Mid-level (2-5 years)' },
-  { value: 'senior', label: 'Senior (5+ years)' },
+  {
+    value: 'intern',
+    label: 'Intern (0-2 years)',
+    description: 'Intern to 2 years of experience',
+  },
+  {
+    value: 'mid',
+    label: 'Mid-level (2-5 years)',
+    description: 'Roughly 2 to 5 years of experience',
+  },
+  {
+    value: 'senior',
+    label: 'Senior (5+ years)',
+    description: 'Senior engineer or promotion prep',
+  },
 ]
 
 const steps = [
   { title: 'Job Title', description: 'Select your target role' },
   { title: 'Technologies', description: 'Choose relevant technologies' },
-  { title: 'Experience Level', description: 'Set your experience level' },
-  { title: 'Confirm', description: 'Review your choices' },
+  { title: 'Context', description: 'Add a topic or extra context for the interview.' },
+  { title: 'Confirm', description: 'Review your interview setup before it is generated.' },
 ]
 
 const stepMotionProps = {
@@ -68,6 +80,8 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
     role: '',
     languages: [],
     difficulty: 'mid',
+    topic: '',
+    promptContext: '',
   })
   const [currentStep, setCurrentStep] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -82,6 +96,16 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
       {
         label: 'Technologies',
         value: config.languages.length > 0 ? config.languages.join(', ') : 'Not selected yet',
+      },
+      {
+        label: 'Topic',
+        value: config.topic.trim() || 'Let Naild steer the interview topic from your role and focus areas',
+      },
+      {
+        label: 'Context',
+        value:
+          config.promptContext.trim() ||
+          'No extra context added. Naild will infer realistic situations from your selections.',
       },
       { label: 'Experience Level', value: getDifficultyLabel(config.difficulty) },
     ],
@@ -109,7 +133,10 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
 
   const handleDifficultySelect = (difficulty: string) => {
     setConfig((prev) => ({ ...prev, difficulty: difficulty as InterviewConfig['difficulty'] }))
-    window.setTimeout(() => setCurrentStep(3), 300)
+  }
+
+  const handleReviewSetup = () => {
+    window.setTimeout(() => setCurrentStep(3), 220)
   }
 
   const handleSubmit = async () => {
@@ -144,13 +171,6 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
       case 0:
         return (
           <motion.div key="job-title" {...stepMotionProps} className="space-y-5">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900">Select Job Title</h3>
-              <p className="mt-1 text-sm text-gray-600">
-                Choose the role you&apos;re interviewing for.
-              </p>
-            </div>
-
             <div className="grid gap-3 sm:grid-cols-2">
               {roles.map((role, index) => {
                 const isSelected = config.role === role
@@ -186,13 +206,6 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
       case 1:
         return (
           <motion.div key="technologies" {...stepMotionProps} className="space-y-5">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900">Select Technologies</h3>
-              <p className="mt-1 text-sm text-gray-600">
-                Choose the technologies you want to be tested on.
-              </p>
-            </div>
-
             <div className="rounded-[24px] border border-gray-200 bg-white p-5">
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {technologies.map((technology, index) => {
@@ -237,40 +250,71 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
 
       case 2:
         return (
-          <motion.div key="experience-level" {...stepMotionProps} className="space-y-5">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900">Experience Level</h3>
-              <p className="mt-1 text-sm text-gray-600">Select your experience level.</p>
-            </div>
+          <motion.div key="context" {...stepMotionProps} className="space-y-5">
+            <div className="space-y-4 rounded-[24px] border border-gray-200 bg-white p-5">
+              <div>
+                <label className="text-sm font-medium text-gray-800">Topic</label>
+                <input
+                  type="text"
+                  value={config.topic}
+                  onChange={(event) => setConfig((prev) => ({ ...prev, topic: event.target.value }))}
+                  placeholder="Optional: conflict resolution, stakeholder alignment, missed deadline..."
+                  className="mt-2 h-12 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition-colors focus:border-emerald-400"
+                />
+              </div>
 
-            <div className="grid gap-3">
-              {difficulties.map((difficulty, index) => {
-                const isSelected = config.difficulty === difficulty.value
-                return (
-                  <motion.button
-                    key={difficulty.value}
-                    type="button"
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    onClick={() => handleDifficultySelect(difficulty.value)}
-                    className={`rounded-2xl border px-4 py-4 text-left transition-all ${
-                      isSelected
-                        ? 'border-gray-900 bg-gray-900 text-white'
-                        : 'border-gray-200 bg-white hover:border-emerald-300 hover:shadow-sm'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-semibold">{difficulty.label}</div>
-                      {isSelected ? (
-                        <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-900">
-                          <Check size={16} />
+              <div>
+                <label className="text-sm font-medium text-gray-800">Extra context</label>
+                <textarea
+                  value={config.promptContext}
+                  onChange={(event) =>
+                    setConfig((prev) => ({ ...prev, promptContext: event.target.value }))
+                  }
+                  placeholder="Optional: team size, company stage, project type, or situations you want the interview to reflect."
+                  className="mt-2 min-h-[112px] w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-800">Experience level</label>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  {difficulties.map((difficulty) => {
+                    const isSelected = config.difficulty === difficulty.value
+                    return (
+                      <button
+                        key={difficulty.value}
+                        type="button"
+                        onClick={() => handleDifficultySelect(difficulty.value)}
+                        className={`rounded-xl border px-3 py-3 text-left transition-colors ${
+                          isSelected
+                            ? 'border-emerald-300 bg-emerald-50 text-emerald-950 shadow-sm'
+                            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="text-sm font-medium">{difficulty.label}</div>
+                        <div
+                          className={`mt-1 text-xs leading-5 ${
+                            isSelected ? 'text-emerald-800' : 'text-gray-500'
+                          }`}
+                        >
+                          {difficulty.description}
                         </div>
-                      ) : null}
-                    </div>
-                  </motion.button>
-                )
-              })}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleReviewSetup}
+                  className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-black"
+                >
+                  Review setup
+                  <Sparkles size={16} />
+                </button>
+              </div>
             </div>
           </motion.div>
         )
@@ -278,11 +322,6 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
       default:
         return (
           <motion.div key="confirm" {...stepMotionProps} className="space-y-5">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900">Confirm Your Choices</h3>
-              <p className="mt-1 text-sm text-gray-600">Review your interview configuration.</p>
-            </div>
-
             <div className="rounded-[24px] border border-gray-200 bg-white p-5">
               <div className="space-y-4">
                 {summaryRows.map((row) => (
@@ -290,10 +329,10 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
                     key={row.label}
                     className="flex flex-col gap-1 border-b border-gray-100 pb-4 last:border-b-0 last:pb-0"
                   >
-                    <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black">
                       {row.label}
                     </span>
-                    <span className="text-sm leading-6 text-gray-900">{row.value}</span>
+                    <span className="text-sm leading-6 text-gray-600">{row.value}</span>
                   </div>
                 ))}
               </div>
@@ -301,7 +340,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-black"
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-950 shadow-sm transition-colors hover:bg-emerald-100"
               >
                 Create Interview
               </button>

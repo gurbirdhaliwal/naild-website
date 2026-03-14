@@ -448,6 +448,8 @@ export default function InterviewPage() {
           role: config.role,
           languages: config.languages,
           difficulty: config.difficulty,
+          topic: config.topic,
+          additional_context: config.promptContext,
         }),
       });
       const data = await res.json();
@@ -490,12 +492,16 @@ export default function InterviewPage() {
         languages: config.languages,
         difficulty: config.difficulty,
         questions: aiQuestions,
+        topic: config.topic || null,
+        promptContext: config.promptContext || null,
       };
       
       const savedInterview = await interviewService.createInterview(createRequest);
       const newInterview = interviewService.convertToInterview(savedInterview);
       newInterview.messages = messages;
       newInterview.currentQuestionIndex = 0;
+      newInterview.topic = config.topic || null;
+      newInterview.promptContext = config.promptContext || null;
       await interviewService.updateInterviewMessages(Number(newInterview.id), {messages: newInterview.messages});
 
       setInterviews((prev) => [newInterview, ...prev]);
@@ -510,6 +516,8 @@ export default function InterviewPage() {
         role: config.role,
         languages: config.languages,
         difficulty: config.difficulty,
+        topic: config.topic || null,
+        promptContext: config.promptContext || null,
         createdAt: now,
         messages,
         status: 'active',

@@ -691,11 +691,18 @@ async def generate_questions(
     role = data.get("role", "")
     focus_areas = data.get("languages", [])
     difficulty = data.get("difficulty", "")
+    topic = data.get("topic", "")
+    additional_context = data.get("additional_context", "")
     prompt = (
         f"You are an expert behavioral interviewer. Generate 5 unique behavioral interview questions "
         f"for a {role} position. Focus on these competency areas: {', '.join(focus_areas)}. "
-        f"The questions should be appropriate for a {difficulty} level candidate. Ask about past experiences, "
-        f"judgment, collaboration, ownership, and learning. Do not ask trivia-style or coding questions. "
+        f"The questions should be appropriate for a {difficulty} level candidate. "
+        f"Topic preference: {topic or 'let the interviewer choose based on the role and focus areas'}. "
+        f"Extra context: {additional_context or 'none'}. "
+        f"Ask about past experiences, judgment, collaboration, ownership, and learning. "
+        f"Do not ask trivia-style or coding questions. "
+        f"If a topic preference is provided, make it meaningfully influence the questions without making every question identical. "
+        f"Use the extra context to ground the scenarios when it helps. "
         f"Return only the questions as a numbered list."
     )
     response = ollama_client.chat(
