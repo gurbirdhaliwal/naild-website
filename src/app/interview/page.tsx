@@ -750,7 +750,7 @@ export default function InterviewPage() {
 
   const renderPromptPanel = () => {
     return (
-      <div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-4 px-6 py-6 lg:px-10">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col gap-4 overflow-y-auto px-6 py-6 lg:px-10">
         <div className="flex items-center justify-center">
           <button
             onClick={openHome}
@@ -761,7 +761,7 @@ export default function InterviewPage() {
           </button>
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 min-h-0">
           {activeLandingView === 'behavioral' ? (
             <InterviewSetup onCreateInterview={handleCreateBehavioralInterview} />
           ) : (
