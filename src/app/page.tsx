@@ -125,13 +125,12 @@ const NaildLanding = () => {
       <section className="bg-white px-5 pt-24">
         <div className="mx-auto max-w-6xl">
           <h1 className="my-30 mb-10 text-6xl font-regular leading-tight text-black md:text-7xl">
-            make technical ideas click
+            Explain complex
             <br />
-            with <span className="text-green-500">naild</span>.
+            software ideas clearly.
           </h1>
           <p className="mx-auto max-w-3xl text-xl font-normal leading-9 text-gray-500">
-            Practice role-specific speaking drills and get AI feedback on how clearly,
-            correctly, and convincingly you explain the work.
+            AI-powered drills, feedback, retries, and progress tracking.
           </p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}

@@ -36,6 +36,7 @@ interface InterviewChatProps {
 }
 
 const EXPECTED_QUESTION_COUNT = 5
+const MAX_TRANSCRIPT_PREVIEW_LENGTH = 220
 
 const clampScore = (score: unknown) => {
   const parsed = Number(score)
@@ -55,6 +56,16 @@ const getBarColor = (percent: number) => {
   if (percent >= 65) return 'bg-emerald-400'
   if (percent >= 50) return 'bg-yellow-400'
   return 'bg-red-400'
+}
+
+const getTranscriptPreview = (transcription: string) => {
+  if (transcription.length <= MAX_TRANSCRIPT_PREVIEW_LENGTH) return transcription
+
+  const preview = transcription.slice(0, MAX_TRANSCRIPT_PREVIEW_LENGTH)
+  const lastSpaceIndex = preview.lastIndexOf(' ')
+  const safePreview = lastSpaceIndex > 0 ? preview.slice(0, lastSpaceIndex) : preview
+
+  return `${safePreview.trim()}...`
 }
 
 const extractCandidateAnswers = (messages: Message[], questions: string[]): string[] => {
@@ -285,6 +296,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
   const [gradingLoading, setGradingLoading] = useState(false)
   const [loadingExistingGrade, setLoadingExistingGrade] = useState(false)
   const [expandedIndexes, setExpandedIndexes] = useState<number[]>([])
+  const [expandedTranscriptIds, setExpandedTranscriptIds] = useState<string[]>([])
   const [timer, setTimer] = useState<number>(maxRecordingDuration)
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [recordingError, setRecordingError] = useState<string | null>(null)
@@ -308,6 +320,10 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
   useEffect(() => {
     scrollToBottom()
   }, [interview.messages])
+
+  useEffect(() => {
+    setExpandedTranscriptIds([])
+  }, [interview.id])
 
   useEffect(() => {
     setGradingResult(
@@ -732,6 +748,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
     )
   }
 
+  const toggleTranscriptExpand = (messageId: string) => {
+    setExpandedTranscriptIds((prev) =>
+      prev.includes(messageId) ? prev.filter((item) => item !== messageId) : [...prev, messageId]
+    )
+  }
+
   const shouldShowGrading = interview.status === 'completed' || gradingResult
   return (
     <div className="flex h-full bg-white">
@@ -803,6 +825,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                 autoPlay
                 playsInline
                 muted
+                style={{ transform: 'scaleX(-1)' }}
                 className="aspect-video w-full rounded-[24px] bg-black object-cover shadow-lg"
               />
             ) : (
@@ -1148,8 +1171,35 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                         <span></span>
                       </span>
                     </span>
+                  ) : message.role === 'candidate' &&
+                    message.transcription.length > MAX_TRANSCRIPT_PREVIEW_LENGTH ? (
+                    <div className="space-y-2">
+                      <div className="break-words leading-5">
+                        {expandedTranscriptIds.includes(message.id)
+                          ? message.transcription
+                          : getTranscriptPreview(message.transcription)}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleTranscriptExpand(message.id)}
+                        aria-expanded={expandedTranscriptIds.includes(message.id)}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 transition-colors hover:text-gray-700"
+                      >
+                        {expandedTranscriptIds.includes(message.id) ? (
+                          <>
+                            Show less
+                            <ChevronUp size={14} />
+                          </>
+                        ) : (
+                          <>
+                            View full answer
+                            <ChevronDown size={14} />
+                          </>
+                        )}
+                      </button>
+                    </div>
                   ) : (
-                    message.transcription
+                    <div className="break-words leading-5">{message.transcription}</div>
                   )}
                 </div>
               </div>
