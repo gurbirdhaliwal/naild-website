@@ -330,6 +330,22 @@ export default function InterviewPage() {
     }
   }
 
+  const buildTechnicalCoachIntro = (
+    config: CommunicationSessionConfig,
+    generatedPrompt: GeneratedPrompt
+  ) => {
+    const sections = [
+      `Today's drill is for a ${config.role}.`,
+      generatedPrompt.scenario,
+      generatedPrompt.what_to_cover.length > 0
+        ? `A strong answer should cover: ${generatedPrompt.what_to_cover.join('; ')}.`
+        : '',
+      generatedPrompt.time_guidance,
+    ].filter(Boolean)
+
+    return sections.join(' ')
+  }
+
   const handleCreateTechnicalSession = async (config: CommunicationSessionConfig) => {
     const fallbackPrompt = buildFallbackPrompt(config)
     let generatedPrompt: GeneratedPrompt = fallbackPrompt
@@ -364,9 +380,7 @@ export default function InterviewPage() {
       generatedPrompt = fallbackPrompt
     }
 
-    const coachIntro = `Today's drill is for a ${config.role}. Explain this clearly to a ${getAudienceLabel(
-      config.audience
-    ).toLowerCase()}.`
+    const coachIntro = buildTechnicalCoachIntro(config, generatedPrompt)
     const now = new Date()
     const introMessage = {
       id: `${Date.now()}-intro`,
@@ -379,9 +393,9 @@ export default function InterviewPage() {
     const promptMessage = {
       id: `${Date.now()}-prompt`,
       role: 'interviewer' as const,
-      content: generatedPrompt.prompt,
+      content: `Prompt: ${generatedPrompt.prompt}`,
       timestamp: now,
-      transcription: `[AI Coach]: ${generatedPrompt.prompt}`,
+      transcription: `[AI Coach]: Prompt: ${generatedPrompt.prompt}`,
       isThinking: false,
     }
     const messages = [introMessage, promptMessage]

@@ -25,7 +25,6 @@ import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
 import {
   COMMUNICATION_CATEGORY_LABELS,
   getAudienceLabel,
-  getPracticeModeLabel,
   getSessionTypeLabel,
   normalizeGeneratedPrompt,
 } from '../lib/practiceConfig'
@@ -280,6 +279,21 @@ const parseFeedback = (feedback: string) => {
   }
 
   return { pros, cons }
+}
+
+const dedupeFeedbackEntries = (entries: string[]) => {
+  const seen = new Set<string>()
+
+  return entries.filter((entry) => {
+    const normalized = entry.trim()
+    if (!normalized) return false
+
+    const key = normalized.toLowerCase()
+    if (seen.has(key)) return false
+
+    seen.add(key)
+    return true
+  })
 }
 
 const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterview }) => {
@@ -754,6 +768,35 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
     )
   }
 
+  const behavioralSummaryFeedback = useMemo(() => {
+    if (!gradingResult || !isBehavioralGradingResult(gradingResult)) {
+      return { pros: [], cons: [] }
+    }
+
+    const pros: string[] = []
+    const cons: string[] = []
+
+    if (gradingResult.feedback) {
+      const parsedOverallFeedback = parseFeedback(gradingResult.feedback)
+      pros.push(...parsedOverallFeedback.pros)
+      cons.push(...parsedOverallFeedback.cons)
+    }
+
+    gradingResult.scores.forEach((score) => {
+      if (!score.feedback) return
+
+      const parsedScoreFeedback = parseFeedback(score.feedback)
+      pros.push(...parsedScoreFeedback.pros)
+      cons.push(...parsedScoreFeedback.cons)
+    })
+
+    return {
+      pros: dedupeFeedbackEntries(pros).slice(0, 4),
+      cons: dedupeFeedbackEntries(cons).slice(0, 4),
+    }
+  }, [gradingResult])
+
+  const sessionHeading = isBehavioralSession ? interview.title : 'Communication Drill'
   const shouldShowGrading = interview.status === 'completed' || gradingResult
   return (
     <div className="flex h-full bg-white">
@@ -764,31 +807,19 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
               <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-gray-600">
                 {getSessionTypeLabel(interview.sessionType)}
               </div>
-              <h1 className="mt-3 text-2xl font-light text-gray-900">{interview.title}</h1>
+              <h1 className="mt-3 text-2xl font-light text-gray-900">{sessionHeading}</h1>
               <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                {!isBehavioralSession && interview.role ? (
+                  <>
+                    <span>{interview.role}</span>
+                    <span>•</span>
+                  </>
+                ) : null}
                 <span className="capitalize">{interview.difficulty} level</span>
-                {!isBehavioralSession && interview.practiceMode ? (
-                  <>
-                    <span>•</span>
-                    <span>{getPracticeModeLabel(interview.practiceMode)}</span>
-                  </>
-                ) : null}
-                {!isBehavioralSession && interview.audience ? (
-                  <>
-                    <span>•</span>
-                    <span>{getAudienceLabel(interview.audience)}</span>
-                  </>
-                ) : null}
                 {isBehavioralSession && interview.languages.length > 0 ? (
                   <>
                     <span>•</span>
                     <span>Focus areas: {interview.languages.join(', ')}</span>
-                  </>
-                ) : null}
-                {!isBehavioralSession && promptDetails.topic ? (
-                  <>
-                    <span>•</span>
-                    <span>{promptDetails.topic}</span>
                   </>
                 ) : null}
                 {interview.status === 'completed' ? (
@@ -851,49 +882,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
           </div>
 
           <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-10">
-            {!isBehavioralSession ? (
-              <div className="rounded-[28px] border border-emerald-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-emerald-700">
-                    {getPracticeModeLabel(interview.practiceMode)}
-                  </span>
-                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                    {promptDetails.audience}
-                  </span>
-                </div>
-
-                <h2 className="mt-4 text-xl font-semibold text-gray-900">{promptDetails.title}</h2>
-                <p className="mt-3 text-sm leading-7 text-gray-600">{promptDetails.scenario}</p>
-
-                <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
-                  <p className="text-sm font-medium text-gray-900">Prompt</p>
-                  <p className="mt-2 text-sm leading-7 text-gray-700">{promptDetails.prompt}</p>
-                </div>
-
-                {promptDetails.what_to_cover.length > 0 ? (
-                  <div className="mt-5">
-                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
-                      A strong answer should cover
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {promptDetails.what_to_cover.map((item) => (
-                        <span
-                          key={item}
-                          className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-700"
-                        >
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                <p className="mt-5 text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
-                  {promptDetails.time_guidance}
-                </p>
-              </div>
-            ) : null}
-
             {recordingError ? (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {recordingError}
@@ -1006,16 +994,35 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                     </div>
                   </div>
 
-                  {gradingResult.feedback ? (
-                    <div className="rounded-2xl bg-white p-6 shadow-sm">
-                      <div className="mb-3 text-lg font-semibold text-gray-900">Detailed Feedback</div>
-                      <ul className="ml-5 list-disc space-y-2 text-gray-800">
-                        {parseFeedback(gradingResult.feedback).pros.map((entry) => (
-                          <li key={entry}>{entry}</li>
-                        ))}
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-6">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                        <CheckCircle2 size={18} />
+                        Strong signals
+                      </div>
+                      <ul className="mt-4 space-y-3 text-sm leading-6 text-emerald-950">
+                        {behavioralSummaryFeedback.pros.length > 0 ? (
+                          behavioralSummaryFeedback.pros.map((entry) => <li key={entry}>• {entry}</li>)
+                        ) : (
+                          <li>• Your answers stayed relevant and understandable across the interview.</li>
+                        )}
                       </ul>
                     </div>
-                  ) : null}
+
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-6">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                        <AlertCircle size={18} />
+                        Tighten next
+                      </div>
+                      <ul className="mt-4 space-y-3 text-sm leading-6 text-amber-950">
+                        {behavioralSummaryFeedback.cons.length > 0 ? (
+                          behavioralSummaryFeedback.cons.map((entry) => <li key={entry}>• {entry}</li>)
+                        ) : (
+                          <li>• Add more specific examples and make the deciding detail clearer.</li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
                 </>
               ) : isCommunicationGradingResult(gradingResult) ? (
                 <>
@@ -1089,27 +1096,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                     </div>
                   </div>
 
-                  <div className="rounded-2xl bg-white p-6 shadow-sm">
-                    <div className="text-lg font-semibold text-gray-900">A better outline for the retry</div>
-                    <ol className="mt-4 space-y-3 text-sm leading-7 text-gray-700">
-                      {gradingResult.improved_outline.length > 0 ? (
-                        gradingResult.improved_outline.map((item, index) => (
-                          <li key={`${item}-${index}`} className="flex gap-3">
-                            <span className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-700">
-                              {index + 1}
-                            </span>
-                            <span>{item}</span>
-                          </li>
-                        ))
-                      ) : (
-                        <li>Lead with the point, explain the mechanism, then close with the decision impact.</li>
-                      )}
-                    </ol>
-
-                    <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-                      <span className="font-semibold text-gray-900">Retry advice:</span> {gradingResult.retry_advice}
-                    </div>
-                  </div>
                 </>
               ) : null
             ) : isGradingErrorResult(gradingResult) ? (
