@@ -228,7 +228,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </span>
                   </Link>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">powered by AI</p>
               </div>
             )}
             <button
