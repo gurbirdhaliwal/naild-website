@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './context/AuthContext';
 import {
@@ -59,13 +59,16 @@ const tabs = [
 ] as const;
 
 type LandingTab = (typeof tabs)[number]['id'];
+const heroHeadline = 'Explain complex\nsoftware ideas clearly.';
 
 const NaildLanding = () => {
   const [activeTab, setActiveTab] = useState<LandingTab>('feedback');
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRedirectingToInterview, setIsRedirectingToInterview] = useState(false);
+  const [typedHeroHeadline, setTypedHeroHeadline] = useState('');
 
+  const prefersReducedMotion = useReducedMotion();
   const router = useRouter();
   const { user, loading, setUser } = useAuth();
 
@@ -105,6 +108,37 @@ const NaildLanding = () => {
     clearOAuthHandoffRedirect();
   }, [loading, user]);
 
+  React.useEffect(() => {
+    if (prefersReducedMotion) {
+      setTypedHeroHeadline(heroHeadline);
+      return;
+    }
+
+    setTypedHeroHeadline('');
+
+    let currentIndex = 0;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+
+    const startDelayId = setTimeout(() => {
+      intervalId = setInterval(() => {
+        currentIndex += 1;
+        setTypedHeroHeadline(heroHeadline.slice(0, currentIndex));
+
+        if (currentIndex >= heroHeadline.length) {
+          clearInterval(intervalId);
+        }
+      }, 45);
+    }, 180);
+
+    return () => {
+      clearTimeout(startDelayId);
+
+      if (intervalId !== undefined) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [prefersReducedMotion]);
+
   const handleGetStarted = () => {
     if (loading || isLoggingOut) return;
     window.history.pushState({}, '', '/');
@@ -124,10 +158,22 @@ const NaildLanding = () => {
     <div className="font-['Space_Grotesk'] text-center">
       <section className="bg-white px-5 pt-24">
         <div className="mx-auto max-w-6xl">
-          <h1 className="my-30 mb-10 text-6xl font-regular leading-tight text-black md:text-7xl">
-            Explain complex
-            <br />
-            software ideas clearly.
+          <h1
+            aria-label={heroHeadline.replace('\n', ' ')}
+            className="relative my-30 mb-10 text-6xl font-regular leading-tight text-black md:text-7xl"
+          >
+            <span aria-hidden="true" className="invisible whitespace-pre-line">
+              {heroHeadline}
+            </span>
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 whitespace-pre-line"
+            >
+              {typedHeroHeadline}
+              {!prefersReducedMotion && typedHeroHeadline.length < heroHeadline.length ? (
+                <span className="ml-1 inline-block h-[0.85em] w-[2px] translate-y-1 animate-pulse bg-current align-middle" />
+              ) : null}
+            </span>
           </h1>
           <p className="mx-auto max-w-3xl text-xl font-normal leading-9 text-gray-500">
             AI-powered drills, feedback, retries, and progress tracking.
