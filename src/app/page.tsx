@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './context/AuthContext';
 import {
@@ -61,6 +62,15 @@ const tabs = [
 type LandingTab = (typeof tabs)[number]['id'];
 const heroHeadline = 'Explain complex\nsoftware ideas clearly.';
 const TAB_CYCLE_MS = 6000;
+const universityLogos = [
+  { name: 'Wilfrid Laurier University', logoSrc: '/universities/wlu.ico' },
+  { name: 'University of Waterloo', logoSrc: '/universities/waterloo.ico' },
+  { name: 'University of Guelph', logoSrc: '/universities/guelph.ico' },
+  { name: 'Western University', logoSrc: '/universities/western.ico' },
+  { name: 'University of Toronto', logoSrc: '/universities/toronto.ico' },
+  { name: 'McMaster University', logoSrc: '/universities/mcmaster.ico' },
+  { name: 'McGill University', logoSrc: '/universities/mcgill.ico' },
+] as const;
 
 const NaildLanding = () => {
   const [activeTab, setActiveTab] = useState<LandingTab>('feedback');
@@ -224,27 +234,38 @@ const NaildLanding = () => {
             </div>
           </div>
 
-          <div className="mb-10 flex flex-wrap items-center justify-center gap-8 opacity-80 md:gap-12">
-            {[
-              { name: 'Princeton', bg: 'bg-gradient-to-br from-orange-500 to-orange-400', shape: 'rounded-full' },
-              { name: 'Blackstone', bg: 'bg-black', shape: 'polygon' },
-              { name: 'BCG', bg: 'bg-blue-800', shape: 'rounded-lg' },
-              { name: 'Harvard', bg: 'bg-red-800', shape: 'rounded-full' },
-              { name: 'MIT', bg: 'bg-red-900', shape: 'rounded' },
-              { name: 'Stanford', bg: 'bg-red-700', shape: 'rounded-full' },
-              { name: 'Yale', bg: 'bg-blue-900', shape: 'rounded' },
-            ].map((logo, index) => (
-              <div
-                key={index}
-                className={`flex items-center justify-center ${logo.bg} ${logo.shape} transition-opacity duration-200 hover:opacity-100`}
-                style={{
-                  width: '60px',
-                  height: '60px',
-                  clipPath: logo.name === 'Blackstone' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : 'none',
-                }}
-                title={logo.name}
-              />
-            ))}
+          <div className="mb-10">
+            <p className="mb-4 text-center text-sm font-medium uppercase tracking-[0.24em] text-gray-500">
+              Trusted by students at
+            </p>
+            <div className="university-carousel-mask mx-auto w-full max-w-[42rem] py-2">
+              <div className="university-carousel-track flex w-max">
+                {[0, 1].map((copyIndex) => (
+                  <div
+                    key={copyIndex}
+                    className="flex shrink-0 items-center gap-5 pr-5 md:gap-6 md:pr-6"
+                    aria-hidden={copyIndex === 1}
+                  >
+                    {universityLogos.map((university) => (
+                      <div
+                        key={`${copyIndex}-${university.name}`}
+                        className="flex h-16 w-16 items-center justify-center opacity-80 transition-opacity duration-200 hover:opacity-100 md:h-20 md:w-20"
+                        title={university.name}
+                      >
+                        <Image
+                          src={university.logoSrc}
+                          alt={`${university.name} logo`}
+                          width={72}
+                          height={72}
+                          unoptimized
+                          className="h-12 w-12 object-contain md:h-16 md:w-16"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
