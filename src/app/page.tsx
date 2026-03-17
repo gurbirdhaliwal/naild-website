@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './context/AuthContext';
 import {
@@ -60,6 +60,7 @@ const tabs = [
 
 type LandingTab = (typeof tabs)[number]['id'];
 const heroHeadline = 'Explain complex\nsoftware ideas clearly.';
+const TAB_CYCLE_MS = 6000;
 
 const NaildLanding = () => {
   const [activeTab, setActiveTab] = useState<LandingTab>('feedback');
@@ -138,6 +139,20 @@ const NaildLanding = () => {
       }
     };
   }, [prefersReducedMotion]);
+
+  React.useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setActiveTab((currentTab) => {
+        const currentIndex = tabs.findIndex((tab) => tab.id === currentTab);
+        const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % tabs.length : 0;
+        return tabs[nextIndex].id;
+      });
+    }, TAB_CYCLE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [activeTab]);
 
   const handleGetStarted = () => {
     if (loading || isLoggingOut) return;
@@ -250,45 +265,88 @@ const NaildLanding = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`rounded-full border px-6 py-3 font-normal shadow-sm transition-all duration-200 ${
+                className={`flex min-w-[116px] flex-col items-center gap-2 rounded-full border px-6 py-3 font-normal shadow-sm transition-all duration-200 ${
                   activeTab === tab.id
                     ? 'border-green-500 bg-green-500 text-white'
                     : 'border-black/10 bg-white/80 text-gray-600 hover:bg-white'
                 }`}
               >
-                {tab.label}
+                <span>{tab.label}</span>
+                <span
+                  className={`relative block h-1 w-full overflow-hidden rounded-full ${
+                    activeTab === tab.id ? 'bg-white/25' : 'bg-black/8'
+                  }`}
+                >
+                  {activeTab === tab.id ? (
+                    <motion.span
+                      key={`${tab.id}-progress`}
+                      className="absolute inset-y-0 left-0 block w-full rounded-full bg-white"
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      transition={{ duration: TAB_CYCLE_MS / 1000, ease: 'linear' }}
+                      style={{ originX: 0 }}
+                    />
+                  ) : null}
+                </span>
               </button>
             ))}
           </div>
 
-          <div className="mx-auto flex aspect-video max-w-4xl overflow-hidden rounded-3xl bg-gray-400 shadow-2xl">
-            <div className="flex w-2/5 items-center justify-center rounded-l-3xl bg-gray-300/90">
-              <div className="px-8 text-center text-gray-700">
-                <div className="mb-2 text-lg font-medium">{activeFeature.previewLabel}</div>
-                <div className="text-sm leading-6">{activeFeature.description}</div>
-              </div>
-            </div>
-            <div className="flex w-3/5 items-center justify-center px-8">
-              <div className="w-full max-w-sm rounded-3xl bg-white/90 p-6 text-left text-gray-700 shadow-lg">
-                <div className="text-xs font-medium uppercase tracking-[0.18em] text-green-600">
-                  {activeFeature.label}
-                </div>
-                <div className="mt-3 text-lg font-medium text-gray-900">
-                  {activeFeature.previewTitle}
-                </div>
-                <div className="mt-2 text-sm text-gray-500">{activeFeature.previewDetail}</div>
-                <div className="mt-5 grid gap-2">
-                  {activeFeature.bullets.map((bullet) => (
-                    <div
-                      key={bullet}
-                      className="rounded-2xl border border-black/5 bg-gray-50 px-4 py-3 text-sm"
-                    >
-                      {bullet}
+          <div className="mx-auto max-w-4xl">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={activeFeature.id}
+                initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 28, scale: 0.98 }}
+                animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -28, scale: 0.98 }}
+                transition={{ duration: prefersReducedMotion ? 0.18 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+                className="flex aspect-video overflow-hidden rounded-3xl bg-gray-400 shadow-2xl"
+              >
+                <motion.div
+                  initial={prefersReducedMotion ? undefined : { x: -24, opacity: 0 }}
+                  animate={prefersReducedMotion ? undefined : { x: 0, opacity: 1 }}
+                  transition={{ duration: prefersReducedMotion ? 0 : 0.35, delay: prefersReducedMotion ? 0 : 0.08 }}
+                  className="flex w-2/5 items-center justify-center rounded-l-3xl bg-gray-300/90"
+                >
+                  <div className="px-8 text-center text-gray-700">
+                    <div className="mb-2 text-lg font-medium">{activeFeature.previewLabel}</div>
+                    <div className="text-sm leading-6">{activeFeature.description}</div>
+                  </div>
+                </motion.div>
+                <motion.div
+                  initial={prefersReducedMotion ? undefined : { x: 24, opacity: 0 }}
+                  animate={prefersReducedMotion ? undefined : { x: 0, opacity: 1 }}
+                  transition={{ duration: prefersReducedMotion ? 0 : 0.35, delay: prefersReducedMotion ? 0 : 0.12 }}
+                  className="flex w-3/5 items-center justify-center px-8"
+                >
+                  <div className="w-full max-w-sm rounded-3xl bg-white/90 p-6 text-left text-gray-700 shadow-lg">
+                    <div className="text-xs font-medium uppercase tracking-[0.18em] text-green-600">
+                      {activeFeature.label}
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+                    <div className="mt-3 text-lg font-medium text-gray-900">
+                      {activeFeature.previewTitle}
+                    </div>
+                    <div className="mt-2 text-sm text-gray-500">{activeFeature.previewDetail}</div>
+                    <div className="mt-5 grid gap-2">
+                      {activeFeature.bullets.map((bullet, index) => (
+                        <motion.div
+                          key={bullet}
+                          initial={prefersReducedMotion ? undefined : { opacity: 0, y: 14 }}
+                          animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+                          transition={{
+                            duration: prefersReducedMotion ? 0 : 0.28,
+                            delay: prefersReducedMotion ? 0 : 0.18 + index * 0.06,
+                          }}
+                          className="rounded-2xl border border-black/5 bg-gray-50 px-4 py-3 text-sm"
+                        >
+                          {bullet}
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </section>
