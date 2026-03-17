@@ -71,6 +71,16 @@ const universityLogos = [
   { name: 'McMaster University', logoSrc: '/universities/mcmaster.ico' },
   { name: 'McGill University', logoSrc: '/universities/mcgill.ico' },
 ] as const;
+const planCards = [
+  { name: 'Starter', detail: 'Practice communication fundamentals' },
+  { name: 'Growth', detail: 'Sharpen role-specific drills and retries' },
+  { name: 'Teams', detail: 'Train technical communication across your org' },
+] as const;
+const planCardOffsets = [
+  { x: -20, y: 0 },
+  { x: 0, y: 20 },
+  { x: 20, y: 0 },
+] as const;
 
 const NaildLanding = () => {
   const [activeTab, setActiveTab] = useState<LandingTab>('feedback');
@@ -385,20 +395,24 @@ const NaildLanding = () => {
 
           <div className="flex justify-center">
             <div className="grid w-full max-w-4xl grid-cols-1 gap-8 md:grid-cols-3">
-              {[
-                { name: 'Starter', detail: 'Practice communication fundamentals' },
-                { name: 'Growth', detail: 'Sharpen role-specific drills and retries' },
-                { name: 'Teams', detail: 'Train technical communication across your org' },
-              ].map((plan, index) => (
-                <div
+              {planCards.map((plan, index) => (
+                <motion.div
                   key={index}
+                  initial={prefersReducedMotion ? undefined : { opacity: 0, ...planCardOffsets[index] }}
+                  whileInView={prefersReducedMotion ? undefined : { opacity: 1, x: 0, y: 0 }}
+                  viewport={{ once: true, amount: 0.35 }}
+                  transition={{
+                    duration: prefersReducedMotion ? 0 : 0.45,
+                    delay: prefersReducedMotion ? 0 : index * 0.08,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
                   className="flex aspect-[3/4] items-center justify-center rounded-3xl bg-gray-300/40 transition-all duration-200 hover:-translate-y-1 hover:transform hover:shadow-lg"
                 >
                   <div className="text-center text-gray-600">
                     <div className="mb-2 text-xl font-medium">{plan.name}</div>
                     <div className="text-sm">{plan.detail}</div>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
