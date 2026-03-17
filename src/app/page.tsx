@@ -420,19 +420,16 @@ const NaildLanding = () => {
       </section>
 
       <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e6faef_20%,_#c3f3d8_60%,_#b0efcb_100%)] px-5 py-32 text-center">
-        <div className="relative mx-auto w-full max-w-xl rounded-full bg-white px-12 py-8 shadow-lg">
-          <h3 className="mb-6 text-3xl font-normal text-black">
-            Practice the way strong
-            <br />
-            engineers <span className="text-green-500">explain</span>.
+        <div className="mx-auto flex w-full max-w-xl flex-col items-center">
+          <h3 className="mb-6 text-4xl font-normal text-black md:text-5xl">
+            Try Naild.
           </h3>
           <button
             onClick={handleGetStarted}
-            className="rounded-full bg-green-500 px-8 py-3 font-medium text-white transition-all duration-200 hover:bg-green-600"
+            className="rounded-full bg-white px-8 py-3 font-medium text-green-700 shadow-[0_20px_45px_-28px_rgba(21,128,61,0.55)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/92"
           >
             Start Practicing
           </button>
-          <div className="absolute -bottom-2 left-1/2 h-0 w-0 -translate-x-1/2 transform border-l-8 border-r-8 border-t-[16px] border-l-transparent border-r-transparent border-t-white"></div>
         </div>
       </section>
 
