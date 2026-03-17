@@ -20,7 +20,7 @@ import {
 import { Interview } from '../types/Interview';
 import Link from 'next/link';
 import MetricsDashboard from './MetricsDashboard';
-import { COACH_NOTES, type CoachNoteId } from './CoachNotes';
+import { LIBRARY_NOTES, type LibraryNoteId } from './Library';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   getAudienceLabel,
@@ -46,7 +46,7 @@ interface SidebarProps {
   userName: string;
   userEmail: string;
   onOpenSettings: () => void;
-  onSelectLibraryTopic: (topicId: CoachNoteId) => void;
+  onSelectLibraryTopic: (topicId: LibraryNoteId) => void;
   onLogout: () => void;
   loading?: boolean;
   isHomeActive?: boolean;
@@ -158,7 +158,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     setLibraryOpen(true);
   };
 
-  const selectLibraryTopic = (topicId: CoachNoteId) => {
+  const selectLibraryTopic = (topicId: LibraryNoteId) => {
     onSelectLibraryTopic(topicId);
     setLibraryOpen(false);
   };
@@ -189,6 +189,33 @@ const Sidebar: React.FC<SidebarProps> = ({
     } finally {
       setSavingRenameId(null);
     }
+  };
+
+  const getSidebarSessionTypeText = (interview: Interview) =>
+    (interview.sessionType ?? 'behavioral-interview') === 'technical-communication'
+      ? 'technical communication'
+      : 'interview';
+
+  const getSidebarSessionBaseTitle = (interview: Interview) => {
+    const defaultTitle =
+      (interview.sessionType ?? 'behavioral-interview') === 'technical-communication'
+        ? `${interview.role} • ${getPracticeModeLabel(interview.practiceMode)}`
+        : `${interview.role} Behavioral Interview`;
+    return interview.title.trim() === defaultTitle ? interview.role : interview.title.trim();
+  };
+
+  const getSidebarSessionProgress = (interview: Interview) => {
+    if (interview.status === 'completed') {
+      return 'Completed';
+    }
+
+    const totalQuestions = interview.questions?.length ?? 0;
+    if ((interview.sessionType ?? 'behavioral-interview') === 'behavioral-interview' && totalQuestions > 0) {
+      const completedQuestions = Math.min(interview.currentQuestionIndex ?? 0, totalQuestions);
+      return `${completedQuestions}/${totalQuestions} complete`;
+    }
+
+    return 'In progress';
   };
 
   const promptDeleteInterview = (interview: Interview) => {
@@ -275,7 +302,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               }`}
             >
               <Library size={18} />
-              <span>Coach Notes</span>
+              <span>Library</span>
             </button>
           </div>
         )}
@@ -337,7 +364,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <div className="flex items-center gap-3">
                     <MessageSquare size={16} className="text-gray-400 flex-shrink-0" />
                     {!collapsed && (
-                      <div className="flex-1 min-w-0 pr-14">
+                      <div className="flex-1 min-w-0 pr-12">
                         {editingInterviewId === interview.id ? (
                           <input
                             value={editingTitle}
@@ -359,23 +386,18 @@ const Sidebar: React.FC<SidebarProps> = ({
                           />
                         ) : (
                           <>
-                            <div className="text-sm font-medium text-gray-900 truncate">
-                              {interview.title}
+                            <div className="text-sm font-medium leading-5 text-gray-900 [display:-webkit-box] overflow-hidden text-ellipsis [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                              {getSidebarSessionBaseTitle(interview)}
                             </div>
-                            <div className="mt-1 text-[11px] text-gray-500 truncate">
-                              {getSessionSubtitle(interview)}
+                            <div className="mt-1 text-[11px] text-gray-500">
+                              {getSidebarSessionTypeText(interview)}
                             </div>
-                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                              <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-600">
-                                {getSessionTypeLabel(interview.sessionType)}
-                              </span>
-                              <span
-                                className={`text-[11px] ${
-                                  interview.status === 'completed' ? 'text-green-600' : 'text-gray-500'
-                                }`}
-                              >
-                                {interview.status === 'completed' ? 'Completed' : 'In Progress'}
-                              </span>
+                            <div
+                              className={`mt-0.5 text-[11px] ${
+                                interview.status === 'completed' ? 'text-green-600' : 'text-gray-500'
+                              }`}
+                            >
+                              {getSidebarSessionProgress(interview)}
                             </div>
                           </>
                         )}
@@ -632,12 +654,12 @@ const Sidebar: React.FC<SidebarProps> = ({
               >
                 <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-5">
                     <div>
-                      <div className="flex items-center gap-2 text-gray-900">
+                    <div className="flex items-center gap-2 text-gray-900">
                       <Library size={18} />
-                      <h2 className="text-sm font-semibold sm:text-base">Coach Notes</h2>
+                      <h2 className="text-sm font-semibold sm:text-base">Library</h2>
                     </div>
                     <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-                      Short guidance on the habits that make technical explanations land.
+                      Examples and quick drills for making technical answers actually land.
                     </p>
                   </div>
                   <button
@@ -651,7 +673,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                 <div className="max-h-[calc(92vh-84px)] overflow-y-auto bg-gradient-to-b from-white to-gray-50 p-4 sm:p-5">
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {COACH_NOTES.map((topic, index) => {
+                    {LIBRARY_NOTES.map((topic, index) => {
                       const Icon = topic.icon;
 
                       return (

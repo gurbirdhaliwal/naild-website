@@ -5,7 +5,7 @@ import Sidebar from '../components/Sidebar'
 import CommunicationSetup from '../components/CommunicationSetup'
 import InterviewSetup from '../components/InterviewSetup'
 import InterviewChat from '../components/InterviewChat'
-import CoachNotes, { COACH_NOTES, type CoachNoteId } from '../components/CoachNotes'
+import Library, { LIBRARY_NOTES, type LibraryNoteId } from '../components/Library'
 import {
   CommunicationSessionConfig,
   GeneratedPrompt,
@@ -14,7 +14,7 @@ import {
 } from '../types/Interview'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Bell,
   ChevronDown,
@@ -44,6 +44,8 @@ type ProfileToastType = 'success' | 'error'
 type WorkspaceLandingView = 'home' | 'communication' | 'behavioral' | 'notes'
 
 const SETTINGS_STORAGE_KEY = 'naild.settings.preferences.v1'
+const WORKSPACE_HEADLINE_TYPING_DELAY_MS = 180
+const WORKSPACE_HEADLINE_TYPING_STEP_MS = 45
 const isThemePreference = (value: unknown): value is ThemePreference =>
   value === 'system' || value === 'light' || value === 'dark'
 
@@ -62,13 +64,13 @@ export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [currentInterview, setCurrentInterview] = useState<Interview | null>(null)
   const [activeLandingView, setActiveLandingView] = useState<WorkspaceLandingView>('home')
-  const [selectedLibraryTopicId, setSelectedLibraryTopicId] = useState<CoachNoteId>(
-    COACH_NOTES[0].id
+  const [selectedLibraryTopicId, setSelectedLibraryTopicId] = useState<LibraryNoteId>(
+    LIBRARY_NOTES[0].id
   )
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { user, loading, setUser } = useAuth()
   const router = useRouter()
-  const [loadingInterviews, setLoadingInterviews] = useState(false)
+  const [loadingInterviews, setLoadingInterviews] = useState(true)
   const [activeModal, setActiveModal] = useState<'settings' | null>(null)
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('account')
   const [themePreference, setThemePreference] = useState<ThemePreference>('system')
@@ -77,6 +79,8 @@ export default function InterviewPage() {
   const [interviewReminderNotifications, setInterviewReminderNotifications] = useState(true)
   const [emailSummaryNotifications, setEmailSummaryNotifications] = useState(true)
   const [productUpdatesNotifications, setProductUpdatesNotifications] = useState(false)
+  const [hasLoadedInterviewHistory, setHasLoadedInterviewHistory] = useState(false)
+  const [typedWorkspaceHeadline, setTypedWorkspaceHeadline] = useState('')
   const [profileFormData, setProfileFormData] = useState({
     firstname: '',
     lastname: '',
@@ -92,6 +96,7 @@ export default function InterviewPage() {
   const [showAccountEditor, setShowAccountEditor] = useState(false)
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false)
   const messagePersistQueueRef = useRef<Map<string, Promise<void>>>(new Map())
+  const prefersReducedMotion = useReducedMotion()
 
   // Handle authentication redirect
   useEffect(() => {
@@ -246,6 +251,7 @@ export default function InterviewPage() {
   const loadSavedInterviews = async () => {
     try {
       setLoadingInterviews(true);
+      setHasLoadedInterviewHistory(false);
       console.log('Loading saved interviews...');
       const savedInterviews = await interviewService.getUserInterviews();
       console.log('Received interviews:', savedInterviews);
@@ -266,8 +272,65 @@ export default function InterviewPage() {
       // Don't show error to user, just log it - interviews will be empty
     } finally {
       setLoadingInterviews(false);
+      setHasLoadedInterviewHistory(true);
     }
   };
+
+  const greetingName = user?.firstname || 'there'
+  const hasSavedSessions = interviews.length > 0
+  const hasResolvedWorkspaceGreeting = hasLoadedInterviewHistory || hasSavedSessions
+  const workspaceHeadline =
+    !hasResolvedWorkspaceGreeting
+      ? `Welcome, ${greetingName}`
+      : hasLoadedInterviewHistory && !hasSavedSessions
+        ? `Welcome to Naild, ${greetingName}`
+        : `Welcome back, ${greetingName}`
+  const workspaceIntroCopy =
+    !hasResolvedWorkspaceGreeting
+      ? 'Choose a drill and get ready to practice technical communication out loud.'
+      : hasLoadedInterviewHistory && !hasSavedSessions
+        ? 'Choose a drill, speak your answer out loud, and build your first round of feedback.'
+        : 'Practice explaining technical ideas out loud, then jump back into saved sessions from the sidebar.'
+
+  useEffect(() => {
+    if (activeLandingView !== 'home') return
+
+    if (!hasResolvedWorkspaceGreeting) {
+      setTypedWorkspaceHeadline(workspaceHeadline)
+      return
+    }
+
+    if (prefersReducedMotion) {
+      setTypedWorkspaceHeadline(workspaceHeadline)
+      return
+    }
+
+    setTypedWorkspaceHeadline('')
+
+    let currentIndex = 0
+    let intervalId: ReturnType<typeof setInterval> | undefined
+
+    const startDelayId = window.setTimeout(() => {
+      intervalId = window.setInterval(() => {
+        currentIndex += 1
+        setTypedWorkspaceHeadline(workspaceHeadline.slice(0, currentIndex))
+
+        if (currentIndex >= workspaceHeadline.length) {
+          if (intervalId !== undefined) {
+            window.clearInterval(intervalId)
+          }
+        }
+      }, WORKSPACE_HEADLINE_TYPING_STEP_MS)
+    }, WORKSPACE_HEADLINE_TYPING_DELAY_MS)
+
+    return () => {
+      window.clearTimeout(startDelayId)
+
+      if (intervalId !== undefined) {
+        window.clearInterval(intervalId)
+      }
+    }
+  }, [activeLandingView, hasResolvedWorkspaceGreeting, prefersReducedMotion, workspaceHeadline])
 
   // Don't render anything while loading or if user is not authenticated
   if (loading || !user) {
@@ -301,7 +364,7 @@ export default function InterviewPage() {
     setCurrentInterview(null)
   }
 
-  const handleSelectLibraryTopic = (topicId: CoachNoteId) => {
+  const handleSelectLibraryTopic = (topicId: LibraryNoteId) => {
     setSelectedLibraryTopicId(topicId)
     setActiveLandingView('notes')
     setCurrentInterview(null)
@@ -768,7 +831,6 @@ export default function InterviewPage() {
     settingsTabs.find((tab) => tab.id === activeSettingsTab) ?? settingsTabs[0]
   const modalTitle = 'Settings'
   const modalSubtitle = activeSettingsItem.description
-  const greetingName = user.firstname || 'there'
 
   const renderPromptPanel = () => {
     return (
@@ -812,11 +874,22 @@ export default function InterviewPage() {
                   className="h-20 w-20 object-contain"
                 />
               </div>
-              <h1 className="mt-4 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl">
-                Welcome back, {greetingName}
+              <h1
+                aria-label={workspaceHeadline}
+                className="relative mt-4 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl"
+              >
+                <span aria-hidden="true" className="invisible">
+                  {workspaceHeadline}
+                </span>
+                <span aria-hidden="true" className="absolute inset-0">
+                  {typedWorkspaceHeadline}
+                  {!prefersReducedMotion && typedWorkspaceHeadline.length < workspaceHeadline.length ? (
+                    <span className="ml-1 inline-block h-[0.85em] w-[2px] translate-y-1 animate-pulse bg-current align-middle" />
+                  ) : null}
+                </span>
               </h1>
               <p className="mt-3 max-w-xl text-base leading-7 text-gray-600">
-                Practice explaining technical ideas out loud, then jump back into saved sessions from the sidebar.
+                {workspaceIntroCopy}
               </p>
             </section>
 
@@ -922,7 +995,7 @@ export default function InterviewPage() {
               onUpdateInterview={handleUpdate}
             />
           ) : activeLandingView === 'notes' ? (
-            <CoachNotes
+            <Library
               selectedTopicId={selectedLibraryTopicId}
               onSelectTopic={setSelectedLibraryTopicId}
             />
