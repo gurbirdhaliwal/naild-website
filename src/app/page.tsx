@@ -419,10 +419,10 @@ const NaildLanding = () => {
         </div>
       </section>
 
-      <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e6faef_20%,_#c3f3d8_60%,_#b0efcb_100%)] px-5 py-32 text-center">
-        <div className="mx-auto flex w-full max-w-xl flex-col items-center">
-          <h3 className="mb-6 text-4xl font-normal text-black md:text-5xl">
-            Try Naild.
+      <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e6faef_20%,_#c3f3d8_60%,_#b0efcb_100%)] px-5 py-40 text-center md:py-48">
+        <div className="mx-auto flex w-full max-w-3xl flex-col items-center">
+          <h3 className="mb-10 whitespace-nowrap text-[clamp(3.5rem,10vw,5.625rem)] font-normal leading-none text-black">
+            Try Naild Now.
           </h3>
           <button
             onClick={handleGetStarted}
