@@ -44,8 +44,21 @@ type ProfileToastType = 'success' | 'error'
 type WorkspaceLandingView = 'home' | 'communication' | 'behavioral' | 'notes'
 
 const SETTINGS_STORAGE_KEY = 'naild.settings.preferences.v1'
-const WORKSPACE_HEADLINE_TYPING_DELAY_MS = 180
-const WORKSPACE_HEADLINE_TYPING_STEP_MS = 45
+const WORKSPACE_EXAMPLE_TYPING_STEP_MS = 26
+const WORKSPACE_EXAMPLE_DELETING_STEP_MS = 18
+const WORKSPACE_EXAMPLE_PAUSE_MS = 1800
+const WORKSPACE_EXAMPLE_RESET_PAUSE_MS = 280
+const WORKSPACE_SESSION_EXAMPLE_PREFIX = 'I want to '
+const WORKSPACE_SESSION_EXAMPLE_SUFFIXES = [
+  'simulate a Backend Engineer interview on Spring Boot.',
+  'clearly communicate AI Engineer principles to a non-technical stakeholder.',
+  'practice distributed systems tradeoffs for a senior backend role.',
+  'rehearse behavioral stories for a software engineering interview.',
+] as const
+const LONGEST_WORKSPACE_SESSION_EXAMPLE_SUFFIX = WORKSPACE_SESSION_EXAMPLE_SUFFIXES.reduce<string>(
+  (longest, example) => (example.length > longest.length ? example : longest),
+  WORKSPACE_SESSION_EXAMPLE_SUFFIXES[0]
+)
 const isThemePreference = (value: unknown): value is ThemePreference =>
   value === 'system' || value === 'light' || value === 'dark'
 
@@ -80,7 +93,9 @@ export default function InterviewPage() {
   const [emailSummaryNotifications, setEmailSummaryNotifications] = useState(true)
   const [productUpdatesNotifications, setProductUpdatesNotifications] = useState(false)
   const [hasLoadedInterviewHistory, setHasLoadedInterviewHistory] = useState(false)
-  const [typedWorkspaceHeadline, setTypedWorkspaceHeadline] = useState('')
+  const [typedWorkspaceExample, setTypedWorkspaceExample] = useState('')
+  const [activeWorkspaceExampleIndex, setActiveWorkspaceExampleIndex] = useState(0)
+  const [isDeletingWorkspaceExample, setIsDeletingWorkspaceExample] = useState(false)
   const [createSessionModalOpen, setCreateSessionModalOpen] = useState(false)
   const [profileFormData, setProfileFormData] = useState({
     firstname: '',
@@ -286,12 +301,6 @@ export default function InterviewPage() {
       : hasLoadedInterviewHistory && !hasSavedSessions
         ? `Welcome to Naild, ${greetingName}`
         : `Welcome back, ${greetingName}`
-  const workspaceIntroCopy =
-    !hasResolvedWorkspaceGreeting
-      ? 'Create a practice session and get ready to practice technical communication out loud.'
-      : hasLoadedInterviewHistory && !hasSavedSessions
-        ? 'Create your first practice session, speak your answer out loud, and build your first round of feedback.'
-        : 'Create a new practice session, explain technical ideas out loud, then jump back into saved sessions from the sidebar.'
 
   useEffect(() => {
     if (!createSessionModalOpen) return
@@ -318,42 +327,51 @@ export default function InterviewPage() {
   useEffect(() => {
     if (activeLandingView !== 'home') return
 
-    if (!hasResolvedWorkspaceGreeting) {
-      setTypedWorkspaceHeadline(workspaceHeadline)
-      return
-    }
+    const currentExample = WORKSPACE_SESSION_EXAMPLE_SUFFIXES[activeWorkspaceExampleIndex]
 
     if (prefersReducedMotion) {
-      setTypedWorkspaceHeadline(workspaceHeadline)
+      setTypedWorkspaceExample(currentExample)
       return
     }
 
-    setTypedWorkspaceHeadline('')
+    const hasTypedFullExample = typedWorkspaceExample === currentExample
+    const hasDeletedExample = typedWorkspaceExample.length === 0
+    const nextDelay = !isDeletingWorkspaceExample
+      ? hasTypedFullExample
+        ? WORKSPACE_EXAMPLE_PAUSE_MS
+        : WORKSPACE_EXAMPLE_TYPING_STEP_MS
+      : hasDeletedExample
+        ? WORKSPACE_EXAMPLE_RESET_PAUSE_MS
+        : WORKSPACE_EXAMPLE_DELETING_STEP_MS
 
-    let currentIndex = 0
-    let intervalId: ReturnType<typeof setInterval> | undefined
+    const timeoutId = window.setTimeout(() => {
+      if (!isDeletingWorkspaceExample && hasTypedFullExample) {
+        setIsDeletingWorkspaceExample(true)
+        return
+      }
 
-    const startDelayId = window.setTimeout(() => {
-      intervalId = window.setInterval(() => {
-        currentIndex += 1
-        setTypedWorkspaceHeadline(workspaceHeadline.slice(0, currentIndex))
+      if (isDeletingWorkspaceExample && hasDeletedExample) {
+        setIsDeletingWorkspaceExample(false)
+        setActiveWorkspaceExampleIndex((currentIndex) =>
+          (currentIndex + 1) % WORKSPACE_SESSION_EXAMPLE_SUFFIXES.length
+        )
+        return
+      }
 
-        if (currentIndex >= workspaceHeadline.length) {
-          if (intervalId !== undefined) {
-            window.clearInterval(intervalId)
-          }
-        }
-      }, WORKSPACE_HEADLINE_TYPING_STEP_MS)
-    }, WORKSPACE_HEADLINE_TYPING_DELAY_MS)
+      const nextLength = typedWorkspaceExample.length + (isDeletingWorkspaceExample ? -1 : 1)
+      setTypedWorkspaceExample(currentExample.slice(0, nextLength))
+    }, nextDelay)
 
     return () => {
-      window.clearTimeout(startDelayId)
-
-      if (intervalId !== undefined) {
-        window.clearInterval(intervalId)
-      }
+      window.clearTimeout(timeoutId)
     }
-  }, [activeLandingView, hasResolvedWorkspaceGreeting, prefersReducedMotion, workspaceHeadline])
+  }, [
+    activeLandingView,
+    activeWorkspaceExampleIndex,
+    isDeletingWorkspaceExample,
+    prefersReducedMotion,
+    typedWorkspaceExample,
+  ])
 
   // Don't render anything while loading or if user is not authenticated
   if (loading || !user) {
@@ -904,21 +922,27 @@ export default function InterviewPage() {
               </div>
               <h1
                 aria-label={workspaceHeadline}
-                className="relative mt-4 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl"
+                className="mt-4 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl"
               >
-                <span aria-hidden="true" className="invisible">
-                  {workspaceHeadline}
-                </span>
-                <span aria-hidden="true" className="absolute inset-0">
-                  {typedWorkspaceHeadline}
-                  {!prefersReducedMotion && typedWorkspaceHeadline.length < workspaceHeadline.length ? (
-                    <span className="ml-1 inline-block h-[0.85em] w-[2px] translate-y-1 animate-pulse bg-current align-middle" />
-                  ) : null}
-                </span>
+                {workspaceHeadline}
               </h1>
-              <p className="mt-3 max-w-xl text-base leading-7 text-gray-600">
-                {workspaceIntroCopy}
-              </p>
+              <div className="mt-4 max-w-2xl text-center">
+                <p
+                  aria-label={`${WORKSPACE_SESSION_EXAMPLE_PREFIX}${WORKSPACE_SESSION_EXAMPLE_SUFFIXES[activeWorkspaceExampleIndex]}`}
+                  className="relative text-base leading-7 text-gray-600 sm:text-lg"
+                >
+                  <span aria-hidden="true" className="invisible">
+                    {`${WORKSPACE_SESSION_EXAMPLE_PREFIX}${LONGEST_WORKSPACE_SESSION_EXAMPLE_SUFFIX}`}
+                  </span>
+                  <span aria-hidden="true" className="absolute inset-0">
+                    <span>{WORKSPACE_SESSION_EXAMPLE_PREFIX}</span>
+                    <span>{typedWorkspaceExample}</span>
+                    {!prefersReducedMotion ? (
+                      <span className="ml-1 inline-block h-[0.9em] w-[2px] translate-y-1 animate-pulse bg-current align-middle" />
+                    ) : null}
+                  </span>
+                </p>
+              </div>
             </section>
 
             <div className="flex justify-center pt-2">
@@ -1018,9 +1042,6 @@ export default function InterviewPage() {
                   >
                     What do you want to create?
                   </h2>
-                  <p className="mt-2 text-sm leading-6 text-gray-600">
-                    Choose a practice type and Naild will open the right setup flow.
-                  </p>
                 </div>
                 <button
                   type="button"
