@@ -41,7 +41,6 @@ interface SidebarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   userInitial: string;
-  userFirstName?: string;
   userCreatedAt?: Date | string;
   userName: string;
   userEmail: string;
@@ -64,7 +63,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
   onToggleCollapse,
   userInitial,
-  userFirstName,
   userCreatedAt,
   userName,
   userEmail,
@@ -626,7 +624,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="max-h-[calc(92vh-84px)] overflow-y-auto bg-gradient-to-b from-white to-gray-50">
                   <MetricsDashboard
                     interviews={interviews}
-                    userFirstName={userFirstName}
                     userCreatedAt={userCreatedAt}
                   />
                 </div>

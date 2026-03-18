@@ -5,7 +5,6 @@ import { getOverallScore } from '../lib/practiceConfig'
 
 interface MetricsDashboardProps {
   interviews: Interview[]
-  userFirstName?: string
   userCreatedAt?: Date | string
 }
 
@@ -137,7 +136,6 @@ const getIntensityLevel = (count: number, maxCount: number) => {
 
 const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
   interviews,
-  userFirstName,
   userCreatedAt,
 }) => {
   const [timeRange, setTimeRange] = useState<TimeRange>('6m')
@@ -374,9 +372,6 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-semibold text-gray-900 sm:text-2xl">Metrics</h1>
-            <p className="mt-1 text-xs text-gray-600 sm:text-sm">
-              {userFirstName ? `${userFirstName}, ` : ''}track your weekly practice rhythm the same way GitHub tracks contributions.
-            </p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700">
             <Target size={14} className="text-green-600" />

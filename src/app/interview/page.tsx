@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import React, { useState, useEffect, useRef } from 'react'
 import Sidebar from '../components/Sidebar'
 import CommunicationSetup from '../components/CommunicationSetup'
@@ -17,7 +18,6 @@ import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Bell,
-  ChevronDown,
   ChevronUp,
   LogOut,
   Monitor,
@@ -81,6 +81,7 @@ export default function InterviewPage() {
   const [productUpdatesNotifications, setProductUpdatesNotifications] = useState(false)
   const [hasLoadedInterviewHistory, setHasLoadedInterviewHistory] = useState(false)
   const [typedWorkspaceHeadline, setTypedWorkspaceHeadline] = useState('')
+  const [createSessionModalOpen, setCreateSessionModalOpen] = useState(false)
   const [profileFormData, setProfileFormData] = useState({
     firstname: '',
     lastname: '',
@@ -287,10 +288,32 @@ export default function InterviewPage() {
         : `Welcome back, ${greetingName}`
   const workspaceIntroCopy =
     !hasResolvedWorkspaceGreeting
-      ? 'Choose a drill and get ready to practice technical communication out loud.'
+      ? 'Create a practice session and get ready to practice technical communication out loud.'
       : hasLoadedInterviewHistory && !hasSavedSessions
-        ? 'Choose a drill, speak your answer out loud, and build your first round of feedback.'
-        : 'Practice explaining technical ideas out loud, then jump back into saved sessions from the sidebar.'
+        ? 'Create your first practice session, speak your answer out loud, and build your first round of feedback.'
+        : 'Create a new practice session, explain technical ideas out loud, then jump back into saved sessions from the sidebar.'
+
+  useEffect(() => {
+    if (!createSessionModalOpen) return
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setCreateSessionModalOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [createSessionModalOpen])
+
+  useEffect(() => {
+    if (activeLandingView !== 'home' && createSessionModalOpen) {
+      setCreateSessionModalOpen(false)
+    }
+  }, [activeLandingView, createSessionModalOpen])
 
   useEffect(() => {
     if (activeLandingView !== 'home') return
@@ -355,11 +378,13 @@ export default function InterviewPage() {
   }
 
   const openBehavioralSetup = () => {
+    setCreateSessionModalOpen(false)
     setActiveLandingView('behavioral')
     setCurrentInterview(null)
   }
 
   const openCommunicationSetup = () => {
+    setCreateSessionModalOpen(false)
     setActiveLandingView('communication')
     setCurrentInterview(null)
   }
@@ -865,13 +890,16 @@ export default function InterviewPage() {
         className="flex h-[200%] flex-col"
       >
         <section className="flex h-1/2 items-center">
-          <div className="mx-auto flex h-full w-full max-w-5xl flex-col justify-center gap-6 px-6 py-8 lg:px-10">
+          <div className="mx-auto flex h-full w-full max-w-5xl flex-col justify-center gap-6 px-6 py-8 lg:-translate-x-12 lg:-translate-y-8 lg:px-10">
             <section className="flex flex-col items-center justify-center px-4 pt-8 pb-2 text-center sm:pt-12">
               <div className="flex h-24 w-24 items-center justify-center">
-                <img
+                <Image
                   src="/naild_logo.png"
                   alt="Naild Logo"
+                  width={80}
+                  height={80}
                   className="h-20 w-20 object-contain"
+                  priority
                 />
               </div>
               <h1
@@ -893,61 +921,16 @@ export default function InterviewPage() {
               </p>
             </section>
 
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)]">
-              <section className="practice-mode-card practice-mode-card--technical rounded-[28px] border p-6 sm:p-7">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-emerald-700">
-                      Technical communication
-                    </div>
-                    <h2 className="mt-4 text-2xl font-semibold text-gray-900">Role-specific speaking drills</h2>
-                    <p className="mt-3 max-w-lg text-sm leading-6 text-gray-600">
-                      Pick your field, the audience, and the kind of explanation you want to practice. Naild generates one focused drill and scores clarity, correctness, depth, and audience fit.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 flex flex-wrap gap-2">
-                  {['Software engineering', 'Data science', 'AI engineering', 'Decision tradeoffs'].map((pill) => (
-                    <span
-                      key={pill}
-                      className="rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-gray-700"
-                    >
-                      {pill}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="mt-8">
-                  <button
-                    onClick={openCommunicationSetup}
-                    className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-black"
-                  >
-                    Generate drill
-                    <ChevronDown size={16} />
-                  </button>
-                </div>
-              </section>
-
-              <section className="practice-mode-card practice-mode-card--behavioral rounded-[28px] border p-6 sm:p-7">
-                <div className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-emerald-700">
-                  Secondary mode
-                </div>
-                <h2 className="mt-4 text-xl font-semibold text-gray-900">Behavioral interviews</h2>
-                <p className="mt-3 text-sm leading-6 text-gray-600">
-                  Keep practicing the classic story-based interview flow when you need it.
-                </p>
-
-                <div className="mt-8">
-                  <button
-                    onClick={openBehavioralSetup}
-                    className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                  >
-                    Start interview
-                    <ChevronDown size={16} />
-                  </button>
-                </div>
-              </section>
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                onClick={() => setCreateSessionModalOpen(true)}
+                className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-100 px-6 py-3 text-sm font-medium text-emerald-950 shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-200"
+                aria-haspopup="dialog"
+                aria-expanded={createSessionModalOpen}
+              >
+                Create new session
+              </button>
             </div>
           </div>
         </section>
@@ -972,7 +955,6 @@ export default function InterviewPage() {
         collapsed={sidebarCollapsed}
         onToggleCollapse={handleSidebarToggle}
         userInitial={user.firstname?.charAt(0).toUpperCase() || 'U'}
-        userFirstName={user.firstname}
         userCreatedAt={user.createdAt}
         userName={`${user.firstname} ${user.lastname}`.trim() || user.email}
         userEmail={user.email}
@@ -1004,6 +986,83 @@ export default function InterviewPage() {
           )}
         </div>
       </main>
+
+      <AnimatePresence>
+        {createSessionModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[85] flex items-center justify-center p-4"
+            onClick={() => setCreateSessionModalOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+              className="w-full max-w-md rounded-[28px] border border-emerald-100 bg-white p-6 shadow-[0_28px_80px_-28px_rgba(15,23,42,0.45)]"
+              onClick={(event) => event.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="create-session-dialog-title"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-[0.24em] text-emerald-700">
+                    New session
+                  </p>
+                  <h2
+                    id="create-session-dialog-title"
+                    className="mt-3 text-2xl font-semibold text-gray-900"
+                  >
+                    What do you want to create?
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-gray-600">
+                    Choose a practice type and Naild will open the right setup flow.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCreateSessionModalOpen(false)}
+                  className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                  aria-label="Close create session dialog"
+                >
+                  <span className="text-sm">✕</span>
+                </button>
+              </div>
+
+              <div className="mt-6 space-y-3">
+                <button
+                  type="button"
+                  onClick={openCommunicationSetup}
+                  className="flex w-full flex-col rounded-3xl border border-emerald-200 bg-emerald-50/70 px-5 py-4 text-left transition-colors hover:bg-emerald-50"
+                >
+                  <span className="text-sm font-semibold text-gray-900">
+                    Role-specific speaking drill
+                  </span>
+                  <span className="mt-1 text-sm leading-5 text-gray-600">
+                    Practice a technical explanation for a specific role, audience, and topic.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={openBehavioralSetup}
+                  className="flex w-full flex-col rounded-3xl border border-gray-200 bg-white px-5 py-4 text-left transition-colors hover:bg-gray-50"
+                >
+                  <span className="text-sm font-semibold text-gray-900">
+                    Behavioral interview
+                  </span>
+                  <span className="mt-1 text-sm leading-5 text-gray-600">
+                    Run a story-based interview round with classic behavioral prompts.
+                  </span>
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {activeModal && (
