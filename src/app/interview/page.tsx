@@ -945,7 +945,7 @@ export default function InterviewPage() {
               </div>
             </section>
 
-            <div className="flex justify-center pt-2">
+            <div className="-mt-3 flex justify-center">
               <button
                 type="button"
                 onClick={() => setCreateSessionModalOpen(true)}
@@ -1017,7 +1017,7 @@ export default function InterviewPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[85] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[85] flex items-center justify-center bg-black/10 p-4"
             onClick={() => setCreateSessionModalOpen(false)}
           >
             <motion.div
