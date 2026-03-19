@@ -9,6 +9,7 @@ import {
   Sparkles,
   Waypoints,
 } from 'lucide-react'
+import { AUREON_NAME } from '../lib/modelConfig'
 
 const LIBRARY_NOTES = [
   {
@@ -143,6 +144,24 @@ const LIBRARY_NOTES = [
   },
 ] as const
 
+const AUREON_RESULT_GUIDE = [
+  {
+    title: 'Pick a real listener',
+    description:
+      'Tell Aureon who you are speaking to so the feedback can judge the right level of detail, tradeoffs, and framing.',
+  },
+  {
+    title: 'Open with the answer',
+    description:
+      'Lead with the core point in your first sentence. Aureon is much more useful when the structure is visible early.',
+  },
+  {
+    title: 'Retry the same answer once',
+    description:
+      'After feedback, keep the topic fixed and only improve the top missing point. That is the fastest way to feel the difference.',
+  },
+] as const
+
 export type LibraryNoteId = (typeof LIBRARY_NOTES)[number]['id']
 
 interface LibraryProps {
@@ -179,7 +198,7 @@ const Library: React.FC<LibraryProps> = ({ selectedTopicId, onSelectTopic }) => 
                 Learn what strong answers sound like.
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-7 text-gray-600 sm:text-base">
-                This library should not read like communication cliches. Each entry shows the failure mode, what a weak answer sounds like, what a stronger version sounds like, and a short drill you can use immediately.
+                This library should not read like communication cliches. Each entry shows the failure mode, what a weak answer sounds like, what a stronger version sounds like, and how to give {AUREON_NAME} enough signal to coach you well.
               </p>
             </div>
 
@@ -243,6 +262,36 @@ const Library: React.FC<LibraryProps> = ({ selectedTopicId, onSelectTopic }) => 
             </div>
           </div>
 
+          <section className="mt-8 rounded-[28px] border border-sky-200 bg-sky-50/80 p-5 sm:p-6">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-sky-700">
+                <Sparkles size={14} />
+                {AUREON_NAME} playbook
+              </div>
+              <h2 className="mt-4 text-2xl font-semibold text-gray-900">
+                Get the best results from {AUREON_NAME}.
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-gray-600 sm:text-base">
+                {AUREON_NAME} is most useful when your answer has a clear audience, a visible structure, and one deliberate retry after feedback.
+              </p>
+            </div>
+
+            <div className="mt-6 grid gap-3 lg:grid-cols-3">
+              {AUREON_RESULT_GUIDE.map((item, index) => (
+                <div
+                  key={item.title}
+                  className="rounded-[24px] border border-sky-100 bg-white/90 p-5 shadow-sm"
+                >
+                  <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">
+                    {index + 1}
+                  </div>
+                  <h3 className="mt-4 text-base font-semibold text-gray-900">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-600">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
           <div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
             <section className="rounded-[28px] border border-gray-200 bg-gray-50/80 p-5 sm:p-6">
               <div className="flex items-start gap-4">
@@ -301,7 +350,7 @@ const Library: React.FC<LibraryProps> = ({ selectedTopicId, onSelectTopic }) => 
               <div className="rounded-[28px] border border-emerald-200 bg-emerald-50/80 p-5 sm:p-6">
                 <div className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-emerald-700">
                   <CheckCircle2 size={14} />
-                  What the coach listens for
+                  What {AUREON_NAME} listens for
                 </div>
                 <div className="mt-4 space-y-4">
                   {selectedTopic.coachListensFor.map((item) => (
