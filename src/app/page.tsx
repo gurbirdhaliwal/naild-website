@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './context/AuthContext';
+import { AUREON_NAME } from './lib/modelConfig';
 import {
   broadcastLogout,
   clearOAuthHandoffRedirect,
@@ -19,7 +20,7 @@ const tabs = [
     title: 'Get feedback that improves how you explain technical ideas.',
     description:
       'Naild scores clarity, correctness, depth, and audience fit so every drill ends with specific direction for the next retry.',
-    previewLabel: 'AI Coach Feedback',
+    previewLabel: `${AUREON_NAME} Feedback`,
     previewTitle: 'Explain why you chose retrieval-augmented generation over fine-tuning.',
     previewDetail: 'Audience: Non-technical stakeholder',
     bullets: ['Clarity: 82', 'Correctness: 79', 'Depth: 74', 'Audience fit: 88'],
@@ -211,7 +212,7 @@ const NaildLanding = () => {
             </span>
           </h1>
           <p className="mx-auto max-w-3xl text-xl font-normal leading-9 text-gray-500">
-            AI-powered drills, feedback, retries, and progress tracking.
+            {AUREON_NAME}-powered drills, feedback, retries, and progress tracking.
           </p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}

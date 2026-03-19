@@ -9,6 +9,7 @@ import { API_BASE, API_ORIGIN } from '../services/api';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { getSafeRedirectPath } from '../services/safeRedirect';
 import { setOAuthHandoffRedirect } from '../services/authSession';
+import { AUREON_NAME } from '../lib/modelConfig';
 
 function SignupContent() {
   const searchParams = useSearchParams();
@@ -102,7 +103,7 @@ function SignupContent() {
       >
         <div className="text-center">
           <h2 className="text-2xl font-semibold text-gray-900">Create your account</h2>
-          <p className="mt-1 text-sm text-gray-600">Start practicing interviews with AI feedback</p>
+          <p className="mt-1 text-sm text-gray-600">Start practicing interviews with {AUREON_NAME} feedback</p>
         </div>
 
         {/* EMAIL SIGNUP FLOW */}
