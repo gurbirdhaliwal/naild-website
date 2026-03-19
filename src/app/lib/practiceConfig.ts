@@ -1,3 +1,4 @@
+import { AUREON_NAME } from './modelConfig'
 import type {
   AudienceType,
   GeneratedPrompt,
@@ -208,7 +209,7 @@ export const getSessionSubtitle = (session: Interview) => {
 export const getSessionFocusSummary = (session: Interview) => {
   if ((session.sessionType ?? 'behavioral-interview') === 'technical-communication') {
     if (session.topic) return session.topic
-    return session.generatedPrompt?.topic || 'AI-generated drill'
+    return session.generatedPrompt?.topic || `${AUREON_NAME}-generated drill`
   }
 
   return session.languages[0] || session.role

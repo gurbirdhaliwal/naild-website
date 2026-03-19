@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronLeft, Check, Sparkles } from 'lucide-react'
 import { InterviewConfig } from '../types/Interview'
 import { AI_BASE } from '../services/api'
+import { AUREON_NAME } from '../lib/modelConfig'
 
 interface InterviewSetupProps {
   onCreateInterview: (config: InterviewConfig) => void
@@ -143,22 +144,22 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
     if (!config.role || config.languages.length === 0) return
 
     setLoading(true)
-    setLoadingMsg('Warming up AI, please wait...')
+    setLoadingMsg(`Warming up ${AUREON_NAME}, please wait...`)
 
     try {
       const res = await fetch(`${AI_BASE}/warmup`)
       const data = await res.json()
 
       if (data.status === 'ready') {
-        setLoadingMsg('AI is ready! Building your interview...')
+        setLoadingMsg(`${AUREON_NAME} is ready. Building your interview...`)
         window.setTimeout(() => {
           onCreateInterview(config)
         }, 500)
       } else {
-        setLoadingMsg('Error warming up AI. Please try again.')
+        setLoadingMsg(`Error warming up ${AUREON_NAME}. Please try again.`)
       }
     } catch {
-      setLoadingMsg('Error connecting to AI backend.')
+      setLoadingMsg(`Error connecting to ${AUREON_NAME}.`)
     }
   }
 

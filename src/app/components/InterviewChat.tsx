@@ -28,6 +28,7 @@ import {
   getSessionTypeLabel,
   normalizeGeneratedPrompt,
 } from '../lib/practiceConfig'
+import { AUREON_NAME } from '../lib/modelConfig'
 
 interface InterviewChatProps {
   interview: Interview
@@ -213,7 +214,7 @@ const normalizeCommunicationGradingResult = (
       feedback:
         typeof selected?.feedback === 'string'
           ? selected.feedback
-          : `The coach did not return explicit feedback for ${label.toLowerCase()}.`,
+          : `${AUREON_NAME} did not return explicit feedback for ${label.toLowerCase()}.`,
     }
   })
 
@@ -299,7 +300,7 @@ const dedupeFeedbackEntries = (entries: string[]) => {
 const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterview }) => {
   const isBehavioralSession = (interview.sessionType ?? 'behavioral-interview') === 'behavioral-interview'
   const maxRecordingDuration = isBehavioralSession ? 60 : 120
-  const coachLabel = isBehavioralSession ? 'AI Interviewer' : 'AI Coach'
+  const modelLabel = AUREON_NAME
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -398,12 +399,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
       role: 'interviewer',
       content: welcomeContent,
       timestamp: new Date(),
-      transcription: `[${coachLabel}]: ${welcomeContent}`,
+      transcription: `[${modelLabel}]: ${welcomeContent}`,
       isThinking: false,
     }
 
     onUpdateInterview({ ...interview, messages: [welcome] })
-  }, [coachLabel, interview, isBehavioralSession, onUpdateInterview])
+  }, [interview, isBehavioralSession, modelLabel, onUpdateInterview])
 
   useEffect(() => {
     if (!isTimerRunning || timer <= 0) {
@@ -510,9 +511,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
   const buildThinkingMessage = (): Message => ({
     id: `${Date.now()}-thinking`,
     role: 'interviewer',
-    content: 'AI is thinking...',
+    content: `${modelLabel} is thinking...`,
     timestamp: new Date(),
-    transcription: `${coachLabel} is thinking`,
+    transcription: `${modelLabel} is thinking...`,
     isThinking: true,
   })
 
@@ -566,7 +567,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         role: 'interviewer',
         content: `Strongest signal: ${strongestPoint} Next fix: ${missingPoint}`,
         timestamp: new Date(),
-        transcription: `[${coachLabel}]: Strongest signal: ${strongestPoint} Next fix: ${missingPoint}`,
+        transcription: `[${modelLabel}]: Strongest signal: ${strongestPoint} Next fix: ${missingPoint}`,
         isThinking: false,
       }
 
@@ -655,7 +656,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         role: 'interviewer',
         content: ackResult.acknowledgement,
         timestamp: new Date(),
-        transcription: `[${coachLabel}]: ${ackResult.acknowledgement}`,
+        transcription: `[${modelLabel}]: ${ackResult.acknowledgement}`,
         isThinking: false,
       }
 
@@ -666,7 +667,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
         role: 'interviewer',
         content: isLastQuestion ? ackResult.goodbye : ackResult.next_question,
         timestamp: new Date(),
-        transcription: `[${coachLabel}]: ${isLastQuestion ? ackResult.goodbye : ackResult.next_question}`,
+        transcription: `[${modelLabel}]: ${isLastQuestion ? ackResult.goodbye : ackResult.next_question}`,
         isThinking: false,
       }
 
@@ -1076,7 +1077,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                         {gradingResult.strengths.length > 0 ? (
                           gradingResult.strengths.map((item) => <li key={item}>• {item}</li>)
                         ) : (
-                          <li>• The coach did not return extra strengths for this answer.</li>
+                          <li>• {AUREON_NAME} did not return extra strengths for this answer.</li>
                         )}
                       </ul>
                     </div>
@@ -1120,7 +1121,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                       ? 'Click the microphone to answer the current question.'
                       : 'Click the microphone to answer this drill.'
                   }
-                  processingText={isProcessing ? `${coachLabel} is reviewing your answer...` : 'Processing...'}
+                  processingText={isProcessing ? `${modelLabel} is reviewing your answer...` : 'Processing...'}
                 />
               </div>
             ) : null}
@@ -1150,7 +1151,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                 >
                   {message.isThinking ? (
                     <span>
-                      {coachLabel} is thinking
+                      {modelLabel} is thinking
                       <span className="thinking-dots-bouncing">
                         <span></span>
                         <span></span>

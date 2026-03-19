@@ -18,6 +18,7 @@ import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Bell,
+  ChevronDown,
   ChevronUp,
   LogOut,
   Monitor,
@@ -36,6 +37,11 @@ import {
   getPracticeModeLabel,
   normalizeGeneratedPrompt,
 } from '../lib/practiceConfig'
+import {
+  AUREON_MODEL_OPTIONS,
+  AUREON_NAME,
+  AUREON_VERSION_LABEL,
+} from '../lib/modelConfig'
 
 type SettingsTab = 'account' | 'appearance' | 'notifications'
 type ThemePreference = 'system' | 'light' | 'dark'
@@ -111,7 +117,9 @@ export default function InterviewPage() {
   } | null>(null)
   const [showAccountEditor, setShowAccountEditor] = useState(false)
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false)
+  const [modelMenuOpen, setModelMenuOpen] = useState(false)
   const messagePersistQueueRef = useRef<Map<string, Promise<void>>>(new Map())
+  const modelMenuRef = useRef<HTMLDivElement | null>(null)
   const prefersReducedMotion = useReducedMotion()
 
   // Handle authentication redirect
@@ -325,6 +333,36 @@ export default function InterviewPage() {
   }, [activeLandingView, createSessionModalOpen])
 
   useEffect(() => {
+    if (!modelMenuOpen) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!modelMenuRef.current?.contains(event.target as Node)) {
+        setModelMenuOpen(false)
+      }
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setModelMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [modelMenuOpen])
+
+  useEffect(() => {
+    if (activeLandingView !== 'home' || createSessionModalOpen || currentInterview) {
+      setModelMenuOpen(false)
+    }
+  }, [activeLandingView, createSessionModalOpen, currentInterview])
+
+  useEffect(() => {
     if (activeLandingView !== 'home') return
 
     const currentExample = WORKSPACE_SESSION_EXAMPLE_SUFFIXES[activeWorkspaceExampleIndex]
@@ -493,7 +531,7 @@ export default function InterviewPage() {
       role: 'interviewer' as const,
       content: coachIntro,
       timestamp: now,
-      transcription: `[AI Coach]: ${coachIntro}`,
+      transcription: `[${AUREON_NAME}]: ${coachIntro}`,
       isThinking: false,
     }
     const promptMessage = {
@@ -501,7 +539,7 @@ export default function InterviewPage() {
       role: 'interviewer' as const,
       content: `Prompt: ${generatedPrompt.prompt}`,
       timestamp: now,
-      transcription: `[AI Coach]: Prompt: ${generatedPrompt.prompt}`,
+      transcription: `[${AUREON_NAME}]: Prompt: ${generatedPrompt.prompt}`,
       isThinking: false,
     }
     const messages = [introMessage, promptMessage]
@@ -591,7 +629,7 @@ export default function InterviewPage() {
       role: 'interviewer' as const,
       content: introCopy,
       timestamp: now,
-      transcription: `[AI Interviewer]: ${introCopy}`,
+      transcription: `[${AUREON_NAME}]: ${introCopy}`,
       isThinking: false,
     };
     const firstQuestionMessage = {
@@ -599,7 +637,7 @@ export default function InterviewPage() {
       role: 'interviewer' as const,
       content: aiQuestions[0] || "Tell me about a time you handled a challenging situation at work.",
       timestamp: now,
-      transcription: `[AI Interviewer]: ${aiQuestions[0] || "Tell me about a time you handled a challenging situation at work."}`,
+      transcription: `[${AUREON_NAME}]: ${aiQuestions[0] || "Tell me about a time you handled a challenging situation at work."}`,
       isThinking: false,
     };
     const messages = [introMessage, firstQuestionMessage];
@@ -907,41 +945,110 @@ export default function InterviewPage() {
         transition={{ type: 'spring', stiffness: 170, damping: 26 }}
         className="flex h-[200%] flex-col"
       >
-        <section className="flex h-1/2 items-center">
-          <div className="mx-auto flex h-full w-full max-w-5xl flex-col justify-center gap-6 px-6 py-8 lg:-translate-x-12 lg:-translate-y-8 lg:px-10">
-            <section className="flex flex-col items-center justify-center px-4 pt-8 pb-2 text-center sm:pt-12">
-              <div className="flex h-24 w-24 items-center justify-center">
-                <Image
-                  src="/naild_logo.png"
-                  alt="Naild Logo"
-                  width={80}
-                  height={80}
-                  className="h-20 w-20 object-contain"
-                  priority
-                />
-              </div>
-              <h1
-                aria-label={workspaceHeadline}
-                className="mt-4 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl"
+        <section className="relative flex h-1/2 items-center">
+          <div
+            className="absolute left-6 top-3 z-10 lg:left-10 lg:top-4"
+            ref={modelMenuRef}
+          >
+            <div className="relative flex justify-start">
+              <button
+                type="button"
+                onClick={() => setModelMenuOpen((prev) => !prev)}
+                className="inline-flex items-center gap-2 text-base font-medium text-gray-500 transition-colors hover:text-gray-900"
+                aria-haspopup="menu"
+                aria-expanded={modelMenuOpen}
               >
-                {workspaceHeadline}
-              </h1>
-              <div className="mt-4 max-w-2xl text-center">
-                <p
-                  aria-label={`${WORKSPACE_SESSION_EXAMPLE_PREFIX}${WORKSPACE_SESSION_EXAMPLE_SUFFIXES[activeWorkspaceExampleIndex]}`}
-                  className="relative text-base leading-7 text-gray-600 sm:text-lg"
+                <span>{AUREON_VERSION_LABEL}</span>
+                <ChevronDown
+                  size={17}
+                  className={`transition-transform ${modelMenuOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {modelMenuOpen ? (
+                <div className="absolute left-0 top-full z-20 mt-3 w-72 overflow-hidden rounded-[24px] border border-gray-200 bg-white p-2 text-left shadow-[0_24px_70px_-28px_rgba(15,23,42,0.28)]">
+                  <div className="px-3 pb-2 pt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
+                    Model lineup
+                  </div>
+
+                  <div className="space-y-1">
+                    {AUREON_MODEL_OPTIONS.map((option) => {
+                      const isCurrent = option.id === AUREON_MODEL_OPTIONS[0].id
+
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setModelMenuOpen(false)}
+                          disabled={!option.available}
+                          className={`flex w-full items-start justify-between gap-3 rounded-[18px] px-3 py-3 text-left transition-colors ${
+                            isCurrent
+                              ? 'bg-emerald-50 text-emerald-950'
+                              : 'text-gray-600'
+                          } ${
+                            option.available ? 'hover:bg-gray-50' : 'cursor-not-allowed opacity-70'
+                          }`}
+                        >
+                          <div>
+                            <div className="text-sm font-semibold">{option.label}</div>
+                            <div className="mt-1 text-xs leading-5 text-gray-500">
+                              {option.description}
+                            </div>
+                          </div>
+                          <span
+                            className={`rounded-full px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${
+                              isCurrent
+                                ? 'bg-white text-emerald-700'
+                                : 'bg-gray-100 text-gray-500'
+                            }`}
+                          >
+                            {isCurrent ? 'Current' : 'Soon'}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="mx-auto flex h-full w-full max-w-5xl flex-col justify-center gap-6 px-6 py-8 lg:-translate-x-12 lg:-translate-y-8 lg:px-10">
+            <section className="w-full px-4 pt-8 pb-2 sm:pt-12">
+              <div className="mt-6 flex flex-col items-center justify-center text-center">
+                <div className="flex h-24 w-24 items-center justify-center">
+                  <Image
+                    src="/naild_logo.png"
+                    alt="Naild Logo"
+                    width={80}
+                    height={80}
+                    className="h-20 w-20 object-contain"
+                    priority
+                  />
+                </div>
+                <h1
+                  aria-label={workspaceHeadline}
+                  className="mt-4 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl"
                 >
-                  <span aria-hidden="true" className="invisible">
-                    {`${WORKSPACE_SESSION_EXAMPLE_PREFIX}${LONGEST_WORKSPACE_SESSION_EXAMPLE_SUFFIX}`}
-                  </span>
-                  <span aria-hidden="true" className="absolute inset-0">
-                    <span>{WORKSPACE_SESSION_EXAMPLE_PREFIX}</span>
-                    <span>{typedWorkspaceExample}</span>
-                    {!prefersReducedMotion ? (
-                      <span className="ml-1 inline-block h-[0.9em] w-[2px] translate-y-1 animate-pulse bg-current align-middle" />
-                    ) : null}
-                  </span>
-                </p>
+                  {workspaceHeadline}
+                </h1>
+                <div className="mt-4 max-w-2xl text-center">
+                  <p
+                    aria-label={`${WORKSPACE_SESSION_EXAMPLE_PREFIX}${WORKSPACE_SESSION_EXAMPLE_SUFFIXES[activeWorkspaceExampleIndex]}`}
+                    className="relative text-base leading-7 text-gray-600 sm:text-lg"
+                  >
+                    <span aria-hidden="true" className="invisible">
+                      {`${WORKSPACE_SESSION_EXAMPLE_PREFIX}${LONGEST_WORKSPACE_SESSION_EXAMPLE_SUFFIX}`}
+                    </span>
+                    <span aria-hidden="true" className="absolute inset-0">
+                      <span>{WORKSPACE_SESSION_EXAMPLE_PREFIX}</span>
+                      <span>{typedWorkspaceExample}</span>
+                      {!prefersReducedMotion ? (
+                        <span className="ml-1 inline-block h-[0.9em] w-[2px] translate-y-1 animate-pulse bg-current align-middle" />
+                      ) : null}
+                    </span>
+                  </p>
+                </div>
               </div>
             </section>
 

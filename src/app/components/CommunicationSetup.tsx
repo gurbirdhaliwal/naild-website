@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronLeft, Check, Sparkles } from 'lucide-react'
 import { AI_BASE } from '../services/api'
 import { CommunicationSessionConfig } from '../types/Interview'
+import { AUREON_NAME } from '../lib/modelConfig'
 import {
   AUDIENCE_OPTIONS,
   COMMUNICATION_FIELDS,
@@ -70,7 +71,7 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
     if (!config.role) return
 
     setLoading(true)
-    setLoadingMsg('Warming up the coach...')
+    setLoadingMsg(`Warming up ${AUREON_NAME}...`)
 
     try {
       const res = await fetch(`${AI_BASE}/warmup`)
@@ -82,9 +83,9 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
         return
       }
 
-      setLoadingMsg('The AI coach is not ready. Please try again.')
+      setLoadingMsg(`${AUREON_NAME} is not ready yet. Please try again.`)
     } catch {
-      setLoadingMsg('Unable to connect to the AI coach.')
+      setLoadingMsg(`Unable to connect to ${AUREON_NAME}.`)
     } finally {
       setLoading(false)
     }
