@@ -22,7 +22,6 @@ import Link from 'next/link';
 import MetricsDashboard from './MetricsDashboard';
 import { LIBRARY_SECTIONS, type LibrarySectionId } from './Library';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AUREON_NAME } from '../lib/modelConfig';
 import {
   getAudienceLabel,
   getPracticeModeLabel,
@@ -657,7 +656,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       <h2 className="text-sm font-semibold sm:text-base">Library</h2>
                     </div>
                     <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-                      Examples and quick drills for getting stronger answers out of {AUREON_NAME}.
+                      Study guides, playbooks, and documentation for stronger technical communication.
                     </p>
                   </div>
                   <button
@@ -689,7 +688,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                               <Icon size={18} />
                             </div>
                             <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-600">
-                              {AUREON_NAME}
+                              {section.status === 'ready' ? 'Ready' : 'Soon'}
                             </span>
                           </div>
 
