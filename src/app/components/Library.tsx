@@ -144,44 +144,115 @@ const LIBRARY_NOTES = [
   },
 ] as const
 
-const AUREON_RESULT_GUIDE = [
+const LIBRARY_GUIDE_SECTION = {
+  id: 'aureon-guide',
+  title: `${AUREON_NAME} Guide`,
+  subtitle: `Use ${AUREON_NAME} as a practice partner, not just an answer generator.`,
+  description: `Documentation for getting the strongest results from ${AUREON_NAME}.`,
+  tags: ['Guide', 'Aureon'],
+  icon: Sparkles,
+} as const
+
+const AUREON_DOC_SECTIONS = [
   {
-    title: 'Pick a real listener',
-    description:
-      'Tell Aureon who you are speaking to so the feedback can judge the right level of detail, tradeoffs, and framing.',
+    title: 'Set up the session intentionally',
+    body:
+      'Before you begin, decide what you want to practice and who the listener is. Aureon gives better feedback when the communication goal is explicit.',
+    bullets: [
+      'Explain a technical concept to a beginner.',
+      'Walk through a system design.',
+      'Defend a decision or summarize a bug.',
+      'Describe a project from your resume to a recruiter, PM, engineer, classmate, or customer.',
+    ],
   },
   {
-    title: 'Open with the answer',
-    description:
-      'Lead with the core point in your first sentence. Aureon is much more useful when the structure is visible early.',
+    title: 'Treat Aureon like a real audience',
+    body:
+      'Do not just dump information. Communicate as if another person genuinely needs to understand you. Structure the answer, define terms when needed, and focus on teaching, clarifying, or justifying.',
+    bullets: [
+      'Lead with the point before adding detail.',
+      'Define terms only when they help the listener follow.',
+      'Aim to make each sentence easier to understand than the last.',
+    ],
   },
   {
-    title: 'Retry the same answer once',
-    description:
-      'After feedback, keep the topic fixed and only improve the top missing point. That is the fastest way to feel the difference.',
+    title: 'Ask Aureon to challenge you',
+    body:
+      'Improvement is faster when the conversation pushes back. Use Aureon to surface the parts of your explanation that would lose a real listener.',
+    bullets: [
+      'Point out unclear wording.',
+      'Ask follow-up questions.',
+      'Challenge weak logic.',
+      'Highlight missing assumptions.',
+      'Identify language that is too technical for the audience.',
+    ],
   },
+  {
+    title: 'Prefer clarity before complexity',
+    body:
+      'Strong explanations are usually simple first and detailed second. Practice the same idea in multiple forms so you build control instead of memorizing one script.',
+    bullets: [
+      'Explain it in one sentence.',
+      'Explain it in plain language.',
+      'Explain it for a technical audience.',
+      'Explain it with a business-impact angle.',
+      'Use analogies, examples, inputs and outputs, or before-and-after comparisons.',
+    ],
+  },
+] as const
+const AUREON_PRACTICE_LOOP = [
+  'Explain the idea.',
+  'Get feedback.',
+  'Rewrite it more clearly.',
+  'Try again for a different audience.',
+] as const
+const AUREON_FEEDBACK_DIMENSIONS = [
+  'Clarity',
+  'Conciseness',
+  'Structure',
+  'Technical accuracy',
+  'Confidence',
+  'Audience fit',
+  'Persuasiveness',
+] as const
+const AUREON_BEST_PRACTICES = [
+  'Give each session a clear audience and goal.',
+  'Explain ideas in your own words before asking for help.',
+  'Ask for honest, direct feedback instead of broad encouragement.',
+  'Revise after feedback instead of moving on immediately.',
+  'Practice the same concept at different difficulty levels.',
+  'Focus on being understood, not just sounding technical.',
 ] as const
 
 export type LibraryNoteId = (typeof LIBRARY_NOTES)[number]['id']
+export type LibrarySectionId = LibraryNoteId | typeof LIBRARY_GUIDE_SECTION.id
+const LIBRARY_SECTIONS = [LIBRARY_GUIDE_SECTION, ...LIBRARY_NOTES] as const
 
 interface LibraryProps {
-  selectedTopicId: LibraryNoteId
-  onSelectTopic: (topicId: LibraryNoteId) => void
+  selectedSectionId: LibrarySectionId
+  onSelectSection: (sectionId: LibrarySectionId) => void
 }
 
-const Library: React.FC<LibraryProps> = ({ selectedTopicId, onSelectTopic }) => {
+const Library: React.FC<LibraryProps> = ({ selectedSectionId, onSelectSection }) => {
   const [topicMenuOpen, setTopicMenuOpen] = useState(false)
 
-  const selectedTopic = useMemo(
-    () => LIBRARY_NOTES.find((topic) => topic.id === selectedTopicId) ?? LIBRARY_NOTES[0],
-    [selectedTopicId]
+  const selectedSection = useMemo(
+    () =>
+      LIBRARY_SECTIONS.find((section) => section.id === selectedSectionId) ?? LIBRARY_GUIDE_SECTION,
+    [selectedSectionId]
   )
 
-  const handleTopicChange = (topicId: LibraryNoteId) => {
-    onSelectTopic(topicId)
+  const selectedTopic = useMemo(
+    () => LIBRARY_NOTES.find((topic) => topic.id === selectedSectionId) ?? LIBRARY_NOTES[0],
+    [selectedSectionId]
+  )
+
+  const handleSectionChange = (sectionId: LibrarySectionId) => {
+    onSelectSection(sectionId)
     setTopicMenuOpen(false)
   }
 
+  const isGuideSelected = selectedSection.id === LIBRARY_GUIDE_SECTION.id
   const SelectedIcon = selectedTopic.icon
 
   return (
@@ -214,10 +285,10 @@ const Library: React.FC<LibraryProps> = ({ selectedTopicId, onSelectTopic }) => 
               >
                 <div className="min-w-0">
                   <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-700">
-                    Focus skill
+                    Library section
                   </div>
                   <div className="mt-1 truncate text-sm font-semibold text-gray-900">
-                    {selectedTopic.title}
+                    {selectedSection.title}
                   </div>
                 </div>
                 <ChevronDown
@@ -229,15 +300,15 @@ const Library: React.FC<LibraryProps> = ({ selectedTopicId, onSelectTopic }) => 
               {topicMenuOpen ? (
                 <div className="absolute right-0 top-full z-20 mt-3 w-full overflow-hidden rounded-[24px] border border-emerald-100 bg-white p-2 shadow-[0_24px_70px_-28px_rgba(15,23,42,0.3)]">
                   <div className="max-h-[340px] overflow-y-auto">
-                    {LIBRARY_NOTES.map((topic) => {
-                      const Icon = topic.icon
-                      const isSelected = topic.id === selectedTopic.id
+                    {LIBRARY_SECTIONS.map((section) => {
+                      const Icon = section.icon
+                      const isSelected = section.id === selectedSection.id
 
                       return (
                         <button
-                          key={topic.id}
+                          key={section.id}
                           type="button"
-                          onClick={() => handleTopicChange(topic.id)}
+                          onClick={() => handleSectionChange(section.id)}
                           className={`flex w-full items-start gap-3 rounded-[18px] px-3 py-3 text-left transition-colors ${
                             isSelected ? 'bg-emerald-50 text-emerald-900' : 'text-gray-700 hover:bg-gray-50'
                           }`}
@@ -250,8 +321,8 @@ const Library: React.FC<LibraryProps> = ({ selectedTopicId, onSelectTopic }) => 
                             <Icon size={17} />
                           </div>
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold">{topic.title}</div>
-                            <p className="mt-1 text-xs leading-5 text-gray-600">{topic.description}</p>
+                            <div className="truncate text-sm font-semibold">{section.title}</div>
+                            <p className="mt-1 text-xs leading-5 text-gray-600">{section.description}</p>
                           </div>
                         </button>
                       )
@@ -262,36 +333,95 @@ const Library: React.FC<LibraryProps> = ({ selectedTopicId, onSelectTopic }) => 
             </div>
           </div>
 
-          <section className="mt-8 rounded-[28px] border border-sky-200 bg-sky-50/80 p-5 sm:p-6">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-sky-700">
-                <Sparkles size={14} />
-                {AUREON_NAME} playbook
-              </div>
-              <h2 className="mt-4 text-2xl font-semibold text-gray-900">
-                Get the best results from {AUREON_NAME}.
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-gray-600 sm:text-base">
-                {AUREON_NAME} is most useful when your answer has a clear audience, a visible structure, and one deliberate retry after feedback.
-              </p>
-            </div>
-
-            <div className="mt-6 grid gap-3 lg:grid-cols-3">
-              {AUREON_RESULT_GUIDE.map((item, index) => (
-                <div
-                  key={item.title}
-                  className="rounded-[24px] border border-sky-100 bg-white/90 p-5 shadow-sm"
-                >
-                  <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">
-                    {index + 1}
-                  </div>
-                  <h3 className="mt-4 text-base font-semibold text-gray-900">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-gray-600">{item.description}</p>
+          {isGuideSelected ? (
+            <section className="mt-8 border-t border-gray-200 pt-8">
+              <div className="max-w-3xl">
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-700">
+                  <Sparkles size={14} />
+                  {AUREON_NAME} guide
                 </div>
-              ))}
-            </div>
-          </section>
+                <h2 className="mt-4 text-2xl font-semibold text-gray-900 sm:text-3xl">
+                  How to get the most out of {AUREON_NAME}
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-gray-600 sm:text-base">
+                  {AUREON_NAME} is built to help you explain technical ideas clearly, accurately, and
+                  confidently. The more intentional the session, the more useful the feedback
+                  becomes.
+                </p>
+              </div>
 
+              <div className="mt-8 max-w-3xl space-y-8">
+                {AUREON_DOC_SECTIONS.map((section) => (
+                  <section key={section.title} className="border-t border-gray-200 pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900">{section.title}</h3>
+                    <p className="mt-3 text-sm leading-7 text-gray-600 sm:text-base">
+                      {section.body}
+                    </p>
+                    <ul className="mt-4 space-y-2 text-sm leading-7 text-gray-700 sm:text-base">
+                      {section.bullets.map((bullet) => (
+                        <li key={bullet} className="relative pl-5">
+                          <span className="absolute left-0 top-[0.82rem] h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          {bullet}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+
+                <section className="border-t border-gray-200 pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Practice revision, not just first attempts
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-gray-600 sm:text-base">
+                    Your first explanation does not need to be perfect. One of the best ways to
+                    improve is to explain something, get feedback, revise it, and try again.
+                  </p>
+                  <ol className="mt-4 space-y-2 text-sm leading-7 text-gray-700 sm:text-base">
+                    {AUREON_PRACTICE_LOOP.map((item, index) => (
+                      <li key={item}>
+                        <span className="font-semibold text-gray-900">{index + 1}.</span> {item}
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+
+                <section className="border-t border-gray-200 pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Ask for feedback on specific dimensions
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-gray-600 sm:text-base">
+                    Broad feedback can help, but focused feedback is easier to act on and measure over
+                    time.
+                  </p>
+                  <ul className="mt-4 grid gap-2 text-sm leading-7 text-gray-700 sm:grid-cols-2 sm:text-base">
+                    {AUREON_FEEDBACK_DIMENSIONS.map((dimension) => (
+                      <li key={dimension} className="relative pl-5">
+                        <span className="absolute left-0 top-[0.82rem] h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {dimension}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+
+                <section className="border-t border-gray-200 pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900">Best practices</h3>
+                  <ul className="mt-4 space-y-2 text-sm leading-7 text-gray-700 sm:text-base">
+                    {AUREON_BEST_PRACTICES.map((practice) => (
+                      <li key={practice} className="relative pl-5">
+                        <span className="absolute left-0 top-[0.82rem] h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {practice}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-4 text-sm leading-7 text-gray-600 sm:text-base">
+                    Real communication is rarely perfectly scripted, so your practice should not be
+                    either. Short, focused sessions done consistently will usually beat occasional
+                    long sessions.
+                  </p>
+                </section>
+              </div>
+            </section>
+          ) : (
           <div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
             <section className="rounded-[28px] border border-gray-200 bg-gray-50/80 p-5 sm:p-6">
               <div className="flex items-start gap-4">
@@ -388,11 +518,12 @@ const Library: React.FC<LibraryProps> = ({ selectedTopicId, onSelectTopic }) => 
               </div>
             </section>
           </div>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-export { LIBRARY_NOTES }
+export { LIBRARY_GUIDE_SECTION, LIBRARY_NOTES, LIBRARY_SECTIONS }
 export default Library

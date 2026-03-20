@@ -6,7 +6,7 @@ import Sidebar from '../components/Sidebar'
 import CommunicationSetup from '../components/CommunicationSetup'
 import InterviewSetup from '../components/InterviewSetup'
 import InterviewChat from '../components/InterviewChat'
-import Library, { LIBRARY_NOTES, type LibraryNoteId } from '../components/Library'
+import Library, { LIBRARY_SECTIONS, type LibrarySectionId } from '../components/Library'
 import {
   CommunicationSessionConfig,
   GeneratedPrompt,
@@ -83,8 +83,8 @@ export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [currentInterview, setCurrentInterview] = useState<Interview | null>(null)
   const [activeLandingView, setActiveLandingView] = useState<WorkspaceLandingView>('home')
-  const [selectedLibraryTopicId, setSelectedLibraryTopicId] = useState<LibraryNoteId>(
-    LIBRARY_NOTES[0].id
+  const [selectedLibrarySectionId, setSelectedLibrarySectionId] = useState<LibrarySectionId>(
+    LIBRARY_SECTIONS[0].id
   )
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { user, loading, setUser } = useAuth()
@@ -445,8 +445,8 @@ export default function InterviewPage() {
     setCurrentInterview(null)
   }
 
-  const handleSelectLibraryTopic = (topicId: LibraryNoteId) => {
-    setSelectedLibraryTopicId(topicId)
+  const handleSelectLibrarySection = (sectionId: LibrarySectionId) => {
+    setSelectedLibrarySectionId(sectionId)
     setActiveLandingView('notes')
     setCurrentInterview(null)
   }
@@ -1090,7 +1090,7 @@ export default function InterviewPage() {
         userName={`${user.firstname} ${user.lastname}`.trim() || user.email}
         userEmail={user.email}
         onOpenSettings={openModal}
-        onSelectLibraryTopic={handleSelectLibraryTopic}
+        onSelectLibrarySection={handleSelectLibrarySection}
         onLogout={handleLogout}
         loading={loadingInterviews}
         isHomeActive={!currentInterview && activeLandingView === 'home'}
@@ -1109,8 +1109,8 @@ export default function InterviewPage() {
             />
           ) : activeLandingView === 'notes' ? (
             <Library
-              selectedTopicId={selectedLibraryTopicId}
-              onSelectTopic={setSelectedLibraryTopicId}
+              selectedSectionId={selectedLibrarySectionId}
+              onSelectSection={setSelectedLibrarySectionId}
             />
           ) : (
             renderPracticeFlow()

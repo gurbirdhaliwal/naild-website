@@ -20,7 +20,7 @@ import {
 import { Interview } from '../types/Interview';
 import Link from 'next/link';
 import MetricsDashboard from './MetricsDashboard';
-import { LIBRARY_NOTES, type LibraryNoteId } from './Library';
+import { LIBRARY_SECTIONS, type LibrarySectionId } from './Library';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AUREON_NAME } from '../lib/modelConfig';
 import {
@@ -46,7 +46,7 @@ interface SidebarProps {
   userName: string;
   userEmail: string;
   onOpenSettings: () => void;
-  onSelectLibraryTopic: (topicId: LibraryNoteId) => void;
+  onSelectLibrarySection: (sectionId: LibrarySectionId) => void;
   onLogout: () => void;
   loading?: boolean;
   isHomeActive?: boolean;
@@ -68,7 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   userName,
   userEmail,
   onOpenSettings,
-  onSelectLibraryTopic,
+  onSelectLibrarySection,
   onLogout,
   loading = false,
   isHomeActive = false,
@@ -157,8 +157,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     setLibraryOpen(true);
   };
 
-  const selectLibraryTopic = (topicId: LibraryNoteId) => {
-    onSelectLibraryTopic(topicId);
+  const selectLibrarySection = (sectionId: LibrarySectionId) => {
+    onSelectLibrarySection(sectionId);
     setLibraryOpen(false);
   };
 
@@ -671,17 +671,17 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                 <div className="max-h-[calc(92vh-84px)] overflow-y-auto bg-gradient-to-b from-white to-gray-50 p-4 sm:p-5">
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {LIBRARY_NOTES.map((topic, index) => {
-                      const Icon = topic.icon;
+                    {LIBRARY_SECTIONS.map((section, index) => {
+                      const Icon = section.icon;
 
                       return (
                         <motion.button
-                          key={topic.id}
+                          key={section.id}
                           type="button"
                           initial={{ opacity: 0, y: 14 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.25, delay: index * 0.06 }}
-                          onClick={() => selectLibraryTopic(topic.id)}
+                          onClick={() => selectLibrarySection(section.id)}
                           className="rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
                         >
                           <div className="mb-3 flex items-start justify-between gap-2">
@@ -693,13 +693,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                             </span>
                           </div>
 
-                          <h3 className="text-sm font-semibold text-gray-900">{topic.title}</h3>
-                          <p className="mt-1 text-xs leading-5 text-gray-600">{topic.description}</p>
+                          <h3 className="text-sm font-semibold text-gray-900">{section.title}</h3>
+                          <p className="mt-1 text-xs leading-5 text-gray-600">{section.description}</p>
 
                           <div className="mt-3 flex flex-wrap gap-1.5">
-                            {topic.tags.map((tag) => (
+                            {section.tags.map((tag) => (
                               <span
-                                key={`${topic.id}-${tag}`}
+                                key={`${section.id}-${tag}`}
                                 className="rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-700"
                               >
                                 {tag}
