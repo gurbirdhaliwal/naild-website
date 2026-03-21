@@ -481,6 +481,12 @@ export default function InterviewPage() {
     setCurrentInterview(null)
   }
 
+  const openCreateSessionChooser = () => {
+    setActiveLandingView('home')
+    setCurrentInterview(null)
+    setCreateSessionModalOpen(true)
+  }
+
   const openBehavioralSetup = () => {
     setCreateSessionModalOpen(false)
     setActiveLandingView('behavioral')
@@ -1119,7 +1125,7 @@ export default function InterviewPage() {
             <div className="-mt-3 flex justify-center">
               <button
                 type="button"
-                onClick={() => setCreateSessionModalOpen(true)}
+                onClick={openCreateSessionChooser}
                 className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-100 px-6 py-3 text-sm font-medium text-emerald-950 shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-200"
                 aria-haspopup="dialog"
                 aria-expanded={createSessionModalOpen}
@@ -1143,7 +1149,7 @@ export default function InterviewPage() {
         interviews={interviews}
         currentInterview={currentInterview}
         onGoHome={openHome}
-        onStartNew={openCommunicationSetup}
+        onStartNew={openCreateSessionChooser}
         onSelectInterview={handleSelectInterview}
         onDeleteInterview={handleDeleteInterview}
         onRenameInterview={handleRenameInterview}

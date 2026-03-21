@@ -311,7 +311,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             className="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2 p-3"
           >
             <Plus size={18} />
-            {!collapsed && <span>New Drill</span>}
+            {!collapsed && <span>New Session</span>}
           </button>
         </div>
 
