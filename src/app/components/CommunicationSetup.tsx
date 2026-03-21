@@ -12,12 +12,17 @@ import {
   getAudienceLabel,
   getPracticeModeLabel,
 } from '../lib/practiceConfig'
+import SessionCreationLoadingScreen from './SessionCreationLoadingScreen'
 
 interface CommunicationSetupProps {
-  onCreateSession: (config: CommunicationSessionConfig) => void
+  onCreateSession: (config: CommunicationSessionConfig) => Promise<void>
+  resolvedTheme: 'light' | 'dark'
 }
 
-const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession }) => {
+const CommunicationSetup: React.FC<CommunicationSetupProps> = ({
+  onCreateSession,
+  resolvedTheme,
+}) => {
   const [config, setConfig] = useState<CommunicationSessionConfig>({
     role: '',
     practiceMode: 'explain-concept',
@@ -29,6 +34,7 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
   const [currentStep, setCurrentStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [loadingMsg, setLoadingMsg] = useState('')
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const summaryRows = useMemo(
     () => [
@@ -68,26 +74,37 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
   }
 
   const handleSubmit = async () => {
-    if (!config.role) return
+    if (!config.role || loading) return
 
+    setSubmitError(null)
     setLoading(true)
     setLoadingMsg(`Warming up ${AUREON_NAME}...`)
+    let createdSuccessfully = false
 
     try {
       const res = await fetch(`${AI_BASE}/warmup`)
+      if (!res.ok) {
+        throw new Error(`Warmup failed: ${res.status}`)
+      }
+
       const data = await res.json()
 
       if (data.status === 'ready') {
         setLoadingMsg('Generating your drill...')
-        window.setTimeout(() => onCreateSession(config), 450)
+        await new Promise((resolve) => window.setTimeout(resolve, 450))
+        await onCreateSession(config)
+        createdSuccessfully = true
         return
       }
 
-      setLoadingMsg(`${AUREON_NAME} is not ready yet. Please try again.`)
-    } catch {
-      setLoadingMsg(`Unable to connect to ${AUREON_NAME}.`)
+      setSubmitError(`${AUREON_NAME} is not ready yet. Please try again.`)
+    } catch (error) {
+      console.error('Failed to prepare communication session:', error)
+      setSubmitError(`Unable to connect to ${AUREON_NAME}. Please try again.`)
     } finally {
-      setLoading(false)
+      if (!createdSuccessfully) {
+        setLoading(false)
+      }
     }
   }
 
@@ -113,6 +130,7 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
                   transition={{ delay: index * 0.04 }}
                   onClick={() => {
                     setConfig((prev) => ({ ...prev, role: field }))
+                    setSubmitError(null)
                     window.setTimeout(() => setCurrentStep(1), 220)
                   }}
                   className="rounded-2xl border border-gray-200 bg-white px-4 py-4 text-left transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-sm"
@@ -146,6 +164,7 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
                     transition={{ delay: index * 0.05 }}
                     onClick={() => {
                       setConfig((prev) => ({ ...prev, practiceMode: mode.value }))
+                      setSubmitError(null)
                       window.setTimeout(() => setCurrentStep(2), 220)
                     }}
                     className={`rounded-2xl border px-4 py-4 text-left transition-all ${
@@ -194,6 +213,7 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
                     transition={{ delay: index * 0.04 }}
                     onClick={() => {
                       setConfig((prev) => ({ ...prev, audience: audience.value }))
+                      setSubmitError(null)
                       window.setTimeout(() => setCurrentStep(3), 220)
                     }}
                     className={`rounded-2xl border px-4 py-4 text-left transition-all ${
@@ -228,6 +248,7 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
                   type="text"
                   value={config.topic}
                   onChange={(event) => setConfig((prev) => ({ ...prev, topic: event.target.value }))}
+                  onFocus={() => setSubmitError(null)}
                   placeholder="Optional: caching strategy, precision vs recall, rate limiting..."
                   className="mt-2 h-12 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition-colors focus:border-emerald-400"
                 />
@@ -240,6 +261,7 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
                   onChange={(event) =>
                     setConfig((prev) => ({ ...prev, promptContext: event.target.value }))
                   }
+                  onFocus={() => setSubmitError(null)}
                   placeholder="Optional: stack, product context, team situation, or why this topic matters right now."
                   className="mt-2 min-h-[112px] w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-emerald-400"
                 />
@@ -254,7 +276,10 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
                       <button
                         key={level.value}
                         type="button"
-                        onClick={() => setConfig((prev) => ({ ...prev, difficulty: level.value }))}
+                        onClick={() => {
+                          setConfig((prev) => ({ ...prev, difficulty: level.value }))
+                          setSubmitError(null)
+                        }}
                         className={`rounded-xl border px-3 py-3 text-left transition-colors ${
                           isSelected
                             ? 'border-emerald-300 bg-emerald-50 text-emerald-950 shadow-sm'
@@ -311,6 +336,12 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
                 ))}
               </div>
 
+              {submitError ? (
+                <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {submitError}
+                </div>
+              ) : null}
+
               <button
                 type="button"
                 onClick={handleSubmit}
@@ -323,6 +354,16 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({ onCreateSession
           </motion.div>
         )
     }
+  }
+
+  if (loading) {
+    return (
+      <SessionCreationLoadingScreen
+        variant="communication"
+        statusMessage={loadingMsg}
+        resolvedTheme={resolvedTheme}
+      />
+    )
   }
 
   return (

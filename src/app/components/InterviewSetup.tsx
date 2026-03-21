@@ -4,9 +4,11 @@ import { ChevronLeft, Check, Sparkles } from 'lucide-react'
 import { InterviewConfig } from '../types/Interview'
 import { AI_BASE } from '../services/api'
 import { AUREON_NAME } from '../lib/modelConfig'
+import SessionCreationLoadingScreen from './SessionCreationLoadingScreen'
 
 interface InterviewSetupProps {
-  onCreateInterview: (config: InterviewConfig) => void
+  onCreateInterview: (config: InterviewConfig) => Promise<void>
+  resolvedTheme: 'light' | 'dark'
 }
 
 const roles = [
@@ -76,7 +78,7 @@ const stepMotionProps = {
   transition: { duration: 0.24 },
 }
 
-const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) => {
+const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview, resolvedTheme }) => {
   const [config, setConfig] = useState<InterviewConfig>({
     role: '',
     languages: [],
@@ -87,6 +89,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
   const [currentStep, setCurrentStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [loadingMsg, setLoadingMsg] = useState('')
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const getDifficultyLabel = (value: string) =>
     difficulties.find((difficulty) => difficulty.value === value)?.label || value
@@ -114,6 +117,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
   )
 
   const handleLanguageToggle = (language: string) => {
+    setSubmitError(null)
     setConfig((prev) => ({
       ...prev,
       languages: prev.languages.includes(language)
@@ -124,15 +128,18 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
 
   const handleRoleSelect = (role: string) => {
     setConfig((prev) => ({ ...prev, role }))
+    setSubmitError(null)
     window.setTimeout(() => setCurrentStep(1), 300)
   }
 
   const handleLanguagesNext = () => {
     if (config.languages.length === 0) return
+    setSubmitError(null)
     window.setTimeout(() => setCurrentStep(2), 300)
   }
 
   const handleDifficultySelect = (difficulty: string) => {
+    setSubmitError(null)
     setConfig((prev) => ({ ...prev, difficulty: difficulty as InterviewConfig['difficulty'] }))
   }
 
@@ -141,25 +148,37 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
   }
 
   const handleSubmit = async () => {
-    if (!config.role || config.languages.length === 0) return
+    if (!config.role || config.languages.length === 0 || loading) return
 
+    setSubmitError(null)
     setLoading(true)
     setLoadingMsg(`Warming up ${AUREON_NAME}, please wait...`)
+    let createdSuccessfully = false
 
     try {
       const res = await fetch(`${AI_BASE}/warmup`)
+      if (!res.ok) {
+        throw new Error(`Warmup failed: ${res.status}`)
+      }
+
       const data = await res.json()
 
       if (data.status === 'ready') {
         setLoadingMsg(`${AUREON_NAME} is ready. Building your interview...`)
-        window.setTimeout(() => {
-          onCreateInterview(config)
-        }, 500)
+        await new Promise((resolve) => window.setTimeout(resolve, 500))
+        await onCreateInterview(config)
+        createdSuccessfully = true
+        return
       } else {
-        setLoadingMsg(`Error warming up ${AUREON_NAME}. Please try again.`)
+        setSubmitError(`${AUREON_NAME} is not ready yet. Please try again.`)
       }
-    } catch {
-      setLoadingMsg(`Error connecting to ${AUREON_NAME}.`)
+    } catch (error) {
+      console.error('Failed to prepare behavioral interview:', error)
+      setSubmitError(`Unable to connect to ${AUREON_NAME}. Please try again.`)
+    } finally {
+      if (!createdSuccessfully) {
+        setLoading(false)
+      }
     }
   }
 
@@ -259,6 +278,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
                   type="text"
                   value={config.topic}
                   onChange={(event) => setConfig((prev) => ({ ...prev, topic: event.target.value }))}
+                  onFocus={() => setSubmitError(null)}
                   placeholder="Optional: conflict resolution, stakeholder alignment, missed deadline..."
                   className="mt-2 h-12 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition-colors focus:border-emerald-400"
                 />
@@ -271,6 +291,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
                   onChange={(event) =>
                     setConfig((prev) => ({ ...prev, promptContext: event.target.value }))
                   }
+                  onFocus={() => setSubmitError(null)}
                   placeholder="Optional: team size, company stage, project type, or situations you want the interview to reflect."
                   className="mt-2 min-h-[112px] w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-emerald-400"
                 />
@@ -338,10 +359,17 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
                 ))}
               </div>
 
+              {submitError ? (
+                <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {submitError}
+                </div>
+              ) : null}
+
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-950 shadow-sm transition-colors hover:bg-emerald-100"
+                disabled={loading}
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-950 shadow-sm transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 Create Interview
               </button>
@@ -353,31 +381,11 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview }) =>
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-3xl rounded-[32px] border border-gray-200 bg-white/90 p-8 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.32)] backdrop-blur">
-        <div className="flex flex-col items-center justify-center py-8 text-center">
-          <motion.svg
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            className="mb-4 h-10 w-10 text-gray-900"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-          </motion.svg>
-
-          <div className="text-lg font-medium text-gray-900">{loadingMsg}</div>
-          <div className="mt-2 text-sm text-gray-500">This may take a few seconds the first time.</div>
-        </div>
-      </div>
+      <SessionCreationLoadingScreen
+        variant="behavioral"
+        statusMessage={loadingMsg}
+        resolvedTheme={resolvedTheme}
+      />
     )
   }
 

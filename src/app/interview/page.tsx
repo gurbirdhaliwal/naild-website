@@ -65,6 +65,54 @@ const LONGEST_WORKSPACE_SESSION_EXAMPLE_SUFFIX = WORKSPACE_SESSION_EXAMPLE_SUFFI
   (longest, example) => (example.length > longest.length ? example : longest),
   WORKSPACE_SESSION_EXAMPLE_SUFFIXES[0]
 )
+const WORKSPACE_HOME_HERO_BACKGROUND_STYLES: Record<
+  Exclude<ThemePreference, 'system'>,
+  React.CSSProperties
+> = {
+  light: {
+    backgroundImage: [
+      'radial-gradient(48% 60% at 50% 45%, rgba(255,255,255,0.995) 0%, rgba(252,254,253,0.985) 24%, rgba(247,253,249,0.92) 42%, rgba(234,249,239,0.14) 58%, rgba(234,249,239,0) 72%)',
+      'radial-gradient(26% 34% at 14% 16%, rgba(134,239,172,0.1) 0%, rgba(134,239,172,0.07) 34%, rgba(134,239,172,0.02) 54%, transparent 76%)',
+      'radial-gradient(24% 30% at 86% 14%, rgba(153,246,228,0.09) 0%, rgba(153,246,228,0.06) 34%, rgba(153,246,228,0.02) 54%, transparent 76%)',
+      'radial-gradient(28% 38% at 9% 80%, rgba(74,222,128,0.09) 0%, rgba(74,222,128,0.06) 38%, rgba(74,222,128,0.02) 58%, transparent 80%)',
+      'radial-gradient(30% 38% at 92% 78%, rgba(110,231,183,0.09) 0%, rgba(110,231,183,0.06) 36%, rgba(110,231,183,0.02) 56%, transparent 78%)',
+      'radial-gradient(18% 22% at 31% 68%, rgba(187,247,208,0.07) 0%, rgba(187,247,208,0.04) 36%, transparent 74%)',
+      'radial-gradient(16% 20% at 72% 66%, rgba(204,251,241,0.06) 0%, rgba(204,251,241,0.035) 34%, transparent 70%)',
+      'linear-gradient(135deg, #fbfefd 0%, #f7fcf8 18%, #f4fbf6 35%, #f9fdfb 52%, #f3faf5 72%, #fcfefd 100%)',
+    ].join(', '),
+  },
+  dark: {
+    backgroundImage: [
+      'radial-gradient(48% 60% at 50% 45%, rgba(22,101,52,0.28) 0%, rgba(21,128,61,0.2) 26%, rgba(7,21,16,0.08) 48%, rgba(7,21,16,0) 72%)',
+      'radial-gradient(28% 36% at 14% 16%, rgba(16,185,129,0.22) 0%, rgba(16,185,129,0.14) 34%, rgba(16,185,129,0.04) 56%, transparent 78%)',
+      'radial-gradient(24% 30% at 86% 14%, rgba(45,212,191,0.18) 0%, rgba(45,212,191,0.12) 34%, rgba(45,212,191,0.035) 54%, transparent 76%)',
+      'radial-gradient(30% 40% at 10% 82%, rgba(34,197,94,0.16) 0%, rgba(34,197,94,0.1) 38%, rgba(34,197,94,0.03) 58%, transparent 80%)',
+      'radial-gradient(32% 38% at 92% 80%, rgba(52,211,153,0.15) 0%, rgba(52,211,153,0.1) 36%, rgba(52,211,153,0.03) 56%, transparent 78%)',
+      'radial-gradient(18% 22% at 32% 66%, rgba(134,239,172,0.08) 0%, rgba(134,239,172,0.045) 36%, transparent 72%)',
+      'radial-gradient(16% 20% at 72% 64%, rgba(153,246,228,0.07) 0%, rgba(153,246,228,0.04) 34%, transparent 70%)',
+      'linear-gradient(135deg, #06110d 0%, #081712 18%, #0a1e17 36%, #081611 56%, #07130f 76%, #05100d 100%)',
+    ].join(', '),
+  },
+}
+const WORKSPACE_HOME_HERO_OVERLAY_STYLES: Record<
+  Exclude<ThemePreference, 'system'>,
+  React.CSSProperties
+> = {
+  light: {
+    backgroundImage: [
+      'radial-gradient(circle at 24% 48%, rgba(255,255,255,0.14) 0%, transparent 32%)',
+      'radial-gradient(circle at 76% 32%, rgba(255,255,255,0.12) 0%, transparent 28%)',
+      'radial-gradient(circle at 58% 84%, rgba(255,255,255,0.1) 0%, transparent 34%)',
+    ].join(', '),
+  },
+  dark: {
+    backgroundImage: [
+      'radial-gradient(circle at 24% 48%, rgba(167,243,208,0.06) 0%, transparent 30%)',
+      'radial-gradient(circle at 76% 32%, rgba(209,250,229,0.05) 0%, transparent 28%)',
+      'radial-gradient(circle at 58% 84%, rgba(110,231,183,0.04) 0%, transparent 34%)',
+    ].join(', '),
+  },
+}
 const isThemePreference = (value: unknown): value is ThemePreference =>
   value === 'system' || value === 'light' || value === 'dark'
 
@@ -928,9 +976,15 @@ export default function InterviewPage() {
 
         <div className="flex-1 min-h-0">
           {activeLandingView === 'behavioral' ? (
-            <InterviewSetup onCreateInterview={handleCreateBehavioralInterview} />
+            <InterviewSetup
+              onCreateInterview={handleCreateBehavioralInterview}
+              resolvedTheme={resolvedTheme}
+            />
           ) : (
-            <CommunicationSetup onCreateSession={handleCreateTechnicalSession} />
+            <CommunicationSetup
+              onCreateSession={handleCreateTechnicalSession}
+              resolvedTheme={resolvedTheme}
+            />
           )}
         </div>
       </div>
@@ -945,7 +999,17 @@ export default function InterviewPage() {
         transition={{ type: 'spring', stiffness: 170, damping: 26 }}
         className="flex h-[200%] flex-col"
       >
-        <section className="relative flex h-1/2 items-center">
+        <section className="relative flex h-1/2 items-center overflow-hidden">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={WORKSPACE_HOME_HERO_BACKGROUND_STYLES[resolvedTheme]}
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={WORKSPACE_HOME_HERO_OVERLAY_STYLES[resolvedTheme]}
+          />
           <div
             className="absolute left-6 top-3 z-10 lg:left-10 lg:top-4"
             ref={modelMenuRef}
@@ -1013,7 +1077,7 @@ export default function InterviewPage() {
             </div>
           </div>
 
-          <div className="mx-auto flex h-full w-full max-w-5xl flex-col justify-center gap-6 px-6 py-8 lg:-translate-x-12 lg:-translate-y-8 lg:px-10">
+          <div className="relative z-[1] mx-auto flex h-full w-full max-w-5xl flex-col justify-center gap-6 px-6 py-8 lg:-translate-x-12 lg:-translate-y-8 lg:px-10">
             <section className="w-full px-4 pt-8 pb-2 sm:pt-12">
               <div className="mt-6 flex flex-col items-center justify-center text-center">
                 <div className="flex h-24 w-24 items-center justify-center">
@@ -1106,6 +1170,7 @@ export default function InterviewPage() {
             <InterviewChat
               interview={currentInterview}
               onUpdateInterview={handleUpdate}
+              resolvedTheme={resolvedTheme}
             />
           ) : activeLandingView === 'notes' ? (
             <Library

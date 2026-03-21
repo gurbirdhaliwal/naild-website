@@ -33,10 +33,21 @@ import { AUREON_NAME } from '../lib/modelConfig'
 interface InterviewChatProps {
   interview: Interview
   onUpdateInterview: (interview: Interview) => void
+  resolvedTheme: 'light' | 'dark'
 }
 
 const EXPECTED_QUESTION_COUNT = 5
 const MAX_TRANSCRIPT_PREVIEW_LENGTH = 220
+const SESSION_STAGE_BACKGROUND_STYLES: Record<'light' | 'dark', React.CSSProperties> = {
+  light: {
+    backgroundImage:
+      'radial-gradient(circle at top, rgba(209,250,229,0.95), rgba(255,255,255,0.98) 52%, rgba(236,253,245,0.9) 100%)',
+  },
+  dark: {
+    backgroundImage:
+      'radial-gradient(circle at top, rgba(16,185,129,0.14), rgba(7,18,14,0.98) 54%, rgba(8,27,21,0.94) 100%)',
+  },
+}
 
 const clampScore = (score: unknown) => {
   const parsed = Number(score)
@@ -297,7 +308,11 @@ const dedupeFeedbackEntries = (entries: string[]) => {
   })
 }
 
-const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterview }) => {
+const InterviewChat: React.FC<InterviewChatProps> = ({
+  interview,
+  onUpdateInterview,
+  resolvedTheme,
+}) => {
   const isBehavioralSession = (interview.sessionType ?? 'behavioral-interview') === 'behavioral-interview'
   const maxRecordingDuration = isBehavioralSession ? 60 : 120
   const modelLabel = AUREON_NAME
@@ -849,7 +864,10 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
           </div>
         </div>
 
-        <div className="relative flex w-full flex-1 flex-col items-center bg-gray-50">
+        <div
+          className="relative flex w-full flex-1 flex-col items-center"
+          style={SESSION_STAGE_BACKGROUND_STYLES[resolvedTheme]}
+        >
           <div className="relative flex w-full max-w-4xl items-center justify-center px-6 pt-8">
             {cameraOn ? (
               <video
@@ -1104,8 +1122,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                 {gradingResult.error}
               </div>
             ) : interview.status !== 'completed' ? (
-              <div className="rounded-2xl bg-white p-6 shadow-sm">
-                <div className="mb-4 text-center text-sm text-gray-600">
+              <div className="flex min-h-[180px] flex-col items-center justify-center px-4 py-6">
+                <div className="mb-4 max-w-xl text-center text-sm text-gray-600">
                   {isBehavioralSession
                     ? 'Record your next answer when you are ready.'
                     : 'Record one clear answer. Naild will score the explanation right after you finish.'}
@@ -1122,6 +1140,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({ interview, onUpdateInterv
                       : 'Click the microphone to answer this drill.'
                   }
                   processingText={isProcessing ? `${modelLabel} is reviewing your answer...` : 'Processing...'}
+                  wrapperClassName="flex flex-col items-center gap-3"
+                  statusClassName="text-center text-sm text-gray-600"
                 />
               </div>
             ) : null}
