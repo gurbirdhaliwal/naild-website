@@ -926,11 +926,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
                         <div className="mt-1 text-sm text-gray-500">Total Score</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-2xl font-bold text-gray-900">
-                          {gradingResult.scores.reduce((sum, score) => sum + (Number(score.score) || 0), 0)}/
-                          {gradingResult.scores.length * 100}
-                        </div>
-                        <div className="text-lg font-semibold text-gray-700">
+                        <div className="text-3xl font-bold text-gray-900">
                           {Math.round(gradingResult.average_score)}%
                         </div>
                         <div className="mt-1 text-xs font-medium text-gray-500">
