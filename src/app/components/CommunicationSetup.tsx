@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronLeft, Check, Sparkles } from 'lucide-react'
-import { AI_BASE } from '../services/api'
 import { CommunicationSessionConfig } from '../types/Interview'
 import { AUREON_NAME } from '../lib/modelConfig'
 import {
@@ -78,29 +77,16 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({
 
     setSubmitError(null)
     setLoading(true)
-    setLoadingMsg(`Warming up ${AUREON_NAME}...`)
+    setLoadingMsg(`Generating your ${AUREON_NAME} drill...`)
     let createdSuccessfully = false
 
     try {
-      const res = await fetch(`${AI_BASE}/warmup`)
-      if (!res.ok) {
-        throw new Error(`Warmup failed: ${res.status}`)
-      }
-
-      const data = await res.json()
-
-      if (data.status === 'ready') {
-        setLoadingMsg('Generating your drill...')
-        await new Promise((resolve) => window.setTimeout(resolve, 450))
-        await onCreateSession(config)
-        createdSuccessfully = true
-        return
-      }
-
-      setSubmitError(`${AUREON_NAME} is not ready yet. Please try again.`)
+      await new Promise((resolve) => window.setTimeout(resolve, 250))
+      await onCreateSession(config)
+      createdSuccessfully = true
     } catch (error) {
-      console.error('Failed to prepare communication session:', error)
-      setSubmitError(`Unable to connect to ${AUREON_NAME}. Please try again.`)
+      console.error('Failed to create communication session:', error)
+      setSubmitError(`Unable to generate the ${AUREON_NAME} drill. Please try again.`)
     } finally {
       if (!createdSuccessfully) {
         setLoading(false)

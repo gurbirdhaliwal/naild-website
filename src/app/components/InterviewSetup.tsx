@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronLeft, Check, Sparkles } from 'lucide-react'
 import { InterviewConfig } from '../types/Interview'
-import { AI_BASE } from '../services/api'
 import { AUREON_NAME } from '../lib/modelConfig'
 import SessionCreationLoadingScreen from './SessionCreationLoadingScreen'
 
@@ -152,29 +151,16 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview, reso
 
     setSubmitError(null)
     setLoading(true)
-    setLoadingMsg(`Warming up ${AUREON_NAME}, please wait...`)
+    setLoadingMsg(`${AUREON_NAME} is building your interview...`)
     let createdSuccessfully = false
 
     try {
-      const res = await fetch(`${AI_BASE}/warmup`)
-      if (!res.ok) {
-        throw new Error(`Warmup failed: ${res.status}`)
-      }
-
-      const data = await res.json()
-
-      if (data.status === 'ready') {
-        setLoadingMsg(`${AUREON_NAME} is ready. Building your interview...`)
-        await new Promise((resolve) => window.setTimeout(resolve, 500))
-        await onCreateInterview(config)
-        createdSuccessfully = true
-        return
-      } else {
-        setSubmitError(`${AUREON_NAME} is not ready yet. Please try again.`)
-      }
+      await new Promise((resolve) => window.setTimeout(resolve, 250))
+      await onCreateInterview(config)
+      createdSuccessfully = true
     } catch (error) {
-      console.error('Failed to prepare behavioral interview:', error)
-      setSubmitError(`Unable to connect to ${AUREON_NAME}. Please try again.`)
+      console.error('Failed to create behavioral interview:', error)
+      setSubmitError(`Unable to build your ${AUREON_NAME} interview. Please try again.`)
     } finally {
       if (!createdSuccessfully) {
         setLoading(false)

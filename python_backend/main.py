@@ -1,19 +1,22 @@
+import asyncio
+import json
+import logging
+import os
+import queue
+import time
+from collections import defaultdict, deque
+from functools import partial
+from pathlib import Path
+
 import numpy as np
 import ollama
-from scipy import signal
-import time
-import queue
-import threading
-import sys
-import os
-import logging
+import requests
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from faster_whisper import WhisperModel
 from faster_whisper.audio import decode_audio
-import requests
-import json
+from starlette.concurrency import run_in_threadpool
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 def _load_cors_origins():
@@ -32,14 +35,6 @@ ALLOWED_CORS_ORIGINS = _load_cors_origins()
 
 app = FastAPI()
 
-# Allow requests from frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 class VoiceAssistant:
     def __init__(self):
@@ -56,15 +51,46 @@ class VoiceAssistant:
         self.is_recording = False
         self.debug = True
 
+
 assistant = VoiceAssistant()
 
 # Configurable service endpoints
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 SPRING_API_BASE = os.getenv("SPRING_API_BASE", "http://localhost:8080/api/v1")
 AUTH_CHECK_TIMEOUT_SECONDS = float(os.getenv("AUTH_CHECK_TIMEOUT_SECONDS", "5"))
+GRADING_PERSIST_TIMEOUT_SECONDS = float(os.getenv("GRADING_PERSIST_TIMEOUT_SECONDS", "5"))
 MAX_AUDIO_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_AUDIO_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)))
 MAX_AUDIO_DURATION_SECONDS = float(os.getenv("MAX_AUDIO_DURATION_SECONDS", "300"))
 AUDIO_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024
+MAX_REQUEST_BODY_SIZE_BYTES = int(
+    os.getenv("MAX_REQUEST_BODY_SIZE_BYTES", str(MAX_AUDIO_UPLOAD_SIZE_BYTES + (1024 * 1024)))
+)
+MAX_JSON_BODY_SIZE_BYTES = int(os.getenv("MAX_JSON_BODY_SIZE_BYTES", str(256 * 1024)))
+MAX_ROLE_LENGTH = int(os.getenv("MAX_ROLE_LENGTH", "120"))
+MAX_TOPIC_LENGTH = int(os.getenv("MAX_TOPIC_LENGTH", "160"))
+MAX_SHORT_TEXT_LENGTH = int(os.getenv("MAX_SHORT_TEXT_LENGTH", "500"))
+MAX_ADDITIONAL_CONTEXT_LENGTH = int(os.getenv("MAX_ADDITIONAL_CONTEXT_LENGTH", "1000"))
+MAX_TRANSCRIPT_LENGTH = int(os.getenv("MAX_TRANSCRIPT_LENGTH", "12000"))
+MAX_PREVIOUS_QA_ITEMS = int(os.getenv("MAX_PREVIOUS_QA_ITEMS", "5"))
+RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+RATE_LIMIT_TRANSCRIPTION_PER_WINDOW = int(os.getenv("RATE_LIMIT_TRANSCRIPTION_PER_WINDOW", "10"))
+RATE_LIMIT_DRILL_GENERATION_PER_WINDOW = int(
+    os.getenv("RATE_LIMIT_DRILL_GENERATION_PER_WINDOW", "12")
+)
+RATE_LIMIT_DRILL_EVALUATION_PER_WINDOW = int(
+    os.getenv("RATE_LIMIT_DRILL_EVALUATION_PER_WINDOW", "20")
+)
+RATE_LIMIT_QUESTION_GENERATION_PER_WINDOW = int(
+    os.getenv("RATE_LIMIT_QUESTION_GENERATION_PER_WINDOW", "10")
+)
+RATE_LIMIT_ACK_PER_WINDOW = int(os.getenv("RATE_LIMIT_ACK_PER_WINDOW", "30"))
+RATE_LIMIT_GRADING_PER_WINDOW = int(os.getenv("RATE_LIMIT_GRADING_PER_WINDOW", "12"))
+AI_CONCURRENCY_LIMIT = int(os.getenv("AI_CONCURRENCY_LIMIT", "4"))
+AI_CONCURRENCY_ACQUIRE_TIMEOUT_SECONDS = float(
+    os.getenv("AI_CONCURRENCY_ACQUIRE_TIMEOUT_SECONDS", "2")
+)
+CSRF_COOKIE_NAME = "XSRF-TOKEN"
+CSRF_HEADER_NAME = "X-XSRF-TOKEN"
 ALLOWED_AUDIO_CONTENT_TYPES = {
     "audio/webm",
     "audio/wav",
@@ -80,6 +106,132 @@ ALLOWED_AUDIO_EXTENSIONS = {".webm", ".wav", ".mp3", ".m4a", ".mp4", ".ogg", ".f
 logger = logging.getLogger(__name__)
 
 ollama_client = ollama.Client(host=OLLAMA_HOST)
+ai_request_semaphore = asyncio.Semaphore(AI_CONCURRENCY_LIMIT)
+
+
+class RequestBodyTooLargeError(Exception):
+    def __init__(self, limit_bytes):
+        super().__init__(f"Request body exceeds the {limit_bytes} byte limit.")
+        self.limit_bytes = limit_bytes
+
+
+class MaxBodySizeMiddleware:
+    def __init__(self, app: ASGIApp, default_limit_bytes: int, json_limit_bytes: int):
+        self.app = app
+        self.default_limit_bytes = default_limit_bytes
+        self.json_limit_bytes = json_limit_bytes
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = {
+            raw_name.decode("latin-1").lower(): raw_value.decode("latin-1")
+            for raw_name, raw_value in scope.get("headers", [])
+        }
+        content_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        limit_bytes = (
+            self.json_limit_bytes if content_type == "application/json" else self.default_limit_bytes
+        )
+
+        if limit_bytes <= 0:
+            await self.app(scope, receive, send)
+            return
+
+        content_length = headers.get("content-length")
+        if content_length:
+            try:
+                if int(content_length) > limit_bytes:
+                    await self._send_json_error(
+                        send,
+                        status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        f"Request body exceeds the {limit_bytes} byte limit.",
+                    )
+                    return
+            except ValueError:
+                await self._send_json_error(
+                    send,
+                    status.HTTP_400_BAD_REQUEST,
+                    "Invalid Content-Length header.",
+                )
+                return
+
+        bytes_seen = 0
+
+        async def limited_receive() -> Message:
+            nonlocal bytes_seen
+            message = await receive()
+            if message["type"] == "http.request":
+                bytes_seen += len(message.get("body", b""))
+                if bytes_seen > limit_bytes:
+                    raise RequestBodyTooLargeError(limit_bytes)
+            return message
+
+        try:
+            await self.app(scope, limited_receive, send)
+        except RequestBodyTooLargeError as exc:
+            await self._send_json_error(
+                send,
+                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                f"Request body exceeds the {exc.limit_bytes} byte limit.",
+            )
+
+    async def _send_json_error(self, send: Send, status_code: int, detail: str):
+        payload = json.dumps({"detail": detail}).encode("utf-8")
+        await send(
+            {
+                "type": "http.response.start",
+                "status": status_code,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(payload)).encode("ascii")),
+                ],
+            }
+        )
+        await send({"type": "http.response.body", "body": payload})
+
+
+class SlidingWindowRateLimiter:
+    def __init__(self):
+        self._events = defaultdict(deque)
+        self._lock = asyncio.Lock()
+
+    async def hit(self, bucket: str, subject: str, limit: int, window_seconds: int):
+        if limit <= 0:
+            return None
+
+        now = time.monotonic()
+        window_start = now - window_seconds
+        key = (bucket, subject)
+
+        async with self._lock:
+            bucket_events = self._events[key]
+            while bucket_events and bucket_events[0] <= window_start:
+                bucket_events.popleft()
+
+            if len(bucket_events) >= limit:
+                return max(1, int(window_seconds - (now - bucket_events[0])) + 1)
+
+            bucket_events.append(now)
+            return None
+
+
+rate_limiter = SlidingWindowRateLimiter()
+
+# Allow requests from frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.add_middleware(
+    MaxBodySizeMiddleware,
+    default_limit_bytes=MAX_REQUEST_BODY_SIZE_BYTES,
+    json_limit_bytes=MAX_JSON_BODY_SIZE_BYTES,
+)
 
 
 def _coerce_score(value):
@@ -92,6 +244,197 @@ def _coerce_score(value):
     if score > 100:
         return 100
     return int(round(score))
+
+
+async def _parse_json_request(request: Request):
+    try:
+        payload = await request.json()
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid JSON body.",
+        )
+
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="JSON body must be an object.",
+        )
+
+    return payload
+
+
+def _normalize_text_field(value, field_name, *, default="", max_length=MAX_SHORT_TEXT_LENGTH):
+    if value is None:
+        return default
+    if not isinstance(value, str):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field_name} must be a string.",
+        )
+
+    normalized = value.strip()
+    if len(normalized) > max_length:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"{field_name} exceeds the {max_length} character limit.",
+        )
+    return normalized
+
+
+def _normalize_string_list_field(
+    value,
+    field_name,
+    *,
+    max_items,
+    max_item_length,
+):
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field_name} must be a list of strings.",
+        )
+    if len(value) > max_items:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"{field_name} exceeds the {max_items} item limit.",
+        )
+
+    normalized = []
+    for item in value:
+        if not isinstance(item, str):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"{field_name} must contain only strings.",
+            )
+        stripped = item.strip()
+        if len(stripped) > max_item_length:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"{field_name} items exceed the {max_item_length} character limit.",
+            )
+        normalized.append(stripped)
+    return normalized
+
+
+def _normalize_optional_positive_int(value, field_name):
+    if value in (None, ""):
+        return None
+    try:
+        normalized = int(value)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field_name} must be a positive integer.",
+        )
+
+    if normalized <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field_name} must be a positive integer.",
+        )
+    return normalized
+
+
+def _get_request_subject(request: Request, authenticated_user):
+    if isinstance(authenticated_user, dict):
+        for key in ("email", "id", "username"):
+            value = authenticated_user.get(key)
+            if value:
+                return f"user:{value}"
+
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        client_ip = forwarded_for.split(",", 1)[0].strip()
+        if client_ip:
+            return f"ip:{client_ip}"
+
+    if request.client and request.client.host:
+        return f"ip:{request.client.host}"
+
+    return "ip:unknown"
+
+
+async def _enforce_rate_limit(request: Request, authenticated_user, bucket: str, limit: int):
+    subject = _get_request_subject(request, authenticated_user)
+    retry_after = await rate_limiter.hit(bucket, subject, limit, RATE_LIMIT_WINDOW_SECONDS)
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please retry later.",
+            headers={"Retry-After": str(retry_after)},
+        )
+    return authenticated_user
+
+
+def _rate_limited_auth_dependency(bucket: str, limit: int):
+    async def dependency(
+        request: Request,
+        authenticated_user: dict = Depends(require_authenticated_user),
+    ):
+        return await _enforce_rate_limit(request, authenticated_user, bucket, limit)
+
+    return dependency
+
+
+async def _run_ai_call(callable_obj):
+    acquired = False
+    try:
+        await asyncio.wait_for(
+            ai_request_semaphore.acquire(),
+            timeout=AI_CONCURRENCY_ACQUIRE_TIMEOUT_SECONDS,
+        )
+        acquired = True
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The AI service is busy. Please retry shortly.",
+        )
+
+    try:
+        return await run_in_threadpool(callable_obj)
+    finally:
+        if acquired:
+            ai_request_semaphore.release()
+
+
+def _transcribe_audio_file(tmp_path):
+    decoded_audio = decode_audio(tmp_path, sampling_rate=assistant.sample_rate)
+    duration_seconds = len(decoded_audio) / assistant.sample_rate
+    if duration_seconds > MAX_AUDIO_DURATION_SECONDS:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Audio duration exceeds the {MAX_AUDIO_DURATION_SECONDS:.0f} second limit.",
+        )
+
+    segments, _ = assistant.whisper_model.transcribe(tmp_path)
+    return "".join(seg.text for seg in segments).strip()
+
+
+def _build_internal_auth_headers(request: Request):
+    headers = {"Content-Type": "application/json"}
+    cookies = {}
+
+    auth_header = request.headers.get("authorization")
+    if auth_header:
+        headers["Authorization"] = auth_header
+
+    csrf_header = request.headers.get(CSRF_HEADER_NAME)
+    if csrf_header:
+        headers[CSRF_HEADER_NAME] = csrf_header
+
+    token_cookie = request.cookies.get("token")
+    if token_cookie:
+        cookies["token"] = token_cookie
+
+    csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
+    if csrf_cookie:
+        cookies[CSRF_COOKIE_NAME] = csrf_cookie
+        headers.setdefault(CSRF_HEADER_NAME, csrf_cookie)
+
+    return headers, cookies
 
 
 def _parse_model_json_content(content):
@@ -348,15 +691,21 @@ def _normalize_communication_grading_result(raw_result):
     }
 
 
-def _persist_grading_result(session_id, result):
+async def _persist_grading_result(session_id, result, request: Request):
     if not session_id:
         return
 
+    headers, cookies = _build_internal_auth_headers(request)
     try:
-        grading_update_response = requests.put(
-            f"{SPRING_API_BASE}/interviews/{session_id}/grading",
-            json={"gradingResult": result},
-            headers={"Content-Type": "application/json"},
+        grading_update_response = await run_in_threadpool(
+            partial(
+                requests.put,
+                f"{SPRING_API_BASE}/interviews/{session_id}/grading",
+                json={"gradingResult": result},
+                headers=headers,
+                cookies=cookies,
+                timeout=GRADING_PERSIST_TIMEOUT_SECONDS,
+            )
         )
         if grading_update_response.status_code != 200:
             logger.warning(
@@ -366,6 +715,7 @@ def _persist_grading_result(session_id, result):
             )
     except Exception:
         logger.exception("Failed to save grading result for session %s.", session_id)
+
 
 def require_authenticated_user(request: Request):
     auth_header = request.headers.get("authorization")
@@ -404,17 +754,45 @@ def require_authenticated_user(request: Request):
         )
 
     try:
-        return auth_response.json()
+        authenticated_user = auth_response.json()
     except ValueError:
-        return {"authenticated": True}
+        authenticated_user = {"authenticated": True}
+
+    request.state.authenticated_user = authenticated_user
+    return authenticated_user
+
+
+require_transcription_user = _rate_limited_auth_dependency(
+    "transcription",
+    RATE_LIMIT_TRANSCRIPTION_PER_WINDOW,
+)
+require_generate_drill_user = _rate_limited_auth_dependency(
+    "generate_drill",
+    RATE_LIMIT_DRILL_GENERATION_PER_WINDOW,
+)
+require_evaluate_drill_user = _rate_limited_auth_dependency(
+    "evaluate_drill",
+    RATE_LIMIT_DRILL_EVALUATION_PER_WINDOW,
+)
+require_generate_questions_user = _rate_limited_auth_dependency(
+    "generate_questions",
+    RATE_LIMIT_QUESTION_GENERATION_PER_WINDOW,
+)
+require_interview_ack_user = _rate_limited_auth_dependency(
+    "interview_ack",
+    RATE_LIMIT_ACK_PER_WINDOW,
+)
+require_grade_interview_user = _rate_limited_auth_dependency(
+    "grade_interview",
+    RATE_LIMIT_GRADING_PER_WINDOW,
+)
 
 @app.post("/transcription")
 async def transcription(
     audio: UploadFile = File(...),
-    _: dict = Depends(require_authenticated_user),
+    _: dict = Depends(require_transcription_user),
 ):
     import tempfile
-    from pathlib import Path
 
     tmp_path = None
     try:
@@ -454,22 +832,14 @@ async def transcription(
             )
 
         try:
-            decoded_audio = decode_audio(tmp_path, sampling_rate=assistant.sample_rate)
+            transcription = await _run_ai_call(partial(_transcribe_audio_file, tmp_path))
+        except HTTPException:
+            raise
         except Exception:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Unable to decode uploaded audio. Ensure the file is valid.",
             )
-
-        duration_seconds = len(decoded_audio) / assistant.sample_rate
-        if duration_seconds > MAX_AUDIO_DURATION_SECONDS:
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"Audio duration exceeds the {MAX_AUDIO_DURATION_SECONDS:.0f} second limit.",
-            )
-
-        segments, info = assistant.whisper_model.transcribe(tmp_path)
-        transcription = "".join([seg.text for seg in segments]).strip()
 
         return {"user_input": transcription}
     except HTTPException:
@@ -485,58 +855,48 @@ async def transcription(
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
 
-@app.get("/warmup")
-def warmup():
-    import time
-    import numpy as np
-    import tempfile, os
-    import soundfile as sf
-    try:
-        timings = {}
-        t0 = time.time()
-        # Generate a 1-second sine wave (minimal audio for warmup)
-        sr = 16000
-        duration = 1.0
-        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
-        audio = 0.1 * np.sin(2 * np.pi * 220 * t)
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-            sf.write(tmp.name, audio, sr)
-            tmp_path = tmp.name
-        t1 = time.time()
-        segments, info = assistant.whisper_model.transcribe(tmp_path)
-        _ = "".join([seg.text for seg in segments]).strip()
-        os.remove(tmp_path)
-        timings['whisper'] = time.time() - t1
-        # Warm up Ollama
-        t2 = time.time()
-        response = ollama_client.chat(
-            model='mistral',
-            messages=[
-                {"role": "system", "content": "You are a technical communication coach."},
-                {"role": "user", "content": "hi"}
-            ]
-        )
-        _ = response['message']['content']
-        timings['ollama'] = time.time() - t2
-        timings['total'] = time.time() - t0
-        return {"status": "ready", "timings": timings}
-    except Exception:
-        logger.exception("Warmup failed.")
-        return {"status": "error", "error": "Warmup failed."}
-
-
 @app.post("/generate_drill")
 async def generate_drill(
     request: Request,
-    _: dict = Depends(require_authenticated_user),
+    _: dict = Depends(require_generate_drill_user),
 ):
-    data = await request.json()
-    field = data.get("field", "Software Engineer")
-    practice_mode = data.get("practice_mode", "explain-concept")
-    audience = data.get("audience", "peer-engineer")
-    topic = data.get("topic", "")
-    additional_context = data.get("additional_context", "")
-    difficulty = data.get("difficulty", "mid")
+    data = await _parse_json_request(request)
+    field = _normalize_text_field(
+        data.get("field"),
+        "field",
+        default="Software Engineer",
+        max_length=MAX_ROLE_LENGTH,
+    )
+    practice_mode = _normalize_text_field(
+        data.get("practice_mode"),
+        "practice_mode",
+        default="explain-concept",
+        max_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    audience = _normalize_text_field(
+        data.get("audience"),
+        "audience",
+        default="peer-engineer",
+        max_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    topic = _normalize_text_field(
+        data.get("topic"),
+        "topic",
+        default="",
+        max_length=MAX_TOPIC_LENGTH,
+    )
+    additional_context = _normalize_text_field(
+        data.get("additional_context"),
+        "additional_context",
+        default="",
+        max_length=MAX_ADDITIONAL_CONTEXT_LENGTH,
+    )
+    difficulty = _normalize_text_field(
+        data.get("difficulty"),
+        "difficulty",
+        default="mid",
+        max_length=MAX_SHORT_TEXT_LENGTH,
+    )
 
     generation_prompt = f"""
 You are designing a high-quality technical communication drill for developers.
@@ -568,16 +928,18 @@ Rules:
 - Do not return markdown. Return valid JSON only.
 """
 
-    response = ollama_client.chat(
-        model='mistral',
-        format='json',
-        messages=[
-            {
-                "role": "system",
-                "content": "You create concise, realistic technical communication drills for developers. Always return valid JSON.",
-            },
-            {"role": "user", "content": generation_prompt},
-        ],
+    response = await _run_ai_call(
+        lambda: ollama_client.chat(
+            model='mistral',
+            format='json',
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You create concise, realistic technical communication drills for developers. Always return valid JSON.",
+                },
+                {"role": "user", "content": generation_prompt},
+            ],
+        )
     )
 
     try:
@@ -592,14 +954,39 @@ Rules:
 @app.post("/evaluate_drill")
 async def evaluate_drill(
     request: Request,
-    _: dict = Depends(require_authenticated_user),
+    _: dict = Depends(require_evaluate_drill_user),
 ):
-    data = await request.json()
-    field = data.get("field", "Software Engineer")
-    practice_mode = data.get("practice_mode", "explain-concept")
-    audience = data.get("audience", "peer-engineer")
-    topic = data.get("topic", "")
-    additional_context = data.get("additional_context", "")
+    data = await _parse_json_request(request)
+    field = _normalize_text_field(
+        data.get("field"),
+        "field",
+        default="Software Engineer",
+        max_length=MAX_ROLE_LENGTH,
+    )
+    practice_mode = _normalize_text_field(
+        data.get("practice_mode"),
+        "practice_mode",
+        default="explain-concept",
+        max_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    audience = _normalize_text_field(
+        data.get("audience"),
+        "audience",
+        default="peer-engineer",
+        max_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    topic = _normalize_text_field(
+        data.get("topic"),
+        "topic",
+        default="",
+        max_length=MAX_TOPIC_LENGTH,
+    )
+    additional_context = _normalize_text_field(
+        data.get("additional_context"),
+        "additional_context",
+        default="",
+        max_length=MAX_ADDITIONAL_CONTEXT_LENGTH,
+    )
     generated_prompt = _normalize_generated_prompt(
         data.get("generated_prompt", {}),
         field,
@@ -607,8 +994,13 @@ async def evaluate_drill(
         audience,
         topic,
     )
-    transcript = data.get("transcript", "")
-    session_id = data.get("session_id")
+    transcript = _normalize_text_field(
+        data.get("transcript"),
+        "transcript",
+        default="",
+        max_length=MAX_TRANSCRIPT_LENGTH,
+    )
+    session_id = _normalize_optional_positive_int(data.get("session_id"), "session_id")
 
     if not isinstance(transcript, str) or not transcript.strip():
         return {"error": "A transcript is required to evaluate the drill."}
@@ -654,22 +1046,24 @@ Rules:
 
     response = None
     for attempt in range(2):
-        response = ollama_client.chat(
-            model='mistral',
-            format='json',
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a strict, fair technical communication coach. Always return valid JSON.",
-                },
-                {"role": "user", "content": evaluation_prompt},
-            ],
+        response = await _run_ai_call(
+            lambda: ollama_client.chat(
+                model='mistral',
+                format='json',
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a strict, fair technical communication coach. Always return valid JSON.",
+                    },
+                    {"role": "user", "content": evaluation_prompt},
+                ],
+            )
         )
 
         try:
             result = _parse_model_json_content(response['message']['content'])
             result = _normalize_communication_grading_result(result)
-            _persist_grading_result(session_id, result)
+            await _persist_grading_result(session_id, result, request)
             return result
         except Exception:
             logger.exception(
@@ -679,20 +1073,45 @@ Rules:
             )
 
     fallback = _normalize_communication_grading_result({})
-    _persist_grading_result(session_id, fallback)
+    await _persist_grading_result(session_id, fallback, request)
     return fallback
 
 @app.post("/generate_questions")
 async def generate_questions(
     request: Request,
-    _: dict = Depends(require_authenticated_user),
+    _: dict = Depends(require_generate_questions_user),
 ):
-    data = await request.json()
-    role = data.get("role", "")
-    focus_areas = data.get("languages", [])
-    difficulty = data.get("difficulty", "")
-    topic = data.get("topic", "")
-    additional_context = data.get("additional_context", "")
+    data = await _parse_json_request(request)
+    role = _normalize_text_field(
+        data.get("role"),
+        "role",
+        default="",
+        max_length=MAX_ROLE_LENGTH,
+    )
+    focus_areas = _normalize_string_list_field(
+        data.get("languages"),
+        "languages",
+        max_items=10,
+        max_item_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    difficulty = _normalize_text_field(
+        data.get("difficulty"),
+        "difficulty",
+        default="",
+        max_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    topic = _normalize_text_field(
+        data.get("topic"),
+        "topic",
+        default="",
+        max_length=MAX_TOPIC_LENGTH,
+    )
+    additional_context = _normalize_text_field(
+        data.get("additional_context"),
+        "additional_context",
+        default="",
+        max_length=MAX_ADDITIONAL_CONTEXT_LENGTH,
+    )
     prompt = (
         f"You are an expert behavioral interviewer. Generate 5 unique behavioral interview questions "
         f"for a {role} position. Focus on these competency areas: {', '.join(focus_areas)}. "
@@ -705,12 +1124,14 @@ async def generate_questions(
         f"Use the extra context to ground the scenarios when it helps. "
         f"Return only the questions as a numbered list."
     )
-    response = ollama_client.chat(
-        model='mistral',
-        messages=[
-            {"role": "system", "content": "You are an expert behavioral interviewer that generates interview questions."},
-            {"role": "user", "content": prompt}
-        ]
+    response = await _run_ai_call(
+        lambda: ollama_client.chat(
+            model='mistral',
+            messages=[
+                {"role": "system", "content": "You are an expert behavioral interviewer that generates interview questions."},
+                {"role": "user", "content": prompt}
+            ],
+        )
     )
     questions = response['message']['content']
     return {"questions": questions}
@@ -718,14 +1139,65 @@ async def generate_questions(
 @app.post("/interview_ack")
 async def interview_ack(
     request: Request,
-    _: dict = Depends(require_authenticated_user),
+    _: dict = Depends(require_interview_ack_user),
 ):
-    data = await request.json()
-    current_question = data.get("current_question", "")
-    user_answer = data.get("user_answer", "")
+    data = await _parse_json_request(request)
+    current_question = _normalize_text_field(
+        data.get("current_question"),
+        "current_question",
+        default="",
+        max_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    user_answer = _normalize_text_field(
+        data.get("user_answer"),
+        "user_answer",
+        default="",
+        max_length=MAX_TRANSCRIPT_LENGTH,
+    )
     previous_qa = data.get("previous_qa", [])
-    next_question = data.get("next_question", "")
-    is_last_question = data.get("is_last_question", False)
+    if not isinstance(previous_qa, list):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="previous_qa must be a list.",
+        )
+    if len(previous_qa) > MAX_PREVIOUS_QA_ITEMS:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"previous_qa exceeds the {MAX_PREVIOUS_QA_ITEMS} item limit.",
+        )
+
+    normalized_previous_qa = []
+    for index, qa in enumerate(previous_qa):
+        if not isinstance(qa, dict):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="previous_qa must contain question and answer objects.",
+            )
+        normalized_previous_qa.append(
+            {
+                "question": _normalize_text_field(
+                    qa.get("question"),
+                    f"previous_qa[{index}].question",
+                    default="",
+                    max_length=MAX_SHORT_TEXT_LENGTH,
+                ),
+                "answer": _normalize_text_field(
+                    qa.get("answer"),
+                    f"previous_qa[{index}].answer",
+                    default="",
+                    max_length=MAX_TRANSCRIPT_LENGTH,
+                ),
+            }
+        )
+
+    previous_qa = normalized_previous_qa
+    next_question = _normalize_text_field(
+        data.get("next_question"),
+        "next_question",
+        default="",
+        max_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    is_last_question = bool(data.get("is_last_question", False))
     
     # Build context from previous Q&A
     context = ""
@@ -754,19 +1226,21 @@ async def interview_ack(
         Generate a brief, professional acknowledgement of their answer (1-2 sentences) that references specific details from their response when possible. Return as JSON:
                 {{"acknowledgement": "your acknowledgement here", "next_question": "{next_question}"}}"""
             
-    response = ollama_client.chat(
-        model='mistral',
-        format='json',
-        messages=[
-            {"role": "system", "content": "You are a helpful AI that generates interview responses. Always return valid JSON."},
-            {"role": "user", "content": prompt}
-        ]
+    response = await _run_ai_call(
+        lambda: ollama_client.chat(
+            model='mistral',
+            format='json',
+            messages=[
+                {"role": "system", "content": "You are a helpful AI that generates interview responses. Always return valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+        )
     )
     
     try:
         result = _parse_model_json_content(response['message']['content'])
         return result
-    except:
+    except Exception:
         # Fallback if JSON parsing fails
         if is_last_question:
             return {
@@ -782,12 +1256,22 @@ async def interview_ack(
 @app.post("/grade_interview")
 async def grade_interview(
     request: Request,
-    _: dict = Depends(require_authenticated_user),
+    _: dict = Depends(require_grade_interview_user),
 ):
-    data = await request.json()
-    questions = data.get("questions", [])
-    answers = data.get("answers", [])
-    interview_id = data.get("interview_id")  # New parameter for interview ID
+    data = await _parse_json_request(request)
+    questions = _normalize_string_list_field(
+        data.get("questions"),
+        "questions",
+        max_items=5,
+        max_item_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    answers = _normalize_string_list_field(
+        data.get("answers"),
+        "answers",
+        max_items=5,
+        max_item_length=MAX_TRANSCRIPT_LENGTH,
+    )
+    interview_id = _normalize_optional_positive_int(data.get("interview_id"), "interview_id")
     
     if not questions or not answers or len(questions) != 5 or len(answers) != 5:
         return {"error": "Must provide exactly 5 questions and 5 answers."}
@@ -821,18 +1305,20 @@ Questions:
 
     response = None
     for attempt in range(2):
-        response = ollama_client.chat(
-            model='mistral',
-            format='json',
-            messages=[
-                {"role": "system", "content": "You are a strict, fair, and robust behavioral interview grader. Always return valid JSON."},
-                {"role": "user", "content": grading_prompt}
-            ]
+        response = await _run_ai_call(
+            lambda: ollama_client.chat(
+                model='mistral',
+                format='json',
+                messages=[
+                    {"role": "system", "content": "You are a strict, fair, and robust behavioral interview grader. Always return valid JSON."},
+                    {"role": "user", "content": grading_prompt}
+                ],
+            )
         )
         try:
             result = _parse_model_json_content(response['message']['content'])
             result = _normalize_grading_result(result, questions, answers)
-            _persist_grading_result(interview_id, result)
+            await _persist_grading_result(interview_id, result, request)
             return result
         except Exception:
             logger.exception(
