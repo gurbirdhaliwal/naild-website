@@ -1,6 +1,7 @@
 import { GeneratedPrompt, GradingResult, Interview, Message, SessionType, PracticeMode, AudienceType } from '../types/Interview';
 import { API_BASE } from './api';
 import { CSRF_HEADER_NAME, getCsrfToken } from './csrf';
+import { confirmSessionExpired, notifySessionExpired } from './authSession';
 import { normalizeGeneratedPrompt } from '../lib/practiceConfig';
 
 const toValidDate = (value: unknown, fallback: Date = new Date()): Date => {
@@ -132,8 +133,17 @@ export interface UpdateInterviewTitleRequest {
   title: string;
 }
 
-const isHttpError = (error: unknown) =>
-  error instanceof Error && error.message.startsWith('HTTP error!')
+class HttpError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = 'HttpError';
+  }
+}
+
+const isHttpError = (error: unknown): error is HttpError => error instanceof HttpError
 
 class InterviewService {
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
@@ -147,7 +157,9 @@ class InterviewService {
       const method = (options.method ?? 'GET').toUpperCase();
       const requiresCsrf = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method);
       const headers = new Headers(options.headers);
-      headers.set('Content-Type', 'application/json');
+      if (options.body != null && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+      }
       if (requiresCsrf) {
         headers.set(CSRF_HEADER_NAME, await getCsrfToken());
       }
@@ -164,7 +176,16 @@ class InterviewService {
       
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}${errorText ? ` - ${errorText}` : ''}`);
+        if (response.status === 401) {
+          const sessionExpired = await confirmSessionExpired();
+          if (sessionExpired) {
+            notifySessionExpired();
+          }
+        }
+        throw new HttpError(
+          response.status,
+          `HTTP error! status: ${response.status}${errorText ? ` - ${errorText}` : ''}`
+        );
       }
 
       const data = await response.json();
@@ -173,7 +194,9 @@ class InterviewService {
       }
       return data;
     } catch (error) {
-      console.error(`Network error for ${endpoint}:`, error);
+      if (!(isHttpError(error) && error.status === 401)) {
+        console.error(`Network error for ${endpoint}:`, error);
+      }
       throw error;
     }
   }
@@ -181,7 +204,12 @@ class InterviewService {
   async getUserInterviews(): Promise<InterviewResponse[]> {
     try {
       return await this.makeRequest('/interviews');
-    } catch {
+    } catch (error) {
+      if (isHttpError(error) && error.status === 401) {
+        console.warn('Interview list request was unauthorized while the session is still being verified.');
+        return [];
+      }
+
       console.log('Backend not available, returning empty interviews list');
       return [];
     }

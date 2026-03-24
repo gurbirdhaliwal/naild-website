@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Navbar from "./Navbar";
 import React from "react";
+import SessionReauthModal from "./SessionReauthModal";
 
 export default function LayoutWrapper({
   children,
@@ -22,6 +23,7 @@ export default function LayoutWrapper({
     <>
       {!shouldHideNavbar && <Navbar />}
       {children}
+      <SessionReauthModal />
     </>
   );
 }

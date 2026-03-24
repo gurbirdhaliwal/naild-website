@@ -31,7 +31,7 @@ import {
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
-import { broadcastLogout, clearOAuthHandoffRedirect, requestLogout } from '../services/authSession'
+import { broadcastLogout, consumeOAuthHandoffRedirect, requestLogout } from '../services/authSession'
 import {
   getAudienceLabel,
   getPracticeModeLabel,
@@ -180,10 +180,15 @@ export default function InterviewPage() {
   // Load saved interviews when user is authenticated
   useEffect(() => {
     if (user && !loading) {
-      clearOAuthHandoffRedirect();
+      const oauthTarget = consumeOAuthHandoffRedirect()
+      if (oauthTarget && oauthTarget !== '/interview') {
+        router.replace(oauthTarget)
+        return
+      }
+
       loadSavedInterviews();
     }
-  }, [user, loading]);
+  }, [loading, router, user]);
 
   useEffect(() => {
     getCsrfToken().catch((err) => {

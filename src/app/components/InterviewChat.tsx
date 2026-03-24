@@ -22,6 +22,7 @@ import CustomMicRecorder from './CustomMicRecorder'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
+import { confirmSessionExpired, notifySessionExpired } from '../services/authSession'
 import {
   COMMUNICATION_CATEGORY_LABELS,
   getAudienceLabel,
@@ -699,7 +700,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
       try {
         const csrfToken = await getCsrfToken()
-        await fetch(`${API_BASE}/interviews/${interview.id}/current_question_index`, {
+        const response = await fetch(`${API_BASE}/interviews/${interview.id}/current_question_index`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -708,6 +709,18 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
           credentials: 'include',
           body: JSON.stringify({ currentQuestionIndex: updatedInterview.currentQuestionIndex }),
         })
+
+        if (response.status === 401) {
+          const sessionExpired = await confirmSessionExpired()
+          if (sessionExpired) {
+            notifySessionExpired()
+          }
+          return
+        }
+
+        if (!response.ok) {
+          throw new Error(`Failed to update current question index (${response.status})`)
+        }
       } catch (error) {
         console.error('Failed to update current question index:', error)
       }
