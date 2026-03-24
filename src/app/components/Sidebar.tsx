@@ -8,7 +8,6 @@ import {
   Search,
   Library,
   Trash2,
-  Loader2,
   Settings,
   CircleHelp,
   LogOut,
@@ -321,15 +320,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="flex items-center justify-center p-4">
-              <Loader2 className="animate-spin text-gray-400" size={20} />
-              {!collapsed && (
-                <span className="ml-2 text-sm text-gray-500">Loading sessions...</span>
-              )}
-            </div>
-          ) : interviews.length === 0 ? (
+        <div className="flex-1 overflow-y-auto" aria-busy={loading}>
+          {loading && interviews.length === 0 ? null : interviews.length === 0 ? (
             <div className="p-4 text-center">
               {!collapsed && <div className="text-sm text-gray-500">No sessions yet</div>}
             </div>
