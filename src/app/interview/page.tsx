@@ -1141,8 +1141,20 @@ export default function InterviewPage() {
           </div>
         </section>
 
-        <section className="practice-preview-shell flex h-1/2 items-center justify-center">
-          {renderPromptPanel()}
+        <section className="practice-preview-shell relative flex h-1/2 items-center justify-center overflow-hidden">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={WORKSPACE_HOME_HERO_BACKGROUND_STYLES[resolvedTheme]}
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={WORKSPACE_HOME_HERO_OVERLAY_STYLES[resolvedTheme]}
+          />
+          <div className="relative z-[1] flex h-full w-full items-center justify-center">
+            {renderPromptPanel()}
+          </div>
         </section>
       </motion.div>
     </div>
