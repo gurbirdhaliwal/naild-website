@@ -211,9 +211,6 @@ const NaildLanding = () => {
               ) : null}
             </span>
           </h1>
-          <p className="mx-auto max-w-3xl text-xl font-normal leading-9 text-gray-500">
-            {AUREON_NAME}-powered drills, feedback, retries, and progress tracking.
-          </p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
