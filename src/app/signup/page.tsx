@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { FaGoogle, FaLinkedin, FaGithub, FaArrowLeft } from 'react-icons/fa';
+import { FaGoogle, FaArrowLeft } from 'react-icons/fa';
 import { API_BASE, API_ORIGIN } from '../services/api';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { getSafeRedirectPath } from '../services/safeRedirect';
@@ -231,20 +231,6 @@ function SignupContent() {
           >
             <FaGoogle />
             Continue with Google
-          </a>
-          <a
-            href="#"
-            className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-md py-2 text-sm font-medium bg-white hover:bg-gray-50"
-          >
-            <FaLinkedin />
-            Continue with LinkedIn
-          </a>
-          <a
-            href="#"
-            className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-md py-2 text-sm font-medium bg-white hover:bg-gray-50"
-          >
-            <FaGithub />
-            Continue with GitHub
           </a>
         </div>
 
