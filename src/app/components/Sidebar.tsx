@@ -160,6 +160,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     setLibraryOpen(false);
   };
 
+  const libraryChooserSections = LIBRARY_SECTIONS.slice(0, 2);
+
   const beginRename = (interview: Interview) => {
     setEditingInterviewId(interview.id);
     setEditingTitle(interview.title);
@@ -661,8 +663,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
 
                 <div className="max-h-[calc(92vh-84px)] overflow-y-auto bg-gradient-to-b from-white to-gray-50 p-4 sm:p-5">
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {LIBRARY_SECTIONS.map((section, index) => {
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
+                    {libraryChooserSections.map((section, index) => {
                       const Icon = section.icon;
 
                       return (
@@ -679,9 +681,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-700">
                               <Icon size={18} />
                             </div>
-                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-600">
-                              {section.status === 'ready' ? 'Ready' : 'Soon'}
-                            </span>
                           </div>
 
                           <h3 className="text-sm font-semibold text-gray-900">{section.title}</h3>
