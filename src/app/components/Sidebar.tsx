@@ -710,7 +710,13 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div ref={accountMenuRef} className="p-4 border-t border-gray-200 relative">
           <button
             onClick={() => setAccountMenuOpen((prev) => !prev)}
-            className="w-full flex items-center gap-2 hover:bg-gray-200 rounded-lg p-2 transition-colors"
+            aria-haspopup="menu"
+            aria-expanded={accountMenuOpen}
+            className={`w-full flex items-center gap-2 rounded-lg border p-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+              accountMenuOpen
+                ? 'border-gray-300 bg-gray-100'
+                : 'border-transparent hover:bg-gray-200'
+            }`}
           >
             <div className="w-8 h-8 bg-teal-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
               {userInitial || 'U'}

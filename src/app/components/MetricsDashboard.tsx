@@ -379,7 +379,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
           </div>
         </div>
 
-        <section className="overflow-hidden rounded-[28px] border border-green-200 bg-gradient-to-br from-[#f7fff8] via-white to-[#eef8f1] p-5 sm:p-6">
+        <section className="metrics-weekly-target-shell overflow-hidden rounded-[28px] border border-green-200 p-5 sm:p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-white/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-green-700">

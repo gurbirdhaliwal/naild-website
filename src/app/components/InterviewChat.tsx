@@ -1024,7 +1024,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-6">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
                         <CheckCircle2 size={18} />
                         Strong signals
                       </div>
@@ -1096,7 +1096,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
                   <div className="grid gap-4 lg:grid-cols-2">
                     <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-6">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
                         <CheckCircle2 size={18} />
                         Strong signals
                       </div>

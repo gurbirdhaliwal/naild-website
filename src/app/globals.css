@@ -43,6 +43,11 @@ html[data-theme='dark'] .interview-workspace .bg-white\/70 {
   background-color: rgb(15 23 42 / 0.76) !important;
 }
 
+html[data-theme='dark'] .interview-workspace .bg-emerald-50\/70,
+html[data-theme='dark'] .interview-workspace .bg-emerald-50\/80 {
+  background-color: rgb(6 78 59 / 0.22) !important;
+}
+
 html[data-theme='dark'] .interview-workspace .bg-gray-50 {
   background-color: #020617 !important;
 }
@@ -71,8 +76,20 @@ html[data-theme='dark'] .interview-workspace .border-gray-300 {
   border-color: #334155 !important;
 }
 
+html[data-theme='dark'] .interview-workspace .border-white\/80 {
+  border-color: rgb(51 65 85 / 0.82) !important;
+}
+
 html[data-theme='dark'] .interview-workspace .border-gray-900 {
   border-color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .border-emerald-200 {
+  border-color: rgb(52 211 153 / 0.2) !important;
+}
+
+html[data-theme='dark'] .interview-workspace .border-emerald-300 {
+  border-color: rgb(52 211 153 / 0.3) !important;
 }
 
 html[data-theme='dark'] .interview-workspace .text-gray-900 {
@@ -98,6 +115,15 @@ html[data-theme='dark'] .interview-workspace .text-gray-400 {
 
 html[data-theme='dark'] .interview-workspace .bg-gray-900.text-white {
   color: #0f172a !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-emerald-950 {
+  color: #d1fae5 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-emerald-800,
+html[data-theme='dark'] .interview-workspace .text-emerald-700 {
+  color: #86efac !important;
 }
 
 html[data-theme='dark'] .interview-workspace .placeholder\:text-gray-500::placeholder {
@@ -126,6 +152,11 @@ html[data-theme='dark'] .interview-workspace .hover\:bg-gray-200:hover {
 
 html[data-theme='dark'] .interview-workspace .hover\:bg-gray-800:hover {
   background-color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .hover\:bg-emerald-50:hover,
+html[data-theme='dark'] .interview-workspace .hover\:bg-emerald-100:hover {
+  background-color: rgb(4 120 87 / 0.3) !important;
 }
 
 html[data-theme='dark'] .interview-workspace .hover\:text-gray-700:hover,
@@ -175,16 +206,36 @@ html[data-theme='dark'] .interview-workspace .bg-red-50 {
   background-color: rgb(220 38 38 / 0.14) !important;
 }
 
+html[data-theme='dark'] .interview-workspace .bg-rose-50\/80 {
+  background-color: rgb(159 18 57 / 0.18) !important;
+}
+
 html[data-theme='dark'] .interview-workspace .border-red-200 {
   border-color: rgb(248 113 113 / 0.28) !important;
+}
+
+html[data-theme='dark'] .interview-workspace .border-rose-200 {
+  border-color: rgb(251 113 133 / 0.26) !important;
 }
 
 html[data-theme='dark'] .interview-workspace .text-red-700 {
   color: #fca5a5 !important;
 }
 
+html[data-theme='dark'] .interview-workspace .text-rose-700 {
+  color: #fda4af !important;
+}
+
 html[data-theme='dark'] .interview-workspace .text-red-600 {
   color: #f87171 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-amber-500 {
+  color: #fbbf24 !important;
+}
+
+html[data-theme='dark'] .interview-workspace .text-sky-500 {
+  color: #7dd3fc !important;
 }
 
 .practice-home-shell {
@@ -229,6 +280,15 @@ html[data-theme='dark'] .practice-mode-card--technical {
 html[data-theme='dark'] .practice-mode-card--behavioral {
   border-color: rgba(52, 211, 153, 0.22);
   background: rgba(6, 78, 59, 0.2);
+}
+
+.metrics-weekly-target-shell {
+  background: linear-gradient(135deg, #f7fff8 0%, #ffffff 48%, #eef8f1 100%);
+}
+
+html[data-theme='dark'] .metrics-weekly-target-shell {
+  border-color: rgba(52, 211, 153, 0.22);
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.28) 0%, rgba(15, 23, 42, 0.96) 48%, rgba(4, 120, 87, 0.18) 100%);
 }
 
 .button-gradient {

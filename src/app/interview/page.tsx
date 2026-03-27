@@ -1131,7 +1131,7 @@ export default function InterviewPage() {
               <button
                 type="button"
                 onClick={openCreateSessionChooser}
-                className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-100 px-6 py-3 text-sm font-medium text-emerald-950 shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-200"
+                className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-6 py-3 text-sm font-medium text-emerald-950 shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-100"
                 aria-haspopup="dialog"
                 aria-expanded={createSessionModalOpen}
               >

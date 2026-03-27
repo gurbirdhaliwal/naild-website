@@ -337,7 +337,7 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview, reso
                     key={row.label}
                     className="flex flex-col gap-1 border-b border-gray-100 pb-4 last:border-b-0 last:pb-0"
                   >
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
                       {row.label}
                     </span>
                     <span className="text-sm leading-6 text-gray-600">{row.value}</span>
