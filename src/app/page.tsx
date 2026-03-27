@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -60,9 +60,7 @@ const tabs = [
   },
 ] as const;
 
-type LandingTab = (typeof tabs)[number]['id'];
 const heroHeadline = 'Explain complex\nsoftware ideas clearly.';
-const TAB_CYCLE_MS = 6000;
 const universityLogos = [
   { name: 'Wilfrid Laurier University', logoSrc: '/universities/wlu.ico' },
   { name: 'University of Waterloo', logoSrc: '/universities/waterloo.ico' },
@@ -83,8 +81,249 @@ const planCardOffsets = [
   { x: 20, y: 0 },
 ] as const;
 
+// ─── Sticky Scroll Features Section ───────────────────────────────────────────
+
+function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const stageRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const activeFeature = tabs[activeIndex];
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const nextEntry = entries.find((entry) => entry.isIntersecting);
+
+        if (!nextEntry) {
+          return;
+        }
+
+        const nextIndex = Number((nextEntry.target as HTMLDivElement).dataset.index);
+
+        if (!Number.isFinite(nextIndex)) {
+          return;
+        }
+
+        setActiveIndex((currentIndex) => (currentIndex === nextIndex ? currentIndex : nextIndex));
+      },
+      {
+        root: null,
+        rootMargin: '-45% 0px -45% 0px',
+        threshold: 0,
+      }
+    );
+
+    stageRefs.current.forEach((stage) => {
+      if (stage) {
+        observer.observe(stage);
+      }
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  return (
+    <section className="relative bg-white">
+      {/* Sticky container — locks in place while section scrolls past */}
+      <div className="sticky top-0 z-10 h-screen overflow-hidden px-5">
+        <div className="mx-auto flex h-full max-w-6xl flex-col justify-center py-20">
+
+          {/* Section header */}
+          <div className="mb-12 text-center">
+            <h2 className="mb-3 text-5xl font-normal text-black">
+              Train the communication skills strong engineers use every week.
+            </h2>
+            <p className="text-xl font-normal text-gray-500">
+              Pick your field, audience, and scenario. Naild generates the drill,
+              <br />
+              listens to your answer, and tells you how to tighten it.
+            </p>
+          </div>
+
+          {/* Main content — step indicators + animated card */}
+          <div className="flex items-start gap-12">
+
+            {/* Left: vertical step list */}
+            <div className="flex w-64 shrink-0 flex-col gap-1">
+              {tabs.map((tab, i) => (
+                <div
+                  key={tab.id}
+                  className="flex items-start gap-4 rounded-2xl p-4 text-left"
+                >
+                  {/* Progress bar + number */}
+                  <div className="flex flex-col items-center gap-1 pt-1">
+                    <div
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all duration-300 ${
+                        i === activeIndex
+                          ? 'bg-green-500 text-white'
+                          : i < activeIndex
+                          ? 'bg-green-100 text-green-600'
+                          : 'bg-gray-100 text-gray-400'
+                      }`}
+                    >
+                      {i < activeIndex ? '✓' : i + 1}
+                    </div>
+                    {i < tabs.length - 1 && (
+                      <div className="relative h-10 w-0.5 overflow-hidden rounded-full bg-gray-100">
+                        <motion.div
+                          className="absolute inset-x-0 top-0 rounded-full bg-green-400"
+                          animate={{ height: i < activeIndex ? '100%' : '0%' }}
+                          transition={{ duration: 0.4, ease: 'easeOut' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div
+                      className={`text-sm font-semibold uppercase tracking-widest transition-colors duration-300 ${
+                        i === activeIndex ? 'text-green-600' : 'text-gray-400'
+                      }`}
+                    >
+                      {tab.label}
+                    </div>
+                    <div
+                      className={`mt-0.5 text-sm leading-snug transition-all duration-300 ${
+                        i === activeIndex ? 'max-h-20 text-gray-700 opacity-100' : 'max-h-0 overflow-hidden opacity-0'
+                      }`}
+                    >
+                      {tab.title}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Right: animated preview card */}
+            <div className="relative flex-1">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={activeFeature.id}
+                  initial={
+                    prefersReducedMotion
+                      ? { opacity: 0 }
+                      : { opacity: 0, y: 32, scale: 0.97 }
+                  }
+                  animate={
+                    prefersReducedMotion
+                      ? { opacity: 1 }
+                      : { opacity: 1, y: 0, scale: 1 }
+                  }
+                  exit={
+                    prefersReducedMotion
+                      ? { opacity: 0 }
+                      : { opacity: 0, y: -32, scale: 0.97 }
+                  }
+                  transition={{
+                    duration: prefersReducedMotion ? 0.15 : 0.42,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="flex aspect-video overflow-hidden rounded-3xl bg-gray-400 shadow-2xl"
+                >
+                  {/* Left pane: label + description */}
+                  <motion.div
+                    initial={prefersReducedMotion ? undefined : { x: -20, opacity: 0 }}
+                    animate={prefersReducedMotion ? undefined : { x: 0, opacity: 1 }}
+                    transition={{ duration: 0.32, delay: 0.08 }}
+                    className="flex w-2/5 items-center justify-center rounded-l-3xl bg-gray-300/90"
+                  >
+                    <div className="px-8 text-center text-gray-700">
+                      <div className="mb-2 text-lg font-medium">
+                        {activeFeature.previewLabel}
+                      </div>
+                      <div className="text-sm leading-6">
+                        {activeFeature.description}
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Right pane: detail card */}
+                  <motion.div
+                    initial={prefersReducedMotion ? undefined : { x: 20, opacity: 0 }}
+                    animate={prefersReducedMotion ? undefined : { x: 0, opacity: 1 }}
+                    transition={{ duration: 0.32, delay: 0.12 }}
+                    className="flex w-3/5 items-center justify-center px-8"
+                  >
+                    <div className="w-full max-w-sm rounded-3xl bg-white/90 p-6 text-left text-gray-700 shadow-lg">
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-green-600">
+                        {activeFeature.label}
+                      </div>
+                      <div className="mt-3 text-lg font-medium text-gray-900">
+                        {activeFeature.previewTitle}
+                      </div>
+                      <div className="mt-2 text-sm text-gray-500">
+                        {activeFeature.previewDetail}
+                      </div>
+                      <div className="mt-5 grid gap-2">
+                        {activeFeature.bullets.map((bullet, index) => (
+                          <motion.div
+                            key={bullet}
+                            initial={
+                              prefersReducedMotion
+                                ? undefined
+                                : { opacity: 0, y: 12 }
+                            }
+                            animate={
+                              prefersReducedMotion
+                                ? undefined
+                                : { opacity: 1, y: 0 }
+                            }
+                            transition={{
+                              duration: 0.26,
+                              delay: 0.2 + index * 0.07,
+                            }}
+                            className="rounded-2xl border border-black/5 bg-gray-50 px-4 py-3 text-sm"
+                          >
+                            {bullet}
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Scroll-progress dots */}
+              <div className="mt-6 flex justify-center gap-2">
+                {tabs.map((tab, i) => (
+                  <div
+                    key={tab.id}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      i === activeIndex
+                        ? 'w-6 bg-green-500'
+                        : i < activeIndex
+                        ? 'w-1.5 bg-green-200'
+                        : 'w-1.5 bg-gray-200'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div aria-hidden="true" className="-mt-screen pointer-events-none">
+        {tabs.map((tab, i) => (
+          <div
+            key={`${tab.id}-stage`}
+            ref={(node) => {
+              stageRefs.current[i] = node;
+            }}
+            data-index={i}
+            className="h-screen"
+          />
+        ))}
+        <div className="h-screen" />
+      </div>
+    </section>
+  );
+}
+
+// ─── Main Landing Page ─────────────────────────────────────────────────────────
+
 const NaildLanding = () => {
-  const [activeTab, setActiveTab] = useState<LandingTab>('feedback');
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRedirectingToInterview, setIsRedirectingToInterview] = useState(false);
@@ -137,7 +376,6 @@ const NaildLanding = () => {
     }
 
     setTypedHeroHeadline('');
-
     let currentIndex = 0;
     let intervalId: ReturnType<typeof setInterval> | undefined;
 
@@ -145,35 +383,15 @@ const NaildLanding = () => {
       intervalId = setInterval(() => {
         currentIndex += 1;
         setTypedHeroHeadline(heroHeadline.slice(0, currentIndex));
-
-        if (currentIndex >= heroHeadline.length) {
-          clearInterval(intervalId);
-        }
+        if (currentIndex >= heroHeadline.length) clearInterval(intervalId);
       }, 45);
     }, 180);
 
     return () => {
       clearTimeout(startDelayId);
-
-      if (intervalId !== undefined) {
-        clearInterval(intervalId);
-      }
+      if (intervalId !== undefined) clearInterval(intervalId);
     };
   }, [prefersReducedMotion]);
-
-  React.useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setActiveTab((currentTab) => {
-        const currentIndex = tabs.findIndex((tab) => tab.id === currentTab);
-        const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % tabs.length : 0;
-        return tabs[nextIndex].id;
-      });
-    }, TAB_CYCLE_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [activeTab]);
 
   const handleGetStarted = () => {
     if (loading || isLoggingOut) return;
@@ -181,17 +399,13 @@ const NaildLanding = () => {
     router.push('/login?redirect=/interview');
   };
 
-  const activeFeature = useMemo(
-    () => tabs.find((tab) => tab.id === activeTab) ?? tabs[0],
-    [activeTab]
-  );
-
   if (loading || isLoggingOut || isRedirectingToInterview) {
     return <div className="min-h-screen bg-white" />;
   }
 
   return (
     <div className="font-['Space_Grotesk'] text-center">
+      {/* ── Hero ── */}
       <section className="bg-white px-5 pt-24">
         <div className="mx-auto max-w-6xl">
           <h1
@@ -201,10 +415,7 @@ const NaildLanding = () => {
             <span aria-hidden="true" className="invisible whitespace-pre-line">
               {heroHeadline}
             </span>
-            <span
-              aria-hidden="true"
-              className="absolute inset-0 whitespace-pre-line"
-            >
+            <span aria-hidden="true" className="absolute inset-0 whitespace-pre-line">
               {typedHeroHeadline}
               {!prefersReducedMotion && typedHeroHeadline.length < heroHeadline.length ? (
                 <span className="ml-1 inline-block h-[0.85em] w-[2px] translate-y-1 animate-pulse bg-current align-middle" />
@@ -227,6 +438,7 @@ const NaildLanding = () => {
         </div>
       </section>
 
+      {/* ── Demo video + universities ── */}
       <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e0fdee_30%,_#b2f5cb_60%,_#ffffff_100%)] px-5 py-24">
         <div className="mx-auto max-w-6xl">
           <div className="relative mx-auto mb-16 flex aspect-video max-w-4xl items-center justify-center overflow-hidden rounded-3xl bg-gray-400 shadow-2xl">
@@ -278,108 +490,10 @@ const NaildLanding = () => {
         </div>
       </section>
 
-      <section className="bg-white px-5 pb-24 pt-24">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="mb-4 text-5xl font-normal text-black">
-            Train the communication skills strong engineers use every week.
-          </h2>
-          <p className="mb-10 text-xl font-normal text-gray-500">
-            Pick your field, audience, and scenario. Naild generates the drill,
-            <br />
-            listens to your answer, and tells you how to tighten it.
-          </p>
+      {/* ── Sticky scroll features ── */}
+      <StickyFeaturesSection prefersReducedMotion={prefersReducedMotion} />
 
-          <div className="mb-14 flex flex-wrap justify-center gap-4">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex min-w-[116px] flex-col items-center gap-2 rounded-full border px-6 py-3 font-normal shadow-sm transition-all duration-200 ${
-                  activeTab === tab.id
-                    ? 'border-green-500 bg-green-500 text-white'
-                    : 'border-black/10 bg-white/80 text-gray-600 hover:bg-white'
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span
-                  className={`relative block h-1 w-full overflow-hidden rounded-full ${
-                    activeTab === tab.id ? 'bg-white/25' : 'bg-black/8'
-                  }`}
-                >
-                  {activeTab === tab.id ? (
-                    <motion.span
-                      key={`${tab.id}-progress`}
-                      className="absolute inset-y-0 left-0 block w-full rounded-full bg-white"
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      transition={{ duration: TAB_CYCLE_MS / 1000, ease: 'linear' }}
-                      style={{ originX: 0 }}
-                    />
-                  ) : null}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="mx-auto max-w-4xl">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={activeFeature.id}
-                initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 28, scale: 0.98 }}
-                animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
-                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -28, scale: 0.98 }}
-                transition={{ duration: prefersReducedMotion ? 0.18 : 0.45, ease: [0.22, 1, 0.36, 1] }}
-                className="flex aspect-video overflow-hidden rounded-3xl bg-gray-400 shadow-2xl"
-              >
-                <motion.div
-                  initial={prefersReducedMotion ? undefined : { x: -24, opacity: 0 }}
-                  animate={prefersReducedMotion ? undefined : { x: 0, opacity: 1 }}
-                  transition={{ duration: prefersReducedMotion ? 0 : 0.35, delay: prefersReducedMotion ? 0 : 0.08 }}
-                  className="flex w-2/5 items-center justify-center rounded-l-3xl bg-gray-300/90"
-                >
-                  <div className="px-8 text-center text-gray-700">
-                    <div className="mb-2 text-lg font-medium">{activeFeature.previewLabel}</div>
-                    <div className="text-sm leading-6">{activeFeature.description}</div>
-                  </div>
-                </motion.div>
-                <motion.div
-                  initial={prefersReducedMotion ? undefined : { x: 24, opacity: 0 }}
-                  animate={prefersReducedMotion ? undefined : { x: 0, opacity: 1 }}
-                  transition={{ duration: prefersReducedMotion ? 0 : 0.35, delay: prefersReducedMotion ? 0 : 0.12 }}
-                  className="flex w-3/5 items-center justify-center px-8"
-                >
-                  <div className="w-full max-w-sm rounded-3xl bg-white/90 p-6 text-left text-gray-700 shadow-lg">
-                    <div className="text-xs font-medium uppercase tracking-[0.18em] text-green-600">
-                      {activeFeature.label}
-                    </div>
-                    <div className="mt-3 text-lg font-medium text-gray-900">
-                      {activeFeature.previewTitle}
-                    </div>
-                    <div className="mt-2 text-sm text-gray-500">{activeFeature.previewDetail}</div>
-                    <div className="mt-5 grid gap-2">
-                      {activeFeature.bullets.map((bullet, index) => (
-                        <motion.div
-                          key={bullet}
-                          initial={prefersReducedMotion ? undefined : { opacity: 0, y: 14 }}
-                          animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-                          transition={{
-                            duration: prefersReducedMotion ? 0 : 0.28,
-                            delay: prefersReducedMotion ? 0 : 0.18 + index * 0.06,
-                          }}
-                          className="rounded-2xl border border-black/5 bg-gray-50 px-4 py-3 text-sm"
-                        >
-                          {bullet}
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </div>
-      </section>
-
+      {/* ── Habit / plan cards ── */}
       <section className="bg-white px-5 pb-32 pt-24">
         <div className="mx-auto max-w-6xl">
           <h2 className="mb-4 text-5xl font-normal text-black">
@@ -417,6 +531,7 @@ const NaildLanding = () => {
         </div>
       </section>
 
+      {/* ── CTA ── */}
       <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e6faef_20%,_#c3f3d8_60%,_#b0efcb_100%)] px-5 py-40 text-center md:py-48">
         <div className="mx-auto flex w-full max-w-xl flex-col items-center">
           <h3 className="mb-6 text-[4.5rem] font-normal leading-none text-black md:text-[5.625rem]">
@@ -431,6 +546,7 @@ const NaildLanding = () => {
         </div>
       </section>
 
+      {/* ── Footer ── */}
       <footer className="border-t border-black/5 bg-white px-5 pb-8 pt-12">
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 grid grid-cols-1 gap-16 text-left md:grid-cols-3">
