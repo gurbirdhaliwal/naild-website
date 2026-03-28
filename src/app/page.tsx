@@ -84,57 +84,132 @@ const planCardOffsets = [
 // ─── Sticky Scroll Features Section ───────────────────────────────────────────
 
 function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const stageRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const activeFeature = tabs[activeIndex];
+  const [scrollState, setScrollState] = useState({
+    activeIndex: 0,
+    backdropOpacity: 0,
+  });
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const activeFeature = tabs[scrollState.activeIndex];
+  const hasDarkBackdrop =
+    scrollState.backdropOpacity >= 0.55 || scrollState.activeIndex > 0;
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const nextEntry = entries.find((entry) => entry.isIntersecting);
+    let frameId: number | null = null;
 
-        if (!nextEntry) {
-          return;
+    const updateScrollState = () => {
+      const section = sectionRef.current;
+
+      if (!section) {
+        return;
+      }
+
+      const sectionRect = section.getBoundingClientRect();
+      const totalScrollable = Math.max(
+        sectionRect.height - window.innerHeight,
+        1
+      );
+      const sectionProgress = Math.min(
+        1,
+        Math.max(0, -sectionRect.top / totalScrollable)
+      );
+      const stageProgress = sectionProgress * tabs.length;
+      const nextIndex = Math.min(
+        tabs.length - 1,
+        Math.max(0, Math.floor(stageProgress))
+      );
+      const firstStageProgress = Math.min(1, Math.max(0, stageProgress));
+      const fadeStart = 0.35;
+      const fadeEnd = 0.9;
+      const nextOpacity = prefersReducedMotion
+        ? nextIndex > 0
+          ? 1
+          : 0
+        : firstStageProgress <= fadeStart
+        ? 0
+        : firstStageProgress >= fadeEnd
+        ? 1
+        : (firstStageProgress - fadeStart) / (fadeEnd - fadeStart);
+
+      setScrollState((currentState) => {
+        const indexChanged = currentState.activeIndex !== nextIndex;
+        const opacityChanged =
+          Math.abs(currentState.backdropOpacity - nextOpacity) >= 0.01;
+
+        if (!indexChanged && !opacityChanged) {
+          return currentState;
         }
 
-        const nextIndex = Number((nextEntry.target as HTMLDivElement).dataset.index);
+        return {
+          activeIndex: nextIndex,
+          backdropOpacity: opacityChanged
+            ? nextOpacity
+            : currentState.backdropOpacity,
+        };
+      });
 
-        if (!Number.isFinite(nextIndex)) {
-          return;
-        }
+      frameId = null;
+    };
 
-        setActiveIndex((currentIndex) => (currentIndex === nextIndex ? currentIndex : nextIndex));
-      },
-      {
-        root: null,
-        rootMargin: '-45% 0px -45% 0px',
-        threshold: 0,
+    const handleViewportChange = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
       }
-    );
 
-    stageRefs.current.forEach((stage) => {
-      if (stage) {
-        observer.observe(stage);
-      }
+      frameId = window.requestAnimationFrame(updateScrollState);
+    };
+
+    handleViewportChange();
+    window.addEventListener('scroll', handleViewportChange, { passive: true });
+    document.addEventListener('scroll', handleViewportChange, {
+      capture: true,
+      passive: true,
     });
+    window.addEventListener('resize', handleViewportChange);
 
     return () => {
-      observer.disconnect();
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      window.removeEventListener('scroll', handleViewportChange);
+      document.removeEventListener('scroll', handleViewportChange, true);
+      window.removeEventListener('resize', handleViewportChange);
     };
-  }, []);
+  }, [prefersReducedMotion]);
 
   return (
-    <section className="relative bg-white">
+    <section
+      ref={sectionRef}
+      className="relative bg-white"
+      style={{ height: `${(tabs.length + 1) * 100}vh` }}
+    >
       {/* Sticky container — locks in place while section scrolls past */}
-      <div className="sticky top-0 z-10 h-screen overflow-hidden px-5">
-        <div className="mx-auto flex h-full max-w-6xl flex-col justify-center py-20">
+      <div className="sticky top-0 z-10 h-screen overflow-hidden bg-white px-5">
+        <motion.div
+          className="pointer-events-none absolute inset-0 bg-black"
+          initial={false}
+          animate={{ opacity: scrollState.backdropOpacity }}
+          transition={{
+            duration: prefersReducedMotion ? 0 : 0.75,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+        />
+        <div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col justify-center py-20">
 
           {/* Section header */}
           <div className="mb-12 text-center">
-            <h2 className="mb-3 text-5xl font-normal text-black">
+            <h2
+              className={`mb-3 text-5xl font-normal transition-colors duration-700 ${
+                hasDarkBackdrop ? 'text-white' : 'text-black'
+              }`}
+            >
               Train the communication skills strong engineers use every week.
             </h2>
-            <p className="text-xl font-normal text-gray-500">
+            <p
+              className={`text-xl font-normal transition-colors duration-700 ${
+                hasDarkBackdrop ? 'text-gray-300' : 'text-gray-500'
+              }`}
+            >
               Pick your field, audience, and scenario. Naild generates the drill,
               <br />
               listens to your answer, and tells you how to tighten it.
@@ -155,20 +230,28 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                   <div className="flex flex-col items-center gap-1 pt-1">
                     <div
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all duration-300 ${
-                        i === activeIndex
+                        i === scrollState.activeIndex
                           ? 'bg-green-500 text-white'
-                          : i < activeIndex
-                          ? 'bg-green-100 text-green-600'
+                          : i < scrollState.activeIndex
+                          ? hasDarkBackdrop
+                            ? 'bg-green-950 text-green-300'
+                            : 'bg-green-100 text-green-600'
+                          : hasDarkBackdrop
+                          ? 'bg-zinc-800 text-zinc-500'
                           : 'bg-gray-100 text-gray-400'
                       }`}
                     >
-                      {i < activeIndex ? '✓' : i + 1}
+                      {i < scrollState.activeIndex ? '✓' : i + 1}
                     </div>
                     {i < tabs.length - 1 && (
-                      <div className="relative h-10 w-0.5 overflow-hidden rounded-full bg-gray-100">
+                      <div
+                        className={`relative h-10 w-0.5 overflow-hidden rounded-full transition-colors duration-700 ${
+                          hasDarkBackdrop ? 'bg-zinc-800' : 'bg-gray-100'
+                        }`}
+                      >
                         <motion.div
                           className="absolute inset-x-0 top-0 rounded-full bg-green-400"
-                          animate={{ height: i < activeIndex ? '100%' : '0%' }}
+                          animate={{ height: i < scrollState.activeIndex ? '100%' : '0%' }}
                           transition={{ duration: 0.4, ease: 'easeOut' }}
                         />
                       </div>
@@ -178,14 +261,24 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                   <div>
                     <div
                       className={`text-sm font-semibold uppercase tracking-widest transition-colors duration-300 ${
-                        i === activeIndex ? 'text-green-600' : 'text-gray-400'
+                        i === scrollState.activeIndex
+                          ? hasDarkBackdrop
+                            ? 'text-green-400'
+                            : 'text-green-600'
+                          : hasDarkBackdrop
+                          ? 'text-zinc-500'
+                          : 'text-gray-400'
                       }`}
                     >
                       {tab.label}
                     </div>
                     <div
                       className={`mt-0.5 text-sm leading-snug transition-all duration-300 ${
-                        i === activeIndex ? 'max-h-20 text-gray-700 opacity-100' : 'max-h-0 overflow-hidden opacity-0'
+                        i === scrollState.activeIndex
+                          ? hasDarkBackdrop
+                            ? 'max-h-20 text-zinc-200 opacity-100'
+                            : 'max-h-20 text-gray-700 opacity-100'
+                          : 'max-h-0 overflow-hidden opacity-0'
                       }`}
                     >
                       {tab.title}
@@ -290,10 +383,14 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                   <div
                     key={tab.id}
                     className={`h-1.5 rounded-full transition-all duration-300 ${
-                      i === activeIndex
+                      i === scrollState.activeIndex
                         ? 'w-6 bg-green-500'
-                        : i < activeIndex
-                        ? 'w-1.5 bg-green-200'
+                        : i < scrollState.activeIndex
+                        ? hasDarkBackdrop
+                          ? 'w-1.5 bg-green-800'
+                          : 'w-1.5 bg-green-200'
+                        : hasDarkBackdrop
+                        ? 'w-1.5 bg-zinc-700'
                         : 'w-1.5 bg-gray-200'
                     }`}
                   />
@@ -302,20 +399,6 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
             </div>
           </div>
         </div>
-      </div>
-
-      <div aria-hidden="true" className="-mt-screen pointer-events-none">
-        {tabs.map((tab, i) => (
-          <div
-            key={`${tab.id}-stage`}
-            ref={(node) => {
-              stageRefs.current[i] = node;
-            }}
-            data-index={i}
-            className="h-screen"
-          />
-        ))}
-        <div className="h-screen" />
       </div>
     </section>
   );
