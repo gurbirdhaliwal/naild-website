@@ -97,6 +97,7 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
   const [scrollState, setScrollState] = useState({
     activeIndex: 0,
     backdropOpacity: 0,
+    sectionProgress: 0,
     surfaceProgress: 0,
   });
   const sectionRef = useRef<HTMLDivElement | null>(null);
@@ -148,8 +149,8 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
         Math.max(0, Math.floor(stageProgress))
       );
       const firstStageProgress = Math.min(1, Math.max(0, stageProgress));
-      const fadeStart = 0.35;
-      const fadeEnd = 0.9;
+      const fadeStart = 0.02;
+      const fadeEnd = 0.1;
       const nextOpacity = prefersReducedMotion
         ? nextIndex > 0
           ? 1
@@ -164,10 +165,12 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
         const indexChanged = currentState.activeIndex !== nextIndex;
         const opacityChanged =
           Math.abs(currentState.backdropOpacity - nextOpacity) >= 0.01;
+        const progressChanged =
+          Math.abs(currentState.sectionProgress - sectionProgress) >= 0.01;
         const surfaceChanged =
           Math.abs(currentState.surfaceProgress - surfaceProgress) >= 0.01;
 
-        if (!indexChanged && !opacityChanged && !surfaceChanged) {
+        if (!indexChanged && !opacityChanged && !progressChanged && !surfaceChanged) {
           return currentState;
         }
 
@@ -176,6 +179,9 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
           backdropOpacity: opacityChanged
             ? nextOpacity
             : currentState.backdropOpacity,
+          sectionProgress: progressChanged
+            ? sectionProgress
+            : currentState.sectionProgress,
           surfaceProgress: surfaceChanged
             ? surfaceProgress
             : currentState.surfaceProgress,
@@ -229,6 +235,23 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
             ease: [0.22, 1, 0.36, 1],
           }}
         />
+        <div className="pointer-events-none absolute left-4 top-1/2 z-20 hidden -translate-y-1/2 md:flex md:flex-col md:items-center">
+          <div
+            className={`relative h-44 w-px overflow-hidden rounded-full transition-colors duration-700 ${
+              hasDarkBackdrop ? 'bg-white/12' : 'bg-black/10'
+            }`}
+          >
+            <motion.div
+              className="absolute inset-x-0 bottom-0 rounded-full bg-green-400"
+              initial={false}
+              animate={{ height: `${Math.max(scrollState.sectionProgress * 100, 6)}%` }}
+              transition={{
+                duration: prefersReducedMotion ? 0 : 0.18,
+                ease: 'linear',
+              }}
+            />
+          </div>
+        </div>
         <div
           className="relative h-[calc(100vh-2rem)] overflow-hidden will-change-transform md:h-[calc(100vh-3rem)]"
           style={{
@@ -420,25 +443,6 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                 </motion.div>
               </AnimatePresence>
 
-              {/* Scroll-progress dots */}
-              <div className="mt-6 flex justify-center gap-2">
-                {tabs.map((tab, i) => (
-                  <div
-                    key={tab.id}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${
-                      i === scrollState.activeIndex
-                        ? 'w-6 bg-green-500'
-                        : i < scrollState.activeIndex
-                        ? hasDarkBackdrop
-                          ? 'w-1.5 bg-green-800'
-                          : 'w-1.5 bg-green-200'
-                        : hasDarkBackdrop
-                        ? 'w-1.5 bg-zinc-700'
-                        : 'w-1.5 bg-gray-200'
-                    }`}
-                  />
-                ))}
-              </div>
             </div>
           </div>
         </div>
