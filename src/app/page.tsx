@@ -80,6 +80,16 @@ const planCardOffsets = [
   { x: 0, y: 20 },
   { x: 20, y: 0 },
 ] as const;
+const founderProfiles = [
+  {
+    id: 'cofounder-01',
+    linkedinPlaceholder: 'LinkedIn URL placeholder',
+  },
+  {
+    id: 'cofounder-02',
+    linkedinPlaceholder: 'LinkedIn URL placeholder',
+  },
+] as const;
 
 // ─── Sticky Scroll Features Section ───────────────────────────────────────────
 
@@ -87,11 +97,21 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
   const [scrollState, setScrollState] = useState({
     activeIndex: 0,
     backdropOpacity: 0,
+    surfaceProgress: 0,
   });
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const activeFeature = tabs[scrollState.activeIndex];
   const hasDarkBackdrop =
     scrollState.backdropOpacity >= 0.55 || scrollState.activeIndex > 0;
+  const surfaceScale = prefersReducedMotion
+    ? 1
+    : 0.9 + scrollState.surfaceProgress * 0.1;
+  const surfaceY = prefersReducedMotion
+    ? 0
+    : (1 - scrollState.surfaceProgress) * 112;
+  const surfaceRadius = prefersReducedMotion
+    ? 0
+    : (1 - scrollState.surfaceProgress) * 56;
 
   useEffect(() => {
     let frameId: number | null = null;
@@ -104,14 +124,24 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
       }
 
       const sectionRect = section.getBoundingClientRect();
+      const viewportHeight = Math.max(window.innerHeight, 1);
       const totalScrollable = Math.max(
-        sectionRect.height - window.innerHeight,
+        sectionRect.height - viewportHeight,
         1
       );
       const sectionProgress = Math.min(
         1,
         Math.max(0, -sectionRect.top / totalScrollable)
       );
+      const surfaceProgress = prefersReducedMotion
+        ? 1
+        : Math.min(
+            1,
+            Math.max(
+              0,
+              (viewportHeight - sectionRect.top) / (viewportHeight * 0.9)
+            )
+          );
       const stageProgress = sectionProgress * tabs.length;
       const nextIndex = Math.min(
         tabs.length - 1,
@@ -134,8 +164,10 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
         const indexChanged = currentState.activeIndex !== nextIndex;
         const opacityChanged =
           Math.abs(currentState.backdropOpacity - nextOpacity) >= 0.01;
+        const surfaceChanged =
+          Math.abs(currentState.surfaceProgress - surfaceProgress) >= 0.01;
 
-        if (!indexChanged && !opacityChanged) {
+        if (!indexChanged && !opacityChanged && !surfaceChanged) {
           return currentState;
         }
 
@@ -144,6 +176,9 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
           backdropOpacity: opacityChanged
             ? nextOpacity
             : currentState.backdropOpacity,
+          surfaceProgress: surfaceChanged
+            ? surfaceProgress
+            : currentState.surfaceProgress,
         };
       });
 
@@ -180,11 +215,11 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
   return (
     <section
       ref={sectionRef}
-      className="relative bg-white"
+      className="relative z-20 mt-24 bg-white md:mt-32"
       style={{ height: `${(tabs.length + 1) * 100}vh` }}
     >
       {/* Sticky container — locks in place while section scrolls past */}
-      <div className="sticky top-0 z-10 h-screen overflow-hidden bg-white px-5">
+      <div className="sticky top-0 z-20 h-screen overflow-hidden bg-white px-5 py-4 md:py-6">
         <motion.div
           className="pointer-events-none absolute inset-0 bg-black"
           initial={false}
@@ -194,6 +229,14 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
             ease: [0.22, 1, 0.36, 1],
           }}
         />
+        <div
+          className="relative h-[calc(100vh-2rem)] overflow-hidden will-change-transform md:h-[calc(100vh-3rem)]"
+          style={{
+            transform: `translate3d(0, ${surfaceY}px, 0) scale(${surfaceScale})`,
+            transformOrigin: 'center top',
+            borderRadius: `${surfaceRadius}px`,
+          }}
+        >
         <div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col justify-center py-20">
 
           {/* Section header */}
@@ -399,7 +442,317 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
             </div>
           </div>
         </div>
+        </div>
       </div>
+    </section>
+  );
+}
+
+function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
+  const [transitionState, setTransitionState] = useState({
+    backdropOpacity: 0,
+    surfaceProgress: 0,
+  });
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const surfaceContentOpacity = prefersReducedMotion
+    ? 1
+    : Math.min(1, Math.max(0, (transitionState.surfaceProgress - 0.28) / 0.22));
+  const surfaceScale = prefersReducedMotion
+    ? 1
+    : 0.9 + transitionState.surfaceProgress * 0.1;
+  const surfaceY = prefersReducedMotion
+    ? 0
+    : (1 - transitionState.surfaceProgress) * 112;
+  const surfaceRadius = prefersReducedMotion
+    ? 0
+    : (1 - transitionState.surfaceProgress) * 56;
+  const cardsVisible = prefersReducedMotion || transitionState.surfaceProgress >= 0.45;
+
+  useEffect(() => {
+    let frameId: number | null = null;
+
+    const updateTransitionState = () => {
+      const section = sectionRef.current;
+
+      if (!section) {
+        return;
+      }
+
+      const sectionRect = section.getBoundingClientRect();
+      const viewportHeight = Math.max(window.innerHeight, 1);
+      const totalScrollable = Math.max(sectionRect.height - viewportHeight, 1);
+      const sectionProgress = Math.min(
+        1,
+        Math.max(0, -sectionRect.top / totalScrollable)
+      );
+      const surfaceProgress = prefersReducedMotion
+        ? 1
+        : Math.min(1, Math.max(0, (sectionProgress - 0.2) / 0.58));
+      const backdropOpacity = prefersReducedMotion
+        ? 1
+        : Math.min(1, Math.max(0, sectionProgress / 0.42));
+
+      setTransitionState((currentState) => {
+        const opacityChanged =
+          Math.abs(currentState.backdropOpacity - backdropOpacity) >= 0.01;
+        const surfaceChanged =
+          Math.abs(currentState.surfaceProgress - surfaceProgress) >= 0.01;
+
+        if (!opacityChanged && !surfaceChanged) {
+          return currentState;
+        }
+
+        return {
+          backdropOpacity: opacityChanged
+            ? backdropOpacity
+            : currentState.backdropOpacity,
+          surfaceProgress: surfaceChanged
+            ? surfaceProgress
+            : currentState.surfaceProgress,
+        };
+      });
+
+      frameId = null;
+    };
+
+    const handleViewportChange = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      frameId = window.requestAnimationFrame(updateTransitionState);
+    };
+
+    handleViewportChange();
+    window.addEventListener('scroll', handleViewportChange, { passive: true });
+    document.addEventListener('scroll', handleViewportChange, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener('resize', handleViewportChange);
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      window.removeEventListener('scroll', handleViewportChange);
+      document.removeEventListener('scroll', handleViewportChange, true);
+      window.removeEventListener('resize', handleViewportChange);
+    };
+  }, [prefersReducedMotion]);
+
+  return (
+    <section
+      ref={sectionRef}
+      className="relative z-20 -mt-16 bg-black md:-mt-24"
+      style={{ height: '200vh' }}
+    >
+      <div className="sticky top-0 h-screen overflow-hidden bg-black px-5 py-4 md:py-6">
+        <motion.div
+          className="pointer-events-none absolute inset-0 bg-white"
+          initial={false}
+          animate={{ opacity: transitionState.backdropOpacity }}
+          transition={{
+            duration: prefersReducedMotion ? 0 : 0.75,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+        />
+        <div
+          className="relative h-[calc(100vh-2rem)] overflow-hidden will-change-transform md:h-[calc(100vh-3rem)]"
+          style={{
+            transform: `translate3d(0, ${surfaceY}px, 0) scale(${surfaceScale})`,
+            transformOrigin: 'center top',
+            borderRadius: `${surfaceRadius}px`,
+          }}
+        >
+          <div
+            className="mx-auto flex h-full max-w-6xl flex-col justify-center py-24"
+            style={{ opacity: surfaceContentOpacity }}
+          >
+            <h2 className="mb-4 text-5xl font-normal text-black">
+              Build the habit before the high-stakes conversation.
+            </h2>
+            <p className="mb-20 text-xl font-normal text-gray-500">
+              Whether you are preparing for interviews, design reviews, or stakeholder updates,
+              <br />
+              Naild gives you a repeatable way to practice out loud.
+            </p>
+
+            <div className="flex justify-center">
+              <div className="grid w-full max-w-4xl grid-cols-1 gap-8 md:grid-cols-3">
+                {planCards.map((plan, index) => (
+                  <motion.div
+                    key={plan.name}
+                    initial={prefersReducedMotion ? false : { opacity: 0, ...planCardOffsets[index] }}
+                    animate={
+                      prefersReducedMotion
+                        ? { opacity: 1, x: 0, y: 0 }
+                        : cardsVisible
+                        ? { opacity: 1, x: 0, y: 0 }
+                        : { opacity: 0, ...planCardOffsets[index] }
+                    }
+                    transition={{
+                      duration: prefersReducedMotion ? 0 : 0.45,
+                      delay: prefersReducedMotion ? 0 : index * 0.08,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className="flex aspect-[3/4] items-center justify-center rounded-3xl bg-gray-300/40 transition-all duration-200 hover:-translate-y-1 hover:transform hover:shadow-lg"
+                  >
+                    <div className="text-center text-gray-600">
+                      <div className="mb-2 text-xl font-medium">{plan.name}</div>
+                      <div className="text-sm">{plan.detail}</div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
+  const foundersHeading = 'Meet the Founders';
+  const [typedHeading, setTypedHeading] = useState(
+    prefersReducedMotion ? foundersHeading : ''
+  );
+  const [hasEnteredView, setHasEnteredView] = useState(Boolean(prefersReducedMotion));
+  const sectionRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setTypedHeading(foundersHeading);
+      setHasEnteredView(true);
+      return;
+    }
+
+    const section = sectionRef.current;
+
+    if (!section) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setHasEnteredView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(section);
+
+    return () => observer.disconnect();
+  }, [prefersReducedMotion]);
+
+  useEffect(() => {
+    if (!hasEnteredView) {
+      return;
+    }
+
+    if (prefersReducedMotion) {
+      setTypedHeading(foundersHeading);
+      return;
+    }
+
+    setTypedHeading('');
+    let currentIndex = 0;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+
+    const startDelayId = setTimeout(() => {
+      intervalId = setInterval(() => {
+        currentIndex += 1;
+        setTypedHeading(foundersHeading.slice(0, currentIndex));
+
+        if (currentIndex >= foundersHeading.length && intervalId !== undefined) {
+          clearInterval(intervalId);
+        }
+      }, 60);
+    }, 120);
+
+    return () => {
+      clearTimeout(startDelayId);
+      if (intervalId !== undefined) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [foundersHeading, hasEnteredView, prefersReducedMotion]);
+
+  return (
+    <section
+      ref={sectionRef}
+      className="relative overflow-hidden bg-[linear-gradient(to_bottom,_#000000_0%,_#05140c_42%,_#020604_82%,_#000000_100%)] px-5 pb-40 pt-28 md:pb-48 md:pt-32"
+    >
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-14 text-center">
+          <div className="mb-4 text-sm font-medium uppercase tracking-[0.24em] text-emerald-300/70">
+            The Team Behind Naild
+          </div>
+          <h2
+            aria-label={foundersHeading}
+            className="min-h-[3.5rem] text-5xl font-normal text-white md:min-h-[4.5rem] md:text-6xl"
+          >
+            <span aria-hidden="true">
+              {typedHeading}
+              {!prefersReducedMotion && hasEnteredView && typedHeading.length < foundersHeading.length ? (
+                <span className="ml-1 inline-block h-[0.85em] w-[2px] translate-y-1 animate-pulse bg-white align-middle" />
+              ) : null}
+            </span>
+          </h2>
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-zinc-300">
+            Add founder portraits here when they are ready, along with final bios and LinkedIn
+            profiles. The layout is already in place for both co-founders.
+          </p>
+        </div>
+
+        <div className="mx-auto grid max-w-[53rem] gap-5 md:grid-cols-2 md:gap-6">
+          {founderProfiles.map((founder, index) => (
+            <motion.article
+              key={founder.id}
+              initial={
+                prefersReducedMotion
+                  ? undefined
+                  : { opacity: 0, y: 36, scale: 0.98 }
+              }
+              whileInView={
+                prefersReducedMotion
+                  ? undefined
+                  : { opacity: 1, y: 0, scale: 1 }
+              }
+              viewport={{ once: true, amount: 0.35 }}
+              transition={{
+                duration: prefersReducedMotion ? 0 : 0.5,
+                delay: prefersReducedMotion ? 0 : index * 0.08,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+              className="mx-auto w-full max-w-[25.5rem]"
+            >
+              <div className="relative flex aspect-[4/4.8] items-center justify-center rounded-[1.75rem] border border-dashed border-white/20 bg-[linear-gradient(180deg,_rgba(255,255,255,0.08)_0%,_rgba(255,255,255,0.03)_100%)] px-8 text-center">
+                <div className="max-w-xs">
+                  <div className="text-xs font-medium uppercase tracking-[0.28em] text-emerald-300/80">
+                    Photo Placeholder
+                  </div>
+                  <div className="mt-3 text-xl font-medium text-white">
+                    Add Founder Portrait Here
+                  </div>
+                  <div className="mt-2 text-sm leading-6 text-zinc-400">
+                    Replace this placeholder with the real image once you provide it.
+                  </div>
+                </div>
+                <div className="absolute bottom-4 right-4 rounded-full border border-emerald-400/20 bg-black/45 px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-emerald-200 backdrop-blur-sm">
+                  {founder.linkedinPlaceholder}
+                </div>
+              </div>
+            </motion.article>
+          ))}
+        </div>
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-black md:h-52" />
     </section>
   );
 }
@@ -505,19 +858,14 @@ const NaildLanding = () => {
               ) : null}
             </span>
           </h1>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="mt-10"
-          >
+          <div className="mt-10">
             <button
               onClick={handleGetStarted}
               className="button-gradient rounded-xl px-8 py-3 text-lg font-medium outline outline-green-500 outline-offset-2"
             >
               Start Practicing
             </button>
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -576,43 +924,11 @@ const NaildLanding = () => {
       {/* ── Sticky scroll features ── */}
       <StickyFeaturesSection prefersReducedMotion={prefersReducedMotion} />
 
-      {/* ── Habit / plan cards ── */}
-      <section className="bg-white px-5 pb-32 pt-24">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="mb-4 text-5xl font-normal text-black">
-            Build the habit before the high-stakes conversation.
-          </h2>
-          <p className="mb-20 text-xl font-normal text-gray-500">
-            Whether you are preparing for interviews, design reviews, or stakeholder updates,
-            <br />
-            Naild gives you a repeatable way to practice out loud.
-          </p>
+      {/* ── Founders showcase ── */}
+      <FoundersShowcaseSection prefersReducedMotion={prefersReducedMotion} />
 
-          <div className="flex justify-center">
-            <div className="grid w-full max-w-4xl grid-cols-1 gap-8 md:grid-cols-3">
-              {planCards.map((plan, index) => (
-                <motion.div
-                  key={index}
-                  initial={prefersReducedMotion ? undefined : { opacity: 0, ...planCardOffsets[index] }}
-                  whileInView={prefersReducedMotion ? undefined : { opacity: 1, x: 0, y: 0 }}
-                  viewport={{ once: true, amount: 0.35 }}
-                  transition={{
-                    duration: prefersReducedMotion ? 0 : 0.45,
-                    delay: prefersReducedMotion ? 0 : index * 0.08,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                  className="flex aspect-[3/4] items-center justify-center rounded-3xl bg-gray-300/40 transition-all duration-200 hover:-translate-y-1 hover:transform hover:shadow-lg"
-                >
-                  <div className="text-center text-gray-600">
-                    <div className="mb-2 text-xl font-medium">{plan.name}</div>
-                    <div className="text-sm">{plan.detail}</div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ── Habit / plan cards ── */}
+      <HabitDepthSection prefersReducedMotion={prefersReducedMotion} />
 
       {/* ── CTA ── */}
       <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e6faef_20%,_#c3f3d8_60%,_#b0efcb_100%)] px-5 py-40 text-center md:py-48">
