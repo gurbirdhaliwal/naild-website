@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { FaLinkedinIn } from 'react-icons/fa6';
 import { useAuth } from './context/AuthContext';
 import { AUREON_NAME } from './lib/modelConfig';
 import {
@@ -106,9 +107,35 @@ const universityLogos = [
   },
 ] as const;
 const planCards = [
-  { name: 'Starter', detail: 'Practice communication fundamentals' },
-  { name: 'Growth', detail: 'Sharpen role-specific drills and retries' },
-  { name: 'Teams', detail: 'Train technical communication across your org' },
+  {
+    name: 'Starter',
+    price: '$0/mo',
+    imageSrc: '/naild_starter.png',
+    imageAlt: 'Starter tier illustration',
+    imageWidth: 343,
+    imageHeight: 350,
+    imageClassName: 'w-[11rem] md:w-[12.5rem]',
+  },
+  {
+    name: 'Growth',
+    price: '$15/mo',
+    ctaLabel: 'Coming Soon',
+    imageSrc: '/naild_growth.png',
+    imageAlt: 'Growth tier illustration',
+    imageWidth: 387,
+    imageHeight: 384,
+    imageClassName: 'w-[13.5rem] md:w-[15.25rem]',
+  },
+  {
+    name: 'Teams',
+    price: '$25/mo',
+    ctaLabel: 'Coming Soon',
+    imageSrc: '/naild_teams.png',
+    imageAlt: 'Teams tier illustration',
+    imageWidth: 375,
+    imageHeight: 384,
+    imageClassName: 'w-[16.5rem] md:w-[19rem]',
+  },
 ] as const;
 const planCardOffsets = [
   { x: -20, y: 0 },
@@ -118,11 +145,19 @@ const planCardOffsets = [
 const founderProfiles = [
   {
     id: 'cofounder-01',
-    linkedinPlaceholder: 'LinkedIn URL placeholder',
+    name: 'Gurbir Dhaliwal',
+    imageSrc: '/GurbirDhaliwal.png',
+    imageAlt: 'Portrait of Gurbir Dhaliwal',
+    imagePosition: 'center 18%',
+    linkedinUrl: 'https://www.linkedin.com/in/gurbir-dhaliwal-575995275/',
   },
   {
     id: 'cofounder-02',
-    linkedinPlaceholder: 'LinkedIn URL placeholder',
+    name: 'Assvin Eswarathas',
+    imageSrc: '/AssvinEswarathas.png',
+    imageAlt: 'Portrait of Assvin Eswarathas',
+    imagePosition: 'center 12%',
+    linkedinUrl: 'https://www.linkedin.com/in/assvin-eswarathas-739b6a238/',
   },
 ] as const;
 
@@ -709,11 +744,29 @@ function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boo
                       delay: prefersReducedMotion ? 0 : index * 0.08,
                       ease: [0.22, 1, 0.36, 1],
                     }}
-                    className="flex aspect-[3/4] items-center justify-center rounded-3xl bg-gray-300/40 transition-all duration-200 hover:-translate-y-1 hover:transform hover:shadow-lg"
+                    className="flex flex-col items-center"
                   >
-                    <div className="text-center text-gray-600">
-                      <div className="mb-2 text-xl font-medium">{plan.name}</div>
-                      <div className="text-sm">{plan.detail}</div>
+                    <div className="flex min-h-[15rem] items-end justify-center md:min-h-[18rem]">
+                      <Image
+                        src={plan.imageSrc}
+                        alt={plan.imageAlt}
+                        width={plan.imageWidth}
+                        height={plan.imageHeight}
+                        sizes="(min-width: 768px) 19rem, 70vw"
+                        className={`h-auto object-contain ${plan.imageClassName}`}
+                      />
+                    </div>
+                    <div className="px-3 pt-5 text-center text-gray-700">
+                      <div className="text-xl font-medium">{plan.name}</div>
+                      <div className="mt-2 text-lg font-medium text-gray-900">{plan.price}</div>
+                      {plan.ctaLabel ? (
+                        <button
+                          type="button"
+                          className="mt-4 rounded-full border border-black/10 bg-black px-5 py-2 text-sm font-medium text-white"
+                        >
+                          {plan.ctaLabel}
+                        </button>
+                      ) : null}
                     </div>
                   </motion.div>
                 ))}
@@ -816,10 +869,6 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
               ) : null}
             </span>
           </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-zinc-300">
-            Add founder portraits here when they are ready, along with final bios and LinkedIn
-            profiles. The layout is already in place for both co-founders.
-          </p>
         </div>
 
         <div className="mx-auto grid max-w-[53rem] gap-5 md:grid-cols-2 md:gap-6">
@@ -844,21 +893,28 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
               }}
               className="mx-auto w-full max-w-[25.5rem]"
             >
-              <div className="relative flex aspect-[4/4.8] items-center justify-center rounded-[1.75rem] border border-dashed border-white/20 bg-[linear-gradient(180deg,_rgba(255,255,255,0.08)_0%,_rgba(255,255,255,0.03)_100%)] px-8 text-center">
-                <div className="max-w-xs">
-                  <div className="text-xs font-medium uppercase tracking-[0.28em] text-emerald-300/80">
-                    Photo Placeholder
-                  </div>
-                  <div className="mt-3 text-xl font-medium text-white">
-                    Add Founder Portrait Here
-                  </div>
-                  <div className="mt-2 text-sm leading-6 text-zinc-400">
-                    Replace this placeholder with the real image once you provide it.
-                  </div>
+              <div className="relative aspect-[4/4.8] overflow-hidden rounded-[1.75rem] border border-white/15 bg-black/25">
+                <Image
+                  src={founder.imageSrc}
+                  alt={founder.imageAlt}
+                  fill
+                  sizes="(min-width: 768px) 25.5rem, 100vw"
+                  className="object-cover"
+                  style={{ objectPosition: founder.imagePosition }}
+                />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,_rgba(2,6,23,0.08)_0%,_rgba(2,6,23,0)_40%,_rgba(2,6,23,0.58)_100%)]" />
+                <div className="absolute bottom-4 left-4 rounded-full border border-white/15 bg-black/45 px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-emerald-100 backdrop-blur-sm">
+                  {founder.name}
                 </div>
-                <div className="absolute bottom-4 right-4 rounded-full border border-emerald-400/20 bg-black/45 px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-emerald-200 backdrop-blur-sm">
-                  {founder.linkedinPlaceholder}
-                </div>
+                <a
+                  href={founder.linkedinUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`${founder.name} LinkedIn profile`}
+                  className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-full border border-emerald-400/20 bg-black/45 text-emerald-200 backdrop-blur-sm transition-colors duration-200 hover:bg-emerald-500 hover:text-white"
+                >
+                  <FaLinkedinIn className="h-4 w-4" />
+                </a>
               </div>
             </motion.article>
           ))}
@@ -1058,7 +1114,7 @@ const NaildLanding = () => {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-black/5 bg-white px-5 pb-8 pt-12">
+      <footer className="border-t border-emerald-500/10 bg-[linear-gradient(to_bottom,_#b0efcb_0%,_#bdf2d4_48%,_#cbf6df_100%)] px-5 pb-8 pt-12">
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 grid grid-cols-1 gap-16 text-left md:grid-cols-3">
             <div>
