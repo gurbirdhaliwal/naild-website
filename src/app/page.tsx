@@ -148,6 +148,30 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
   const surfaceRadius = prefersReducedMotion
     ? 0
     : (1 - scrollState.surfaceProgress) * 56;
+  const glowProgress = prefersReducedMotion
+    ? 1
+    : Math.min(1, Math.max(0, (scrollState.sectionProgress - 0.08) / 0.84));
+  const glowOpacity =
+    scrollState.backdropOpacity *
+    (prefersReducedMotion ? 0.78 : 0.18 + glowProgress * 0.92);
+  const glowHaloOpacity = prefersReducedMotion
+    ? 0.52
+    : 0.14 + glowProgress * 0.52;
+  const glowCoreOpacity = prefersReducedMotion
+    ? 0.42
+    : 0.1 + glowProgress * 0.48;
+  const glowHotspotOpacity = prefersReducedMotion
+    ? 0.32
+    : 0.06 + glowProgress * 0.42;
+  const glowHaloScale = prefersReducedMotion
+    ? 2.35
+    : 0.9 + glowProgress * 2.1;
+  const glowCoreScale = prefersReducedMotion
+    ? 1.94
+    : 0.72 + glowProgress * 1.55;
+  const glowHotspotScale = prefersReducedMotion
+    ? 1.36
+    : 0.58 + glowProgress * 1.02;
 
   useEffect(() => {
     let frameId: number | null = null;
@@ -270,6 +294,55 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
             ease: [0.22, 1, 0.36, 1],
           }}
         />
+        <motion.div
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+          initial={false}
+          animate={{ opacity: glowOpacity }}
+          transition={{
+            duration: prefersReducedMotion ? 0 : 0.75,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+        >
+          <div
+            className="absolute left-1/2 top-[38%] h-[12rem] w-[52rem] -translate-x-1/2 -translate-y-1/2 md:h-[16rem] md:w-[78rem]"
+          >
+            <div
+              className="h-full w-full rounded-full blur-[120px] md:blur-[144px]"
+              style={{
+                opacity: glowHaloOpacity,
+                transform: `scale(${glowHaloScale})`,
+                background:
+                  'radial-gradient(circle, rgba(209,250,229,0.34) 0%, rgba(167,243,208,0.28) 18%, rgba(52,211,153,0.18) 36%, rgba(16,185,129,0.08) 58%, rgba(16,185,129,0) 76%)',
+              }}
+            />
+          </div>
+          <div
+            className="absolute left-1/2 top-[38%] h-[8rem] w-[38rem] -translate-x-1/2 -translate-y-1/2 md:h-[11rem] md:w-[56rem]"
+          >
+            <div
+              className="h-full w-full rounded-full blur-[60px] md:blur-[72px]"
+              style={{
+                opacity: glowCoreOpacity,
+                transform: `scale(${glowCoreScale})`,
+                background:
+                  'radial-gradient(circle, rgba(255,255,255,0.46) 0%, rgba(209,250,229,0.34) 18%, rgba(110,231,183,0.22) 38%, rgba(16,185,129,0.1) 60%, rgba(16,185,129,0) 80%)',
+              }}
+            />
+          </div>
+          <div
+            className="absolute left-[52%] top-[37%] h-[4.5rem] w-[20rem] -translate-x-1/2 -translate-y-1/2 md:h-[6rem] md:w-[28rem]"
+          >
+            <div
+              className="h-full w-full rounded-full blur-[24px] md:blur-[28px]"
+              style={{
+                opacity: glowHotspotOpacity,
+                transform: `scale(${glowHotspotScale})`,
+                background:
+                  'radial-gradient(circle, rgba(255,255,255,0.62) 0%, rgba(236,253,245,0.4) 24%, rgba(110,231,183,0.2) 52%, rgba(16,185,129,0) 76%)',
+              }}
+            />
+          </div>
+        </motion.div>
         <div className="pointer-events-none absolute left-4 top-1/2 z-20 hidden -translate-y-1/2 md:flex md:flex-col md:items-center">
           <div
             className={`relative h-44 w-px overflow-hidden rounded-full transition-colors duration-700 ${
