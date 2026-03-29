@@ -62,13 +62,48 @@ const tabs = [
 
 const heroHeadline = 'Explain complex\nsoftware ideas clearly.';
 const universityLogos = [
-  { name: 'Wilfrid Laurier University', logoSrc: '/universities/wlu.ico' },
-  { name: 'University of Waterloo', logoSrc: '/universities/waterloo.ico' },
-  { name: 'University of Guelph', logoSrc: '/universities/guelph.ico' },
-  { name: 'Western University', logoSrc: '/universities/western.ico' },
-  { name: 'University of Toronto', logoSrc: '/universities/toronto.ico' },
-  { name: 'McMaster University', logoSrc: '/universities/mcmaster.ico' },
-  { name: 'McGill University', logoSrc: '/universities/mcgill.ico' },
+  {
+    name: 'Wilfrid Laurier University',
+    logoSrc: '/universities/WilfridLaurierUniversity.png',
+    width: 417,
+    height: 83,
+  },
+  {
+    name: 'University of Waterloo',
+    logoSrc: '/universities/UniversityofWaterloo.png',
+    width: 342,
+    height: 194,
+  },
+  {
+    name: 'University of Guelph',
+    logoSrc: '/universities/UniversityofGuelph.png',
+    width: 369,
+    height: 113,
+  },
+  {
+    name: 'Western University',
+    logoSrc: '/universities/WesternUniversity.png',
+    width: 345,
+    height: 107,
+  },
+  {
+    name: 'University of Toronto',
+    logoSrc: '/universities/UniversityofToronto.png',
+    width: 354,
+    height: 146,
+  },
+  {
+    name: 'McMaster University',
+    logoSrc: '/universities/McMasterUniversity.png',
+    width: 326,
+    height: 104,
+  },
+  {
+    name: 'McGill University',
+    logoSrc: '/universities/McGillUniversity.png',
+    width: 330,
+    height: 97,
+  },
 ] as const;
 const planCards = [
   { name: 'Starter', detail: 'Practice communication fundamentals' },
@@ -904,16 +939,16 @@ const NaildLanding = () => {
                     {universityLogos.map((university) => (
                       <div
                         key={`${copyIndex}-${university.name}`}
-                        className="flex h-16 w-16 items-center justify-center opacity-80 transition-opacity duration-200 hover:opacity-100 md:h-20 md:w-20"
+                        className="flex h-16 min-w-[7.5rem] items-center justify-center px-2 opacity-80 transition-opacity duration-200 hover:opacity-100 md:h-20 md:min-w-[9rem]"
                         title={university.name}
                       >
                         <Image
                           src={university.logoSrc}
                           alt={`${university.name} logo`}
-                          width={72}
-                          height={72}
+                          width={university.width}
+                          height={university.height}
                           unoptimized
-                          className="h-12 w-12 object-contain md:h-16 md:w-16"
+                          className="h-auto max-h-10 w-auto max-w-[6.5rem] object-contain md:max-h-14 md:max-w-[8rem]"
                         />
                       </div>
                     ))}
