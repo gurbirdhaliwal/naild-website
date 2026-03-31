@@ -2,14 +2,11 @@ import asyncio
 import json
 import logging
 import os
-import queue
 import time
 from collections import defaultdict, deque
 from functools import partial
 from pathlib import Path
 
-import numpy as np
-import ollama
 import requests
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,11 +15,31 @@ from faster_whisper.audio import decode_audio
 from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from ai_client import AIClientError, ChatMessage, build_ai_client
+
+
+APP_ENV = os.getenv("APP_ENV", "production" if os.getenv("K_SERVICE") else "development").strip().lower()
+IS_PRODUCTION = APP_ENV == "production"
+
+
+def _get_env(name, default=None, *, required_in_production=False):
+    value = os.getenv(name)
+    if value is not None:
+        stripped = value.strip()
+        if stripped:
+            return stripped
+
+    if required_in_production and IS_PRODUCTION:
+        raise RuntimeError(f"{name} must be set when APP_ENV=production.")
+
+    return default
+
 
 def _load_cors_origins():
     raw_origins = os.getenv("CORS_ALLOW_ORIGINS")
     if not raw_origins:
-        # Safe local defaults for development.
+        if IS_PRODUCTION:
+            raise RuntimeError("CORS_ALLOW_ORIGINS must be set when APP_ENV=production.")
         return ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     origins = [origin.strip().rstrip("/") for origin in raw_origins.split(",") if origin.strip()]
@@ -38,56 +55,66 @@ app = FastAPI()
 
 class VoiceAssistant:
     def __init__(self):
-        self.whisper_model = WhisperModel("tiny", device="auto")
         self.sample_rate = 16000
-        self.channels = 1
-        self.dtype = np.float32
-        self.block_size = 2048
-        self.silence_threshold = 0.001
-        self.silence_duration = 2
-        self.last_sound = time.time()
-        self.audio_buffer = []
-        self.audio_queue = queue.Queue()
-        self.is_recording = False
-        self.debug = True
+        self.model_size = _get_env("WHISPER_MODEL_SIZE", "tiny")
+        self._whisper_model = None
+
+    def get_whisper_model(self):
+        if self._whisper_model is None:
+            self._whisper_model = WhisperModel(self.model_size, device="auto")
+        return self._whisper_model
 
 
 assistant = VoiceAssistant()
 
 # Configurable service endpoints
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-SPRING_API_BASE = os.getenv("SPRING_API_BASE", "http://localhost:8080/api/v1")
-AUTH_CHECK_TIMEOUT_SECONDS = float(os.getenv("AUTH_CHECK_TIMEOUT_SECONDS", "5"))
-GRADING_PERSIST_TIMEOUT_SECONDS = float(os.getenv("GRADING_PERSIST_TIMEOUT_SECONDS", "5"))
-MAX_AUDIO_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_AUDIO_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)))
-MAX_AUDIO_DURATION_SECONDS = float(os.getenv("MAX_AUDIO_DURATION_SECONDS", "300"))
+AI_PROVIDER = _get_env("AI_PROVIDER", "vertex_ai" if IS_PRODUCTION else "ollama").lower()
+OLLAMA_HOST = _get_env("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_MODEL = _get_env("OLLAMA_MODEL", "mistral")
+GOOGLE_CLOUD_PROJECT = _get_env(
+    "GOOGLE_CLOUD_PROJECT",
+    _get_env("GCP_PROJECT_ID"),
+    required_in_production=AI_PROVIDER == "vertex_ai",
+)
+VERTEX_AI_LOCATION = _get_env("VERTEX_AI_LOCATION", "us-central1")
+GEMINI_MODEL = _get_env("GEMINI_MODEL", "gemini-2.5-flash")
+SPRING_API_BASE = _get_env(
+    "SPRING_API_BASE",
+    "http://localhost:8080/api/v1",
+    required_in_production=True,
+)
+AUTH_CHECK_TIMEOUT_SECONDS = float(_get_env("AUTH_CHECK_TIMEOUT_SECONDS", "5"))
+GRADING_PERSIST_TIMEOUT_SECONDS = float(_get_env("GRADING_PERSIST_TIMEOUT_SECONDS", "5"))
+AI_REQUEST_TIMEOUT_SECONDS = float(_get_env("AI_REQUEST_TIMEOUT_SECONDS", "30"))
+MAX_AUDIO_UPLOAD_SIZE_BYTES = int(_get_env("MAX_AUDIO_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)))
+MAX_AUDIO_DURATION_SECONDS = float(_get_env("MAX_AUDIO_DURATION_SECONDS", "300"))
 AUDIO_UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024
 MAX_REQUEST_BODY_SIZE_BYTES = int(
-    os.getenv("MAX_REQUEST_BODY_SIZE_BYTES", str(MAX_AUDIO_UPLOAD_SIZE_BYTES + (1024 * 1024)))
+    _get_env("MAX_REQUEST_BODY_SIZE_BYTES", str(MAX_AUDIO_UPLOAD_SIZE_BYTES + (1024 * 1024)))
 )
-MAX_JSON_BODY_SIZE_BYTES = int(os.getenv("MAX_JSON_BODY_SIZE_BYTES", str(256 * 1024)))
-MAX_ROLE_LENGTH = int(os.getenv("MAX_ROLE_LENGTH", "120"))
-MAX_TOPIC_LENGTH = int(os.getenv("MAX_TOPIC_LENGTH", "160"))
-MAX_SHORT_TEXT_LENGTH = int(os.getenv("MAX_SHORT_TEXT_LENGTH", "500"))
-MAX_ADDITIONAL_CONTEXT_LENGTH = int(os.getenv("MAX_ADDITIONAL_CONTEXT_LENGTH", "1000"))
-MAX_TRANSCRIPT_LENGTH = int(os.getenv("MAX_TRANSCRIPT_LENGTH", "12000"))
-MAX_PREVIOUS_QA_ITEMS = int(os.getenv("MAX_PREVIOUS_QA_ITEMS", "5"))
-RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
-RATE_LIMIT_TRANSCRIPTION_PER_WINDOW = int(os.getenv("RATE_LIMIT_TRANSCRIPTION_PER_WINDOW", "10"))
+MAX_JSON_BODY_SIZE_BYTES = int(_get_env("MAX_JSON_BODY_SIZE_BYTES", str(256 * 1024)))
+MAX_ROLE_LENGTH = int(_get_env("MAX_ROLE_LENGTH", "120"))
+MAX_TOPIC_LENGTH = int(_get_env("MAX_TOPIC_LENGTH", "160"))
+MAX_SHORT_TEXT_LENGTH = int(_get_env("MAX_SHORT_TEXT_LENGTH", "500"))
+MAX_ADDITIONAL_CONTEXT_LENGTH = int(_get_env("MAX_ADDITIONAL_CONTEXT_LENGTH", "1000"))
+MAX_TRANSCRIPT_LENGTH = int(_get_env("MAX_TRANSCRIPT_LENGTH", "12000"))
+MAX_PREVIOUS_QA_ITEMS = int(_get_env("MAX_PREVIOUS_QA_ITEMS", "5"))
+RATE_LIMIT_WINDOW_SECONDS = int(_get_env("RATE_LIMIT_WINDOW_SECONDS", "60"))
+RATE_LIMIT_TRANSCRIPTION_PER_WINDOW = int(_get_env("RATE_LIMIT_TRANSCRIPTION_PER_WINDOW", "10"))
 RATE_LIMIT_DRILL_GENERATION_PER_WINDOW = int(
-    os.getenv("RATE_LIMIT_DRILL_GENERATION_PER_WINDOW", "12")
+    _get_env("RATE_LIMIT_DRILL_GENERATION_PER_WINDOW", "12")
 )
 RATE_LIMIT_DRILL_EVALUATION_PER_WINDOW = int(
-    os.getenv("RATE_LIMIT_DRILL_EVALUATION_PER_WINDOW", "20")
+    _get_env("RATE_LIMIT_DRILL_EVALUATION_PER_WINDOW", "20")
 )
 RATE_LIMIT_QUESTION_GENERATION_PER_WINDOW = int(
-    os.getenv("RATE_LIMIT_QUESTION_GENERATION_PER_WINDOW", "10")
+    _get_env("RATE_LIMIT_QUESTION_GENERATION_PER_WINDOW", "10")
 )
-RATE_LIMIT_ACK_PER_WINDOW = int(os.getenv("RATE_LIMIT_ACK_PER_WINDOW", "30"))
-RATE_LIMIT_GRADING_PER_WINDOW = int(os.getenv("RATE_LIMIT_GRADING_PER_WINDOW", "12"))
-AI_CONCURRENCY_LIMIT = int(os.getenv("AI_CONCURRENCY_LIMIT", "4"))
+RATE_LIMIT_ACK_PER_WINDOW = int(_get_env("RATE_LIMIT_ACK_PER_WINDOW", "30"))
+RATE_LIMIT_GRADING_PER_WINDOW = int(_get_env("RATE_LIMIT_GRADING_PER_WINDOW", "12"))
+AI_CONCURRENCY_LIMIT = int(_get_env("AI_CONCURRENCY_LIMIT", "4"))
 AI_CONCURRENCY_ACQUIRE_TIMEOUT_SECONDS = float(
-    os.getenv("AI_CONCURRENCY_ACQUIRE_TIMEOUT_SECONDS", "2")
+    _get_env("AI_CONCURRENCY_ACQUIRE_TIMEOUT_SECONDS", "2")
 )
 CSRF_COOKIE_NAME = "XSRF-TOKEN"
 CSRF_HEADER_NAME = "X-XSRF-TOKEN"
@@ -105,7 +132,15 @@ ALLOWED_AUDIO_CONTENT_TYPES = {
 ALLOWED_AUDIO_EXTENSIONS = {".webm", ".wav", ".mp3", ".m4a", ".mp4", ".ogg", ".flac"}
 logger = logging.getLogger(__name__)
 
-ollama_client = ollama.Client(host=OLLAMA_HOST)
+ai_client = build_ai_client(
+    provider=AI_PROVIDER,
+    ollama_host=OLLAMA_HOST,
+    ollama_model=OLLAMA_MODEL,
+    project_id=GOOGLE_CLOUD_PROJECT,
+    location=VERTEX_AI_LOCATION,
+    gemini_model=GEMINI_MODEL,
+    timeout_seconds=AI_REQUEST_TIMEOUT_SECONDS,
+)
 ai_request_semaphore = asyncio.Semaphore(AI_CONCURRENCY_LIMIT)
 
 
@@ -400,6 +435,33 @@ async def _run_ai_call(callable_obj):
             ai_request_semaphore.release()
 
 
+async def _generate_ai_text(
+    *,
+    system_prompt: str,
+    user_prompt: str,
+    json_mode: bool = False,
+    temperature: float = 0.2,
+):
+    try:
+        return await _run_ai_call(
+            partial(
+                ai_client.generate,
+                [
+                    ChatMessage(role="system", content=system_prompt),
+                    ChatMessage(role="user", content=user_prompt),
+                ],
+                json_mode=json_mode,
+                temperature=temperature,
+            )
+        )
+    except AIClientError as exc:
+        logger.exception("AI provider request failed.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+
 def _transcribe_audio_file(tmp_path):
     decoded_audio = decode_audio(tmp_path, sampling_rate=assistant.sample_rate)
     duration_seconds = len(decoded_audio) / assistant.sample_rate
@@ -409,7 +471,7 @@ def _transcribe_audio_file(tmp_path):
             detail=f"Audio duration exceeds the {MAX_AUDIO_DURATION_SECONDS:.0f} second limit.",
         )
 
-    segments, _ = assistant.whisper_model.transcribe(tmp_path)
+    segments, _ = assistant.get_whisper_model().transcribe(tmp_path)
     return "".join(seg.text for seg in segments).strip()
 
 
@@ -787,6 +849,23 @@ require_grade_interview_user = _rate_limited_auth_dependency(
     RATE_LIMIT_GRADING_PER_WINDOW,
 )
 
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+
+@app.get("/readyz")
+def readyz():
+    return {
+        "status": "ready",
+        "environment": APP_ENV,
+        "ai_provider": AI_PROVIDER,
+        "gemini_model": GEMINI_MODEL if AI_PROVIDER == "vertex_ai" else None,
+        "whisper_model": assistant.model_size,
+    }
+
+
 @app.post("/transcription")
 async def transcription(
     audio: UploadFile = File(...),
@@ -928,22 +1007,14 @@ Rules:
 - Do not return markdown. Return valid JSON only.
 """
 
-    response = await _run_ai_call(
-        lambda: ollama_client.chat(
-            model='mistral',
-            format='json',
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You create concise, realistic technical communication drills for developers. Always return valid JSON.",
-                },
-                {"role": "user", "content": generation_prompt},
-            ],
-        )
+    response_text = await _generate_ai_text(
+        system_prompt="You create concise, realistic technical communication drills for developers. Always return valid JSON.",
+        user_prompt=generation_prompt,
+        json_mode=True,
     )
 
     try:
-        result = _parse_model_json_content(response['message']['content'])
+        result = _parse_model_json_content(response_text)
     except Exception:
         logger.exception("Failed to parse generated drill response.")
         result = {}
@@ -1046,22 +1117,14 @@ Rules:
 
     response = None
     for attempt in range(2):
-        response = await _run_ai_call(
-            lambda: ollama_client.chat(
-                model='mistral',
-                format='json',
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a strict, fair technical communication coach. Always return valid JSON.",
-                    },
-                    {"role": "user", "content": evaluation_prompt},
-                ],
-            )
+        response = await _generate_ai_text(
+            system_prompt="You are a strict, fair technical communication coach. Always return valid JSON.",
+            user_prompt=evaluation_prompt,
+            json_mode=True,
         )
 
         try:
-            result = _parse_model_json_content(response['message']['content'])
+            result = _parse_model_json_content(response)
             result = _normalize_communication_grading_result(result)
             await _persist_grading_result(session_id, result, request)
             return result
@@ -1069,7 +1132,7 @@ Rules:
             logger.exception(
                 "Failed to parse technical drill evaluation on attempt %s. Content preview: %s",
                 attempt + 1,
-                str(response.get('message', {}).get('content', ''))[:500],
+                str(response)[:500],
             )
 
     fallback = _normalize_communication_grading_result({})
@@ -1122,18 +1185,31 @@ async def generate_questions(
         f"Do not ask trivia-style or coding questions. "
         f"If a topic preference is provided, make it meaningfully influence the questions without making every question identical. "
         f"Use the extra context to ground the scenarios when it helps. "
-        f"Return only the questions as a numbered list."
+        f"Return valid JSON with one top-level key named questions. "
+        f"The value must be an array of exactly 5 strings."
     )
-    response = await _run_ai_call(
-        lambda: ollama_client.chat(
-            model='mistral',
-            messages=[
-                {"role": "system", "content": "You are an expert behavioral interviewer that generates interview questions."},
-                {"role": "user", "content": prompt}
-            ],
-        )
+    response_text = await _generate_ai_text(
+        system_prompt="You are an expert behavioral interviewer that generates interview questions. Always return valid JSON.",
+        user_prompt=prompt,
+        json_mode=True,
     )
-    questions = response['message']['content']
+
+    try:
+        parsed = _parse_model_json_content(response_text)
+    except Exception:
+        logger.exception("Failed to parse generated question response.")
+        parsed = {}
+
+    questions = _normalize_string_list(parsed.get("questions"), limit=5) if isinstance(parsed, dict) else []
+    if len(questions) < 5:
+        questions = [
+            "Tell me about a time you had to make a difficult tradeoff under pressure.",
+            "Describe a situation where you resolved a conflict with a teammate or cross-functional partner.",
+            "Tell me about a project where you took ownership beyond your formal responsibilities.",
+            "Describe a time when you received difficult feedback and how you responded.",
+            "Tell me about a time you learned something quickly to deliver a better outcome.",
+        ]
+
     return {"questions": questions}
 
 @app.post("/interview_ack")
@@ -1226,19 +1302,14 @@ async def interview_ack(
         Generate a brief, professional acknowledgement of their answer (1-2 sentences) that references specific details from their response when possible. Return as JSON:
                 {{"acknowledgement": "your acknowledgement here", "next_question": "{next_question}"}}"""
             
-    response = await _run_ai_call(
-        lambda: ollama_client.chat(
-            model='mistral',
-            format='json',
-            messages=[
-                {"role": "system", "content": "You are a helpful AI that generates interview responses. Always return valid JSON."},
-                {"role": "user", "content": prompt}
-            ],
-        )
+    response_text = await _generate_ai_text(
+        system_prompt="You are a helpful AI that generates interview responses. Always return valid JSON.",
+        user_prompt=prompt,
+        json_mode=True,
     )
     
     try:
-        result = _parse_model_json_content(response['message']['content'])
+        result = _parse_model_json_content(response_text)
         return result
     except Exception:
         # Fallback if JSON parsing fails
@@ -1305,18 +1376,13 @@ Questions:
 
     response = None
     for attempt in range(2):
-        response = await _run_ai_call(
-            lambda: ollama_client.chat(
-                model='mistral',
-                format='json',
-                messages=[
-                    {"role": "system", "content": "You are a strict, fair, and robust behavioral interview grader. Always return valid JSON."},
-                    {"role": "user", "content": grading_prompt}
-                ],
-            )
+        response = await _generate_ai_text(
+            system_prompt="You are a strict, fair, and robust behavioral interview grader. Always return valid JSON.",
+            user_prompt=grading_prompt,
+            json_mode=True,
         )
         try:
-            result = _parse_model_json_content(response['message']['content'])
+            result = _parse_model_json_content(response)
             result = _normalize_grading_result(result, questions, answers)
             await _persist_grading_result(interview_id, result, request)
             return result
@@ -1324,13 +1390,13 @@ Questions:
             logger.exception(
                 "Failed to parse grading response from model on attempt %s. Content preview: %s",
                 attempt + 1,
-                str(response.get('message', {}).get('content', ''))[:500],
+                str(response)[:500],
             )
 
     if response is not None:
         logger.error(
             "All grading parse attempts failed. Last content preview: %s",
-            str(response.get('message', {}).get('content', ''))[:500],
+            str(response)[:500],
         )
 
     try:
@@ -1348,4 +1414,6 @@ Questions:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8081)
+
+    port = int(_get_env("PORT", "8081"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
