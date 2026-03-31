@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import {
   Plus,
   MessageSquare,
@@ -227,8 +228,12 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const confirmDeleteInterview = () => {
     if (!interviewPendingDelete) return;
-    onDeleteInterview(interviewPendingDelete.id);
-    setInterviewPendingDelete(null);
+    const interviewId = interviewPendingDelete.id;
+    void Promise.resolve(onDeleteInterview(interviewId))
+      .catch(() => undefined)
+      .finally(() => {
+        setInterviewPendingDelete(null);
+      });
   };
 
   return (
@@ -244,9 +249,11 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div>
                 <div className="flex items-center space-x-2 -ml-3">
                   <Link href="/" className="flex items-center space-x-2">
-                    <img
+                    <Image
                       src="/naild_logo.png"
                       alt="Naild Logo"
+                      width={40}
+                      height={40}
                       className="h-10 w-10 object-contain mr-0 mb-1"
                     />
                     <span className="text-2xl font-regular text-gray-900 tracking-tight font-naild">

@@ -1,6 +1,6 @@
 # Naild - AI-Powered Interview Practice Platform
 
-Naild is an innovative platform that helps students practice and improve their interview skills using AI-powered voice interaction. The platform provides real-time voice transcription and AI-generated responses for a natural interview experience.
+Naild helps students practice and improve interview and technical communication skills through spoken drills, transcription, and AI feedback.
 
 ## Features
 
@@ -22,14 +22,14 @@ Naild is an innovative platform that helps students practice and improve their i
 ### Backend
 - Python FastAPI
 - Whisper (OpenAI) for speech transcription
-- Ollama for AI responses
-- SoundDevice for audio recording
+- Ollama for local development
+- Vertex AI Gemini 2.5 Flash for production deployment on GCP
 
 ## Getting Started
 
 ### Prerequisites
 
-1. **Install Ollama** (for AI responses):
+1. **Install Ollama** (for local AI responses):
    - Visit https://ollama.ai/ and follow installation instructions
    - Pull the Mistral model:
    ```bash
@@ -76,6 +76,17 @@ These scripts will automatically:
 
 3. **Open your browser** and navigate to [http://localhost:3000](http://localhost:3000)
 
+### Quality Gates
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+python3 -m py_compile python_backend/main.py
+python3 -m unittest discover -s python_backend/tests
+```
+
 ### Using the Platform
 
 1. Sign up or log in to your account
@@ -88,12 +99,21 @@ These scripts will automatically:
 
 FastAPI backend base URL: `http://localhost:8081`
 
+- `GET /healthz` - Basic liveness probe
+- `GET /readyz` - Readiness probe with provider metadata
 - `POST /transcription` - Accepts uploaded audio and returns `{ "user_input": "..." }`
 - `POST /generate_questions` - Generates behavioral interview questions from role/focus areas/difficulty
 - `POST /interview_ack` - Returns acknowledgement plus next question (or goodbye on final question)
 - `POST /grade_interview` - Grades 5 Q&A pairs and can persist grading when `interview_id` is provided
 
 Spring Boot API base URL used by frontend and auth checks: `http://localhost:8080/api/v1`
+
+## Deployment
+
+- Production web container: `Dockerfile.web`
+- Local development web container: `Dockerfile.web.dev`
+- GCP Cloud Run deployment guide: `DEPLOYMENT_GCP.md`
+- Cloud Build config: `cloudbuild.gcp.yaml`
 
 ## License
 

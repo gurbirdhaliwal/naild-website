@@ -1,5 +1,6 @@
 'use client';
 
+import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "../context/AuthContext";
 
@@ -13,9 +14,11 @@ export default function Navbar() {
           {/* Logo */}
           <div className="flex items-center space-x-2 -ml-20">
             <Link href="/" className="flex items-center space-x-2">
-              <img
+              <Image
                 src="/naild_logo.png"
                 alt="Naild Logo"
+                width={40}
+                height={40}
                 className="h-10 w-10 object-contain mr-0 mb-1"
               />
               <span className="text-2xl font-regular text-black tracking-tight">
