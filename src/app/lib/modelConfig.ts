@@ -5,7 +5,7 @@ export const AUREON_MODEL_OPTIONS = [
   {
     id: 'aureon-1.0',
     label: AUREON_VERSION_LABEL,
-    description: 'Current default model',
+    description: 'Production runtime uses Gemini 2.5 Flash',
     available: true,
   },
   {
