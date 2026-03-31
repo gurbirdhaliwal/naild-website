@@ -2,16 +2,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { AlertCircle, Check, CheckCircle2, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { FaLinkedinIn } from 'react-icons/fa6';
 import { useAuth } from './context/AuthContext';
-import {
-  AUDIENCE_OPTIONS,
-  COMMUNICATION_FIELDS,
-  COMMUNICATION_PRACTICE_MODES,
-} from './lib/practiceConfig';
 import { AUREON_NAME } from './lib/modelConfig';
 import {
   broadcastLogout,
@@ -27,6 +20,10 @@ const tabs = [
     title: 'Get feedback that improves how you explain technical ideas.',
     description:
       'Naild scores clarity, correctness, depth, and audience fit so every drill ends with specific direction for the next retry.',
+    previewLabel: `${AUREON_NAME} Feedback`,
+    previewTitle: 'Explain why you chose retrieval-augmented generation over fine-tuning.',
+    previewDetail: 'Audience: Non-technical stakeholder',
+    bullets: ['Clarity: 82', 'Correctness: 79', 'Depth: 74', 'Audience fit: 88'],
   },
   {
     id: 'scores',
@@ -34,6 +31,10 @@ const tabs = [
     title: 'Track communication as a skill, not just a one-off practice session.',
     description:
       'Watch your strongest and weakest communication instincts over time instead of treating each drill like an isolated exercise.',
+    previewLabel: 'Progress Snapshot',
+    previewTitle: 'Weekly practice target: 4 drills',
+    previewDetail: '2-week trend: +11 clarity, +8 depth',
+    bullets: ['4 drills completed', '3 retries', 'Best audience: PM', 'Needs work: tradeoffs'],
   },
   {
     id: 'personas',
@@ -41,6 +42,10 @@ const tabs = [
     title: 'Practice the same idea for different listeners.',
     description:
       'A product manager, recruiter, and senior engineer should not hear the same explanation. Naild changes the drill and grading based on audience.',
+    previewLabel: 'Audience Variation',
+    previewTitle: 'Precision vs recall',
+    previewDetail: 'Compare how you explain it to a PM vs a peer engineer',
+    bullets: ['Product manager', 'Peer engineer', 'Senior engineer', 'Recruiter'],
   },
   {
     id: 'replay',
@@ -48,9 +53,12 @@ const tabs = [
     title: 'Retry the same drill until the explanation actually lands.',
     description:
       'Use the transcript, missing points, and improved outline to tighten the answer instead of guessing what to change.',
+    previewLabel: 'Retry Loop',
+    previewTitle: 'Redis vs database caching for a high-read service',
+    previewDetail: 'Try again with sharper tradeoff framing',
+    bullets: ['Transcript saved', 'Missing point highlighted', 'Improved outline suggested', 'Retry advice generated'],
   },
 ] as const;
-type FeatureId = (typeof tabs)[number]['id'];
 
 const heroHeadline = 'Explain complex\nsoftware ideas clearly.';
 const universityLogos = [
@@ -98,36 +106,9 @@ const universityLogos = [
   },
 ] as const;
 const planCards = [
-  {
-    name: 'Starter',
-    price: '$0/mo',
-    ctaLabel: null,
-    imageSrc: '/naild_starter.png',
-    imageAlt: 'Starter tier illustration',
-    imageWidth: 343,
-    imageHeight: 350,
-    imageClassName: 'w-[11rem] md:w-[12.5rem]',
-  },
-  {
-    name: 'Growth',
-    price: '$15/mo',
-    ctaLabel: 'Coming Soon',
-    imageSrc: '/naild_growth.png',
-    imageAlt: 'Growth tier illustration',
-    imageWidth: 387,
-    imageHeight: 384,
-    imageClassName: 'w-[13.5rem] md:w-[15.25rem]',
-  },
-  {
-    name: 'Teams',
-    price: '$25/mo',
-    ctaLabel: 'Coming Soon',
-    imageSrc: '/naild_teams.png',
-    imageAlt: 'Teams tier illustration',
-    imageWidth: 375,
-    imageHeight: 384,
-    imageClassName: 'w-[16.5rem] md:w-[19rem]',
-  },
+  { name: 'Starter', detail: 'Practice communication fundamentals' },
+  { name: 'Growth', detail: 'Sharpen role-specific drills and retries' },
+  { name: 'Teams', detail: 'Train technical communication across your org' },
 ] as const;
 const planCardOffsets = [
   { x: -20, y: 0 },
@@ -137,527 +118,13 @@ const planCardOffsets = [
 const founderProfiles = [
   {
     id: 'cofounder-01',
-    name: 'Gurbir Dhaliwal',
-    imageSrc: '/GurbirDhaliwal.png',
-    imageAlt: 'Portrait of Gurbir Dhaliwal',
-    imagePosition: 'center 18%',
-    linkedinUrl: 'https://www.linkedin.com/in/gurbir-dhaliwal-575995275/',
+    linkedinPlaceholder: 'LinkedIn URL placeholder',
   },
   {
     id: 'cofounder-02',
-    name: 'Assvin Eswarathas',
-    imageSrc: '/AssvinEswarathas.png',
-    imageAlt: 'Portrait of Assvin Eswarathas',
-    imagePosition: 'center 12%',
-    linkedinUrl: 'https://www.linkedin.com/in/assvin-eswarathas-739b6a238/',
+    linkedinPlaceholder: 'LinkedIn URL placeholder',
   },
 ] as const;
-
-const featureSetupSteps = ['Field', 'Mode', 'Audience', 'Context', 'Confirm'] as const;
-const featureFeedbackCategories = [
-  {
-    label: 'Clarity',
-    score: 82,
-    feedback: 'Lead with the tradeoff before you name the implementation choice.',
-  },
-  {
-    label: 'Correctness',
-    score: 79,
-    feedback: 'Your explanation of retrieval scope was accurate but buried too late.',
-  },
-  {
-    label: 'Depth',
-    score: 74,
-    feedback: 'Bring in latency and update cadence when you justify the approach.',
-  },
-  {
-    label: 'Audience fit',
-    score: 88,
-    feedback: 'You translated model limits into business risk without overexplaining.',
-  },
-] as const;
-const featureScoreHistory = [
-  {
-    title: 'Rate limiting for a high-traffic API',
-    audience: 'Product manager',
-    mode: 'Explain a tradeoff',
-    score: 84,
-  },
-  {
-    title: 'Redis vs database caching',
-    audience: 'Peer engineer',
-    mode: 'Explain a decision',
-    score: 78,
-  },
-  {
-    title: 'Precision vs recall in search',
-    audience: 'Recruiter',
-    mode: 'Explain a concept',
-    score: 72,
-  },
-] as const;
-const featureScoreTrends = [
-  { label: 'Clarity', score: 84, delta: '+11' },
-  { label: 'Correctness', score: 80, delta: '+7' },
-  { label: 'Depth', score: 76, delta: '+8' },
-  { label: 'Audience fit', score: 89, delta: '+13' },
-] as const;
-const featureAudiencePreview = AUDIENCE_OPTIONS.filter((option) =>
-  ['peer-engineer', 'senior-engineer', 'product-manager', 'non-technical-stakeholder'].includes(
-    option.value
-  )
-);
-const featureReplayTranscript = [
-  'We used Redis because the service is read heavy and we wanted to avoid hitting Postgres on every request.',
-  'The first version of my answer named Redis quickly, but I did not explain the eviction tradeoff or failure mode.',
-  'On the retry, I framed it as faster reads with an explicit fallback path when cached data is stale.',
-] as const;
-const featureReplayChecklist = [
-  'Name the failure mode if Redis is unavailable.',
-  'Explain when the database remains the source of truth.',
-  'Clarify the latency win before describing the tooling.',
-] as const;
-const featureReplayOutline = [
-  'Start with user impact: faster reads during peak traffic.',
-  'State the boundary: Redis is a cache, not the system of record.',
-  'Close with the tradeoff: lower latency in exchange for cache invalidation work.',
-] as const;
-
-const getFeatureBarColorClassName = (score: number) => {
-  if (score >= 85) {
-    return 'bg-emerald-500';
-  }
-
-  if (score >= 75) {
-    return 'bg-green-500';
-  }
-
-  if (score >= 65) {
-    return 'bg-amber-400';
-  }
-
-  return 'bg-rose-400';
-};
-
-function FeatureWorkspacePreview({
-  featureId,
-  label,
-  hasDarkBackdrop,
-}: {
-  featureId: FeatureId;
-  label: string;
-  hasDarkBackdrop: boolean;
-}) {
-  const shadowClassName = hasDarkBackdrop
-    ? 'shadow-[0_36px_120px_-44px_rgba(16,24,40,0.95)]'
-    : 'shadow-[0_30px_90px_-40px_rgba(15,23,42,0.35)]';
-
-  return (
-    <div
-      className={`relative aspect-[1.36/1] overflow-hidden rounded-[2rem] border border-black/5 bg-[linear-gradient(180deg,#fbfefb_0%,#f0f8f3_100%)] ${shadowClassName}`}
-    >
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top,_rgba(167,243,208,0.42),_transparent_72%)]"
-      />
-      <div className="relative flex h-full flex-col">
-        <div className="flex items-center justify-between border-b border-black/5 bg-white/80 px-4 py-3 backdrop-blur-sm md:px-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-              <Sparkles size={18} />
-            </div>
-            <div>
-              <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
-                {AUREON_NAME} workspace
-              </div>
-              <div className="text-sm font-semibold text-gray-900">
-                Technical communication
-              </div>
-            </div>
-          </div>
-          <div className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-emerald-700">
-            {label}
-          </div>
-        </div>
-
-        <div className="flex-1 p-4 md:p-5">
-          {featureId === 'feedback' ? (
-            <div className="grid h-full gap-4 lg:grid-cols-[1.12fr_0.88fr]">
-              <div className="rounded-[1.6rem] bg-white p-5 shadow-[0_18px_60px_-36px_rgba(15,23,42,0.35)]">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-gray-500">
-                      Drill Results
-                    </div>
-                    <div className="mt-2 max-w-md text-lg font-semibold leading-7 text-gray-900">
-                      Why we chose retrieval-augmented generation over fine-tuning
-                    </div>
-                    <div className="mt-2 text-sm text-gray-500">
-                      Audience: Non-technical stakeholder
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-bold text-gray-900">81%</div>
-                    <div className="mt-1 text-xs font-medium text-gray-500">
-                      Overall communication score
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-gray-200">
-                  <div
-                    className={`${getFeatureBarColorClassName(81)} h-full rounded-full`}
-                    style={{ width: '81%' }}
-                  />
-                </div>
-
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {featureFeedbackCategories.map((category) => (
-                    <div
-                      key={category.label}
-                      className="rounded-2xl border border-gray-200 bg-gray-50/85 p-4"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {category.label}
-                        </div>
-                        <div className="text-sm font-medium text-gray-600">
-                          {category.score}%
-                        </div>
-                      </div>
-                      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                        <div
-                          className={`${getFeatureBarColorClassName(category.score)} h-full rounded-full`}
-                          style={{ width: `${category.score}%` }}
-                        />
-                      </div>
-                      <p className="mt-3 text-sm leading-6 text-gray-600">
-                        {category.feedback}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-4">
-                <div className="rounded-[1.6rem] border border-emerald-200 bg-emerald-50/80 p-5">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
-                    <CheckCircle2 size={18} />
-                    Strong signals
-                  </div>
-                  <ul className="mt-4 space-y-3 text-sm leading-6 text-emerald-950">
-                    <li>• You explained the choice in terms of reliability and cost.</li>
-                    <li>• The business impact was clear before the technical detail.</li>
-                    <li>• You avoided jargon that this audience would not use.</li>
-                  </ul>
-                </div>
-
-                <div className="rounded-[1.6rem] border border-amber-200 bg-amber-50/85 p-5">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-                    <AlertCircle size={18} />
-                    Tighten next
-                  </div>
-                  <ul className="mt-4 space-y-3 text-sm leading-6 text-amber-950">
-                    <li>• State the main tradeoff before describing the implementation.</li>
-                    <li>• Mention when fine-tuning would have been the better choice.</li>
-                    <li>• Keep the retrieval explanation to one clean sentence.</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {featureId === 'scores' ? (
-            <div className="grid h-full gap-4">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="rounded-[1.5rem] bg-white px-5 py-4 shadow-[0_16px_50px_-36px_rgba(15,23,42,0.35)]">
-                  <div className="text-xs font-medium uppercase tracking-[0.16em] text-gray-500">
-                    Weekly target
-                  </div>
-                  <div className="mt-2 text-3xl font-bold text-gray-900">4</div>
-                  <div className="mt-2 text-sm text-gray-500">Drills completed this week</div>
-                </div>
-                <div className="rounded-[1.5rem] bg-white px-5 py-4 shadow-[0_16px_50px_-36px_rgba(15,23,42,0.35)]">
-                  <div className="text-xs font-medium uppercase tracking-[0.16em] text-gray-500">
-                    Best audience
-                  </div>
-                  <div className="mt-2 text-3xl font-bold text-gray-900">PM</div>
-                  <div className="mt-2 text-sm text-gray-500">Highest recent audience-fit scores</div>
-                </div>
-                <div className="rounded-[1.5rem] bg-white px-5 py-4 shadow-[0_16px_50px_-36px_rgba(15,23,42,0.35)]">
-                  <div className="text-xs font-medium uppercase tracking-[0.16em] text-gray-500">
-                    Retry loop
-                  </div>
-                  <div className="mt-2 text-3xl font-bold text-gray-900">3</div>
-                  <div className="mt-2 text-sm text-gray-500">Sessions improved after a second attempt</div>
-                </div>
-              </div>
-
-              <div className="grid flex-1 gap-4 lg:grid-cols-[0.98fr_1.02fr]">
-                <div className="rounded-[1.6rem] bg-white p-5 shadow-[0_18px_60px_-36px_rgba(15,23,42,0.35)]">
-                  <div className="text-xs font-medium uppercase tracking-[0.16em] text-gray-500">
-                    Recent drills
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {featureScoreHistory.map((session) => (
-                      <div
-                        key={session.title}
-                        className="rounded-2xl border border-gray-200 bg-gray-50/80 p-4"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <div className="text-sm font-semibold text-gray-900">
-                              {session.title}
-                            </div>
-                            <div className="mt-1 text-xs text-gray-500">
-                              {session.audience} • {session.mode}
-                            </div>
-                          </div>
-                          <div className="text-sm font-semibold text-gray-700">
-                            {session.score}%
-                          </div>
-                        </div>
-                        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                          <div
-                            className={`${getFeatureBarColorClassName(session.score)} h-full rounded-full`}
-                            style={{ width: `${session.score}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-[1.6rem] bg-white p-5 shadow-[0_18px_60px_-36px_rgba(15,23,42,0.35)]">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <div className="text-xs font-medium uppercase tracking-[0.16em] text-gray-500">
-                        Category movement
-                      </div>
-                      <div className="mt-2 text-lg font-semibold text-gray-900">
-                        Last 2 weeks
-                      </div>
-                    </div>
-                    <div className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                      Trending up
-                    </div>
-                  </div>
-
-                  <div className="mt-5 space-y-4">
-                    {featureScoreTrends.map((trend) => (
-                      <div key={trend.label}>
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="text-sm font-semibold text-gray-900">
-                            {trend.label}
-                          </div>
-                          <div className="text-sm font-medium text-emerald-600">
-                            {trend.delta}
-                          </div>
-                        </div>
-                        <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
-                          <div
-                            className={`${getFeatureBarColorClassName(trend.score)} h-full rounded-full`}
-                            style={{ width: `${trend.score}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/75 p-4">
-                    <div className="text-sm font-semibold text-emerald-900">
-                      Best momentum right now
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-emerald-950">
-                      Audience fit is rising fastest because your openings now match who you are speaking to.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {featureId === 'personas' ? (
-            <div className="h-full rounded-[1.6rem] bg-white p-5 shadow-[0_18px_60px_-36px_rgba(15,23,42,0.35)]">
-              <div className="flex flex-wrap gap-2">
-                {featureSetupSteps.map((step) => {
-                  const isActive = step === 'Audience';
-
-                  return (
-                    <div
-                      key={step}
-                      className={`rounded-full px-3 py-1.5 text-xs font-medium uppercase tracking-[0.14em] ${
-                        isActive
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-gray-100 text-gray-500'
-                      }`}
-                    >
-                      {step}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-5 grid gap-4 lg:grid-cols-[0.42fr_0.58fr]">
-                <div className="rounded-[1.4rem] border border-gray-200 bg-gray-50/85 p-4">
-                  <div className="text-xs font-medium uppercase tracking-[0.16em] text-gray-500">
-                    Current drill
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-gray-500">
-                        Field
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-gray-900">
-                        {COMMUNICATION_FIELDS[1]}
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-gray-500">
-                        Mode
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-gray-900">
-                        {COMMUNICATION_PRACTICE_MODES[2].label}
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-gray-500">
-                        Topic
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-gray-900">
-                        Precision vs recall in search results
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">
-                    Choose who you need to make the idea click for.
-                  </div>
-                  <div className="mt-1 text-sm text-gray-500">
-                    The prompt and scoring shift depending on the listener you pick.
-                  </div>
-
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {featureAudiencePreview.map((audience) => {
-                      const isSelected = audience.value === 'product-manager';
-
-                      return (
-                        <div
-                          key={audience.value}
-                          className={`rounded-2xl border px-4 py-4 ${
-                            isSelected
-                              ? 'border-emerald-300 bg-emerald-50 shadow-sm'
-                              : 'border-gray-200 bg-white'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="text-sm font-semibold text-gray-900">
-                                {audience.label}
-                              </div>
-                              <div className="mt-1 text-xs leading-5 text-gray-500">
-                                {audience.description}
-                              </div>
-                            </div>
-                            {isSelected ? (
-                              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-emerald-600">
-                                <Check size={16} />
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/85 px-4 py-3">
-                    <div className="text-xs font-medium uppercase tracking-[0.14em] text-gray-500">
-                      Prompt direction
-                    </div>
-                    <div className="mt-2 text-sm text-gray-700">
-                      Explain the tradeoff in user impact, accuracy, and implementation cost.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {featureId === 'replay' ? (
-            <div className="grid h-full gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-              <div className="rounded-[1.6rem] bg-white p-5 shadow-[0_18px_60px_-36px_rgba(15,23,42,0.35)]">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-gray-500">
-                      Saved transcript
-                    </div>
-                    <div className="mt-2 text-lg font-semibold text-gray-900">
-                      Redis vs database caching for a high-read service
-                    </div>
-                    <div className="mt-2 text-sm text-gray-500">
-                      Audience: Peer engineer
-                    </div>
-                  </div>
-                  <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
-                    Retry #3
-                  </div>
-                </div>
-
-                <div className="mt-4 rounded-[1.4rem] border border-gray-200 bg-gray-50/80 p-4">
-                  <div className="space-y-3 text-sm leading-6 text-gray-700">
-                    {featureReplayTranscript.map((line) => (
-                      <p key={line}>{line}</p>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <div className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600">
-                    Transcript saved
-                  </div>
-                  <div className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600">
-                    Missing points highlighted
-                  </div>
-                  <div className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600">
-                    Retry outline generated
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-4">
-                <div className="rounded-[1.6rem] border border-amber-200 bg-amber-50/85 p-5">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-                    <AlertCircle size={18} />
-                    Missing points
-                  </div>
-                  <ul className="mt-4 space-y-3 text-sm leading-6 text-amber-950">
-                    {featureReplayChecklist.map((item) => (
-                      <li key={item}>• {item}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="rounded-[1.6rem] border border-emerald-200 bg-emerald-50/80 p-5">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
-                    <CheckCircle2 size={18} />
-                    Retry outline
-                  </div>
-                  <ul className="mt-4 space-y-3 text-sm leading-6 text-emerald-950">
-                    {featureReplayOutline.map((item) => (
-                      <li key={item}>• {item}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Sticky Scroll Features Section ───────────────────────────────────────────
 
@@ -837,10 +304,10 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
           }}
         >
           <div
-            className="absolute left-1/2 top-[38%] h-[12rem] w-[52rem] -translate-x-1/2 -translate-y-1/2 md:h-[16rem] md:w-[78rem]"
+            className="absolute left-1/2 top-[46%] h-[28rem] w-[28rem] -translate-x-1/2 -translate-y-1/2 md:h-[36rem] md:w-[36rem]"
           >
             <div
-              className="h-full w-full rounded-full blur-[120px] md:blur-[144px]"
+              className="h-full w-full rounded-full blur-[132px] md:blur-[156px]"
               style={{
                 opacity: glowHaloOpacity,
                 transform: `scale(${glowHaloScale})`,
@@ -850,10 +317,10 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
             />
           </div>
           <div
-            className="absolute left-1/2 top-[38%] h-[8rem] w-[38rem] -translate-x-1/2 -translate-y-1/2 md:h-[11rem] md:w-[56rem]"
+            className="absolute left-1/2 top-[46%] h-[22rem] w-[22rem] -translate-x-1/2 -translate-y-1/2 md:h-[28rem] md:w-[28rem]"
           >
             <div
-              className="h-full w-full rounded-full blur-[60px] md:blur-[72px]"
+              className="h-full w-full rounded-full blur-[68px] md:blur-[76px]"
               style={{
                 opacity: glowCoreOpacity,
                 transform: `scale(${glowCoreScale})`,
@@ -863,10 +330,10 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
             />
           </div>
           <div
-            className="absolute left-[52%] top-[37%] h-[4.5rem] w-[20rem] -translate-x-1/2 -translate-y-1/2 md:h-[6rem] md:w-[28rem]"
+            className="absolute left-[52%] top-[45%] h-[10rem] w-[10rem] -translate-x-1/2 -translate-y-1/2 md:h-[12rem] md:w-[12rem]"
           >
             <div
-              className="h-full w-full rounded-full blur-[24px] md:blur-[28px]"
+              className="h-full w-full rounded-full blur-[28px] md:blur-[32px]"
               style={{
                 opacity: glowHotspotOpacity,
                 transform: `scale(${glowHotspotScale})`,
@@ -1019,13 +486,68 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                     duration: prefersReducedMotion ? 0.15 : 0.42,
                     ease: [0.22, 1, 0.36, 1],
                   }}
-                  className="relative"
+                  className="flex aspect-video overflow-hidden rounded-3xl bg-gray-400 shadow-2xl"
                 >
-                  <FeatureWorkspacePreview
-                    featureId={activeFeature.id}
-                    label={activeFeature.label}
-                    hasDarkBackdrop={hasDarkBackdrop}
-                  />
+                  {/* Left pane: label + description */}
+                  <motion.div
+                    initial={prefersReducedMotion ? undefined : { x: -20, opacity: 0 }}
+                    animate={prefersReducedMotion ? undefined : { x: 0, opacity: 1 }}
+                    transition={{ duration: 0.32, delay: 0.08 }}
+                    className="flex w-2/5 items-center justify-center rounded-l-3xl bg-gray-300/90"
+                  >
+                    <div className="px-8 text-center text-gray-700">
+                      <div className="mb-2 text-lg font-medium">
+                        {activeFeature.previewLabel}
+                      </div>
+                      <div className="text-sm leading-6">
+                        {activeFeature.description}
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Right pane: detail card */}
+                  <motion.div
+                    initial={prefersReducedMotion ? undefined : { x: 20, opacity: 0 }}
+                    animate={prefersReducedMotion ? undefined : { x: 0, opacity: 1 }}
+                    transition={{ duration: 0.32, delay: 0.12 }}
+                    className="flex w-3/5 items-center justify-center px-8"
+                  >
+                    <div className="w-full max-w-sm rounded-3xl bg-white/90 p-6 text-left text-gray-700 shadow-lg">
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-green-600">
+                        {activeFeature.label}
+                      </div>
+                      <div className="mt-3 text-lg font-medium text-gray-900">
+                        {activeFeature.previewTitle}
+                      </div>
+                      <div className="mt-2 text-sm text-gray-500">
+                        {activeFeature.previewDetail}
+                      </div>
+                      <div className="mt-5 grid gap-2">
+                        {activeFeature.bullets.map((bullet, index) => (
+                          <motion.div
+                            key={bullet}
+                            initial={
+                              prefersReducedMotion
+                                ? undefined
+                                : { opacity: 0, y: 12 }
+                            }
+                            animate={
+                              prefersReducedMotion
+                                ? undefined
+                                : { opacity: 1, y: 0 }
+                            }
+                            transition={{
+                              duration: 0.26,
+                              delay: 0.2 + index * 0.07,
+                            }}
+                            className="rounded-2xl border border-black/5 bg-gray-50 px-4 py-3 text-sm"
+                          >
+                            {bullet}
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
                 </motion.div>
               </AnimatePresence>
 
@@ -1187,29 +709,11 @@ function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boo
                       delay: prefersReducedMotion ? 0 : index * 0.08,
                       ease: [0.22, 1, 0.36, 1],
                     }}
-                    className="flex flex-col items-center"
+                    className="flex aspect-[3/4] items-center justify-center rounded-3xl bg-gray-300/40 transition-all duration-200 hover:-translate-y-1 hover:transform hover:shadow-lg"
                   >
-                    <div className="flex min-h-[15rem] items-end justify-center md:min-h-[18rem]">
-                      <Image
-                        src={plan.imageSrc}
-                        alt={plan.imageAlt}
-                        width={plan.imageWidth}
-                        height={plan.imageHeight}
-                        sizes="(min-width: 768px) 19rem, 70vw"
-                        className={`h-auto object-contain ${plan.imageClassName}`}
-                      />
-                    </div>
-                    <div className="px-3 pt-5 text-center text-gray-700">
-                      <div className="text-xl font-medium">{plan.name}</div>
-                      <div className="mt-2 text-lg font-medium text-gray-900">{plan.price}</div>
-                      {plan.ctaLabel ? (
-                        <button
-                          type="button"
-                          className="mt-4 rounded-full border border-black/10 bg-black px-5 py-2 text-sm font-medium text-white"
-                        >
-                          {plan.ctaLabel}
-                        </button>
-                      ) : null}
+                    <div className="text-center text-gray-600">
+                      <div className="mb-2 text-xl font-medium">{plan.name}</div>
+                      <div className="text-sm">{plan.detail}</div>
                     </div>
                   </motion.div>
                 ))}
@@ -1296,7 +800,42 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
       ref={sectionRef}
       className="relative overflow-hidden bg-[linear-gradient(to_bottom,_#000000_0%,_#05140c_42%,_#020604_82%,_#000000_100%)] px-5 pb-40 pt-28 md:pb-48 md:pt-32"
     >
-      <div className="mx-auto max-w-6xl">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-1/2 top-[-6rem] h-[24rem] w-[24rem] -translate-x-1/2 -translate-y-1/2 md:top-[-75rem] md:h-[32rem] md:w-[32rem]">
+          <div
+            className="h-full w-full rounded-full blur-[132px] md:blur-[156px]"
+            style={{
+              opacity: 0.52,
+              transform: 'scale(2.2)',
+              background:
+                'radial-gradient(circle, rgba(209,250,229,0.34) 0%, rgba(167,243,208,0.28) 18%, rgba(52,211,153,0.18) 36%, rgba(16,185,129,0.08) 58%, rgba(16,185,129,0) 76%)',
+            }}
+          />
+        </div>
+        <div className="absolute left-1/2 top-[-6rem] h-[20rem] w-[20rem] -translate-x-1/2 -translate-y-1/2 md:top-[-8rem] md:h-[26rem] md:w-[26rem]">
+          <div
+            className="h-full w-full rounded-full blur-[68px] md:blur-[76px]"
+            style={{
+              opacity: 0.44,
+              transform: 'scale(1.9)',
+              background:
+                'radial-gradient(circle, rgba(255,255,255,0.46) 0%, rgba(209,250,229,0.34) 18%, rgba(110,231,183,0.22) 38%, rgba(16,185,129,0.1) 60%, rgba(16,185,129,0) 80%)',
+            }}
+          />
+        </div>
+        <div className="absolute left-[52%] top-[-5rem] h-[9rem] w-[9rem] -translate-x-1/2 -translate-y-1/2 md:top-[-6.5rem] md:h-[11rem] md:w-[11rem]">
+          <div
+            className="h-full w-full rounded-full blur-[28px] md:blur-[32px]"
+            style={{
+              opacity: 0.34,
+              transform: 'scale(1.28)',
+              background:
+                'radial-gradient(circle, rgba(255,255,255,0.62) 0%, rgba(236,253,245,0.4) 24%, rgba(110,231,183,0.2) 52%, rgba(16,185,129,0) 76%)',
+            }}
+          />
+        </div>
+      </div>
+      <div className="relative z-10 mx-auto max-w-6xl">
         <div className="mb-14 text-center">
           <div className="mb-4 text-sm font-medium uppercase tracking-[0.24em] text-emerald-300/70">
             The Team Behind Naild
@@ -1312,6 +851,10 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
               ) : null}
             </span>
           </h2>
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-zinc-300">
+            Add founder portraits here when they are ready, along with final bios and LinkedIn
+            profiles. The layout is already in place for both co-founders.
+          </p>
         </div>
 
         <div className="mx-auto grid max-w-[53rem] gap-5 md:grid-cols-2 md:gap-6">
@@ -1336,28 +879,21 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
               }}
               className="mx-auto w-full max-w-[25.5rem]"
             >
-              <div className="relative aspect-[4/4.8] overflow-hidden rounded-[1.75rem] border border-white/15 bg-black/25">
-                <Image
-                  src={founder.imageSrc}
-                  alt={founder.imageAlt}
-                  fill
-                  sizes="(min-width: 768px) 25.5rem, 100vw"
-                  className="object-cover"
-                  style={{ objectPosition: founder.imagePosition }}
-                />
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,_rgba(2,6,23,0.08)_0%,_rgba(2,6,23,0)_40%,_rgba(2,6,23,0.58)_100%)]" />
-                <div className="absolute bottom-4 left-4 rounded-full border border-white/15 bg-black/45 px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-emerald-100 backdrop-blur-sm">
-                  {founder.name}
+              <div className="relative flex aspect-[4/4.8] items-center justify-center rounded-[1.75rem] border border-dashed border-white/20 bg-[linear-gradient(180deg,_rgba(255,255,255,0.08)_0%,_rgba(255,255,255,0.03)_100%)] px-8 text-center">
+                <div className="max-w-xs">
+                  <div className="text-xs font-medium uppercase tracking-[0.28em] text-emerald-300/80">
+                    Photo Placeholder
+                  </div>
+                  <div className="mt-3 text-xl font-medium text-white">
+                    Add Founder Portrait Here
+                  </div>
+                  <div className="mt-2 text-sm leading-6 text-zinc-400">
+                    Replace this placeholder with the real image once you provide it.
+                  </div>
                 </div>
-                <a
-                  href={founder.linkedinUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`${founder.name} LinkedIn profile`}
-                  className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-full border border-emerald-400/20 bg-black/45 text-emerald-200 backdrop-blur-sm transition-colors duration-200 hover:bg-emerald-500 hover:text-white"
-                >
-                  <FaLinkedinIn className="h-4 w-4" />
-                </a>
+                <div className="absolute bottom-4 right-4 rounded-full border border-emerald-400/20 bg-black/45 px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-emerald-200 backdrop-blur-sm">
+                  {founder.linkedinPlaceholder}
+                </div>
               </div>
             </motion.article>
           ))}
@@ -1557,7 +1093,7 @@ const NaildLanding = () => {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-emerald-500/10 bg-[linear-gradient(to_bottom,_#b0efcb_0%,_#bdf2d4_48%,_#cbf6df_100%)] px-5 pb-8 pt-12">
+      <footer className="border-t border-black/5 bg-white px-5 pb-8 pt-12">
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 grid grid-cols-1 gap-16 text-left md:grid-cols-3">
             <div>
