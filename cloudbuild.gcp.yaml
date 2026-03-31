@@ -1,0 +1,86 @@
+substitutions:
+  _REGION: us-central1
+  _ARTIFACT_REGISTRY_REPO: naild
+  _WEB_SERVICE: naild-web
+  _AI_SERVICE: naild-ai
+  _WEB_ORIGIN: https://app.your-domain.com
+  _API_PUBLIC_BASE: https://api.your-domain.com/api/v1
+  _API_PUBLIC_ORIGIN: https://api.your-domain.com
+  _AI_PUBLIC_BASE: https://ai.your-domain.com
+  _SPRING_API_BASE: https://api.your-domain.com/api/v1
+  _VERTEX_AI_LOCATION: us-central1
+  _GEMINI_MODEL: gemini-2.5-flash
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - Dockerfile.web
+      - --build-arg
+      - NEXT_PUBLIC_API_BASE=${_API_PUBLIC_BASE}
+      - --build-arg
+      - NEXT_PUBLIC_API_ORIGIN=${_API_PUBLIC_ORIGIN}
+      - --build-arg
+      - NEXT_PUBLIC_AI_BASE=${_AI_PUBLIC_BASE}
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY_REPO}/${_WEB_SERVICE}:$SHORT_SHA
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - python_backend/Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY_REPO}/${_AI_SERVICE}:$SHORT_SHA
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY_REPO}/${_WEB_SERVICE}:$SHORT_SHA
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY_REPO}/${_AI_SERVICE}:$SHORT_SHA
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_AI_SERVICE}
+      - --image
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY_REPO}/${_AI_SERVICE}:$SHORT_SHA
+      - --region
+      - ${_REGION}
+      - --platform
+      - managed
+      - --allow-unauthenticated
+      - --set-env-vars
+      - APP_ENV=production,AI_PROVIDER=vertex_ai,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,VERTEX_AI_LOCATION=${_VERTEX_AI_LOCATION},GEMINI_MODEL=${_GEMINI_MODEL},SPRING_API_BASE=${_SPRING_API_BASE},CORS_ALLOW_ORIGINS=${_WEB_ORIGIN}
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_WEB_SERVICE}
+      - --image
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY_REPO}/${_WEB_SERVICE}:$SHORT_SHA
+      - --region
+      - ${_REGION}
+      - --platform
+      - managed
+      - --allow-unauthenticated
+      - --set-env-vars
+      - NODE_ENV=production
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY_REPO}/${_WEB_SERVICE}:$SHORT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REGISTRY_REPO}/${_AI_SERVICE}:$SHORT_SHA
