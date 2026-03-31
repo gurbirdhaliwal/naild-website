@@ -145,8 +145,26 @@ class HttpError extends Error {
 
 const isHttpError = (error: unknown): error is HttpError => error instanceof HttpError
 
+const readResponsePayload = async (response: Response): Promise<unknown> => {
+  if (response.status === 204) {
+    return null
+  }
+
+  const text = await response.text()
+  if (!text) {
+    return null
+  }
+
+  const contentType = response.headers.get('content-type') ?? ''
+  if (contentType.includes('application/json')) {
+    return JSON.parse(text)
+  }
+
+  return text
+}
+
 class InterviewService {
-  private async makeRequest(endpoint: string, options: RequestInit = {}) {
+  private async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     try {
       const isDebugLoggingEnabled = process.env.NODE_ENV !== 'production';
       if (isDebugLoggingEnabled) {
@@ -175,7 +193,13 @@ class InterviewService {
       }
       
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorPayload = await readResponsePayload(response).catch(() => null);
+        const errorText =
+          typeof errorPayload === 'string'
+            ? errorPayload
+            : errorPayload != null
+              ? JSON.stringify(errorPayload)
+              : '';
         if (response.status === 401) {
           const sessionExpired = await confirmSessionExpired();
           if (sessionExpired) {
@@ -188,7 +212,7 @@ class InterviewService {
         );
       }
 
-      const data = await response.json();
+      const data = (await readResponsePayload(response)) as T;
       if (isDebugLoggingEnabled) {
         console.debug('Response data:', data);
       }
@@ -202,193 +226,58 @@ class InterviewService {
   }
 
   async getUserInterviews(): Promise<InterviewResponse[]> {
-    try {
-      return await this.makeRequest('/interviews');
-    } catch (error) {
-      if (isHttpError(error) && error.status === 401) {
-        console.warn('Interview list request was unauthorized while the session is still being verified.');
-        return [];
-      }
-
-      console.log('Backend not available, returning empty interviews list');
-      return [];
-    }
+    return await this.makeRequest<InterviewResponse[]>('/interviews');
   }
 
   async getInterviewById(id: number): Promise<InterviewResponse> {
-    try {
-      return await this.makeRequest(`/interviews/${id}`);
-    } catch {
-      throw new Error('Interview not found');
-    }
+    return await this.makeRequest<InterviewResponse>(`/interviews/${id}`);
   }
 
   async createInterview(data: CreateInterviewRequest): Promise<InterviewResponse> {
-    try {
-      return await this.makeRequest('/interviews', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    } catch (error) {
-      if (isHttpError(error)) {
-        throw error
-      }
-      // Return a mock response for testing
-      const mockResponse: InterviewResponse = {
-        id: Date.now(),
-        title: data.title,
-        role: data.role,
-        languages: JSON.stringify(data.languages),
-        difficulty: data.difficulty,
-        sessionType: data.sessionType ?? 'behavioral-interview',
-        practiceMode: data.practiceMode ?? null,
-        audience: data.audience ?? null,
-        topic: data.topic ?? null,
-        promptContext: data.promptContext ?? null,
-        generatedPrompt: data.generatedPrompt ? JSON.stringify(data.generatedPrompt) : null,
-        status: 'active',
-        questions: JSON.stringify(data.questions),
-        messages: '[]',
-        currentQuestionIndex: 0,
-        gradingResult: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      return mockResponse;
-    }
+    return await this.makeRequest<InterviewResponse>('/interviews', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
 
 
   async updateInterviewMessages(id: number, data: UpdateMessagesRequest): Promise<InterviewResponse> {
-    try {
-      return await this.makeRequest(`/interviews/${id}/messages`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-    } catch (error) {
-      if (isHttpError(error)) {
-        throw error
-      }
-      console.log('Backend not available, skipping message update');
-      // Return a mock response
-      const mockResponse: InterviewResponse = {
-        id: id,
-        title: 'Practice Session',
-        role: 'Software Engineer',
-        languages: '[]',
-        difficulty: 'mid',
-        sessionType: 'technical-communication',
-        practiceMode: 'explain-concept',
-        audience: 'peer-engineer',
-        topic: null,
-        promptContext: null,
-        generatedPrompt: null,
-        status: 'active',
-        questions: '[]',
-        messages: JSON.stringify(data.messages),
-        currentQuestionIndex: 0,
-        gradingResult: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      return mockResponse;
-    }
+    return await this.makeRequest<InterviewResponse>(`/interviews/${id}/messages`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   }
 
   async updateGradingResult(id: number, data: UpdateGradingRequest): Promise<InterviewResponse> {
-    try {
-      return await this.makeRequest(`/interviews/${id}/grading`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-    } catch (error) {
-      if (isHttpError(error)) {
-        throw error
-      }
-      console.log('Backend not available, skipping grading update');
-      // Return a mock response
-      const mockResponse: InterviewResponse = {
-        id: id,
-        title: 'Practice Session',
-        role: 'Software Engineer',
-        languages: '[]',
-        difficulty: 'mid',
-        sessionType: 'technical-communication',
-        practiceMode: 'explain-concept',
-        audience: 'peer-engineer',
-        topic: null,
-        promptContext: null,
-        generatedPrompt: null,
-        status: 'completed',
-        questions: '[]',
-        messages: '[]',
-        currentQuestionIndex: 0,
-        gradingResult: JSON.stringify(data.gradingResult),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      return mockResponse;
-    }
+    return await this.makeRequest<InterviewResponse>(`/interviews/${id}/grading`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   }
 
   async updateInterviewTitle(id: number, data: UpdateInterviewTitleRequest): Promise<InterviewResponse> {
     try {
-      return await this.makeRequest(`/interviews/${id}/title`, {
+      return await this.makeRequest<InterviewResponse>(`/interviews/${id}/title`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
     } catch (error) {
-      if (isHttpError(error)) {
+      if (isHttpError(error) && ![404, 405, 501].includes(error.status)) {
         throw error
       }
-      try {
-        return await this.makeRequest(`/interviews/${id}`, {
-          method: 'PATCH',
-          body: JSON.stringify(data),
-        });
-      } catch (patchError) {
-        if (isHttpError(patchError)) {
-          throw patchError
-        }
-        console.log('Backend not available, skipping interview title update');
-        const mockResponse: InterviewResponse = {
-          id: id,
-          title: data.title,
-          role: 'Software Engineer',
-          languages: '[]',
-          difficulty: 'mid',
-          sessionType: 'technical-communication',
-          practiceMode: 'explain-concept',
-          audience: 'peer-engineer',
-          topic: null,
-          promptContext: null,
-          generatedPrompt: null,
-          status: 'active',
-          questions: '[]',
-          messages: '[]',
-          currentQuestionIndex: 0,
-          gradingResult: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        return mockResponse;
-      }
+
+      return await this.makeRequest<InterviewResponse>(`/interviews/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
     }
   }
 
   async deleteInterview(id: number): Promise<void> {
-    try {
-      return await this.makeRequest(`/interviews/${id}`, {
-        method: 'DELETE',
-      });
-    } catch (error) {
-      if (isHttpError(error)) {
-        throw error
-      }
-      console.log('Backend not available, skipping delete');
-      // Don't throw error, just log it
-    }
+    await this.makeRequest<unknown>(`/interviews/${id}`, {
+      method: 'DELETE',
+    });
   }
 
   // Helper method to convert InterviewResponse to Interview

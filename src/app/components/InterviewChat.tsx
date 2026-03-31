@@ -569,6 +569,10 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         }),
       })
 
+      if (!evaluationResponse.ok) {
+        throw new Error(`Failed to evaluate this answer (${evaluationResponse.status})`)
+      }
+
       const evaluationData = normalizeCommunicationGradingResult(await evaluationResponse.json())
       if (isGradingErrorResult(evaluationData)) {
         throw new Error(evaluationData.error)
@@ -664,6 +668,10 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         }),
       })
 
+      if (!ackResponse.ok) {
+        throw new Error(`Failed to continue the interview (${ackResponse.status})`)
+      }
+
       const ackResult = await ackResponse.json()
       const messagesWithoutThinking = currentMessages.filter((message) => message.id !== thinkingMessage.id)
 
@@ -747,6 +755,11 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
                 interview_id: Number.isNaN(Number(interview.id)) ? null : Number(interview.id),
               }),
             })
+
+            if (!gradeResponse.ok) {
+              throw new Error(`Failed to grade the interview (${gradeResponse.status})`)
+            }
+
             const rawGrade = await gradeResponse.json()
             const normalizedGrade = normalizeBehavioralGradingResult(
               rawGrade,

@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import CommunicationSetup from '../components/CommunicationSetup'
 import InterviewSetup from '../components/InterviewSetup'
@@ -163,6 +163,10 @@ export default function InterviewPage() {
     type: ProfileToastType
     message: string
   } | null>(null)
+  const [workspaceToast, setWorkspaceToast] = useState<{
+    type: ProfileToastType
+    message: string
+  } | null>(null)
   const [showAccountEditor, setShowAccountEditor] = useState(false)
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false)
   const [modelMenuOpen, setModelMenuOpen] = useState(false)
@@ -176,19 +180,6 @@ export default function InterviewPage() {
       router.push('/')
     }
   }, [loading, user, router])
-
-  // Load saved interviews when user is authenticated
-  useEffect(() => {
-    if (user && !loading) {
-      const oauthTarget = consumeOAuthHandoffRedirect()
-      if (oauthTarget && oauthTarget !== '/interview') {
-        router.replace(oauthTarget)
-        return
-      }
-
-      loadSavedInterviews();
-    }
-  }, [loading, router, user]);
 
   useEffect(() => {
     getCsrfToken().catch((err) => {
@@ -325,10 +316,24 @@ export default function InterviewPage() {
     setProfileUpdateToast({ type, message })
   }
 
-  const loadSavedInterviews = async () => {
+  useEffect(() => {
+    if (!workspaceToast) return
+    const timeoutId = window.setTimeout(() => {
+      setWorkspaceToast(null)
+    }, 4000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [workspaceToast])
+
+  const showWorkspaceToast = useCallback((type: ProfileToastType, message: string) => {
+    setWorkspaceToast({ type, message })
+  }, [])
+
+  const loadSavedInterviews = useCallback(async () => {
     try {
       setLoadingInterviews(true);
       setHasLoadedInterviewHistory(false);
+      setWorkspaceToast(null)
       console.log('Loading saved interviews...');
       const savedInterviews = await interviewService.getUserInterviews();
       console.log('Received interviews:', savedInterviews);
@@ -339,6 +344,7 @@ export default function InterviewPage() {
       setInterviews(convertedInterviews);
     } catch (error) {
       console.error('Failed to load interviews:', error);
+      showWorkspaceToast('error', 'Unable to load saved sessions right now.')
       if (error instanceof Error) {
         console.error('Error details:', {
           message: error.message,
@@ -351,7 +357,20 @@ export default function InterviewPage() {
       setLoadingInterviews(false);
       setHasLoadedInterviewHistory(true);
     }
-  };
+  }, [showWorkspaceToast])
+
+  // Load saved interviews when user is authenticated
+  useEffect(() => {
+    if (user && !loading) {
+      const oauthTarget = consumeOAuthHandoffRedirect()
+      if (oauthTarget && oauthTarget !== '/interview') {
+        router.replace(oauthTarget)
+        return
+      }
+
+      loadSavedInterviews()
+    }
+  }, [loadSavedInterviews, loading, router, user])
 
   const greetingName = user?.firstname || 'there'
   const hasSavedSessions = interviews.length > 0
@@ -551,37 +570,31 @@ export default function InterviewPage() {
 
   const handleCreateTechnicalSession = async (config: CommunicationSessionConfig) => {
     const fallbackPrompt = buildFallbackPrompt(config)
-    let generatedPrompt: GeneratedPrompt = fallbackPrompt
+    const res = await fetch(`${AI_BASE}/generate_drill`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        field: config.role,
+        practice_mode: config.practiceMode,
+        audience: config.audience,
+        topic: config.topic,
+        additional_context: config.promptContext,
+        difficulty: config.difficulty,
+      }),
+    })
 
-    try {
-      const res = await fetch(`${AI_BASE}/generate_drill`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          field: config.role,
-          practice_mode: config.practiceMode,
-          audience: config.audience,
-          topic: config.topic,
-          additional_context: config.promptContext,
-          difficulty: config.difficulty,
-        }),
-      })
-
-      if (!res.ok) {
-        throw new Error(`Failed to generate drill: ${res.status}`)
-      }
-
-      const data = await res.json()
-      const rawPrompt =
-        data?.prompt && typeof data.prompt === 'object'
-          ? (data.prompt as Partial<GeneratedPrompt>)
-          : (data as Partial<GeneratedPrompt>)
-
-      generatedPrompt = normalizeGeneratedPrompt(rawPrompt, fallbackPrompt)
-    } catch {
-      generatedPrompt = fallbackPrompt
+    if (!res.ok) {
+      throw new Error(`Failed to generate drill (${res.status})`)
     }
+
+    const data = await res.json()
+    const rawPrompt =
+      data?.prompt && typeof data.prompt === 'object'
+        ? (data.prompt as Partial<GeneratedPrompt>)
+        : (data as Partial<GeneratedPrompt>)
+
+    const generatedPrompt = normalizeGeneratedPrompt(rawPrompt, fallbackPrompt)
 
     const coachIntro = buildTechnicalCoachIntro(config, generatedPrompt)
     const now = new Date()
@@ -603,83 +616,79 @@ export default function InterviewPage() {
     }
     const messages = [introMessage, promptMessage]
 
-    try {
-      const createRequest = {
-        title: generatedPrompt.title,
-        role: config.role,
-        languages: generatedPrompt.focus_areas,
-        difficulty: config.difficulty,
-        questions: [generatedPrompt.prompt],
-        sessionType: 'technical-communication' as const,
-        practiceMode: config.practiceMode,
-        audience: config.audience,
-        topic: generatedPrompt.topic,
-        promptContext: config.promptContext,
-        generatedPrompt,
-      }
-
-      const savedInterview = await interviewService.createInterview(createRequest)
-      const newInterview = interviewService.convertToInterview(savedInterview)
-      newInterview.messages = messages
-      newInterview.currentQuestionIndex = 0
-      await interviewService.updateInterviewMessages(Number(newInterview.id), { messages: newInterview.messages })
-
-      setInterviews((prev) => [newInterview, ...prev])
-      setCurrentInterview(newInterview)
-      setActiveLandingView('home')
-    } catch (error) {
-      console.error('Failed to create technical communication session:', error)
-      const newInterview: Interview = {
-        id: Date.now().toString(),
-        title: generatedPrompt.title,
-        role: config.role,
-        languages: generatedPrompt.focus_areas ?? [],
-        difficulty: config.difficulty,
-        sessionType: 'technical-communication',
-        practiceMode: config.practiceMode,
-        audience: config.audience,
-        topic: generatedPrompt.topic,
-        promptContext: config.promptContext,
-        generatedPrompt,
-        createdAt: now,
-        messages,
-        status: 'active',
-        questions: [generatedPrompt.prompt],
-        currentQuestionIndex: 0,
-      }
-      setInterviews((prev) => [newInterview, ...prev])
-      setCurrentInterview(newInterview)
-      setActiveLandingView('home')
+    const createRequest = {
+      title: generatedPrompt.title,
+      role: config.role,
+      languages: generatedPrompt.focus_areas,
+      difficulty: config.difficulty,
+      questions: [generatedPrompt.prompt],
+      sessionType: 'technical-communication' as const,
+      practiceMode: config.practiceMode,
+      audience: config.audience,
+      topic: generatedPrompt.topic,
+      promptContext: config.promptContext,
+      generatedPrompt,
     }
+
+    const savedInterview = await interviewService.createInterview(createRequest)
+    const newInterview = interviewService.convertToInterview(savedInterview)
+    newInterview.messages = messages
+    newInterview.currentQuestionIndex = 0
+
+    try {
+      await interviewService.updateInterviewMessages(Number(newInterview.id), {
+        messages: newInterview.messages,
+      })
+    } catch (error) {
+      if (!Number.isNaN(Number(newInterview.id))) {
+        await interviewService.deleteInterview(Number(newInterview.id)).catch(() => undefined)
+      }
+      throw error
+    }
+
+    setInterviews((prev) => [newInterview, ...prev])
+    setCurrentInterview(newInterview)
+    setActiveLandingView('home')
   }
 
   const handleCreateBehavioralInterview = async (config: InterviewConfig) => {
-    // Fetch AI-generated questions
-    let aiQuestions: string[] = [];
-    try {
-      const res = await fetch(`${AI_BASE}/generate_questions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          role: config.role,
-          languages: config.languages,
-          difficulty: config.difficulty,
-          topic: config.topic,
-          additional_context: config.promptContext,
-        }),
-      });
-      const data = await res.json();
-      // Parse numbered list into array
-      aiQuestions = data.questions
-        .split(/\n|\r/)
-        .map((q: string) => q.replace(/^\d+\.|^\d+\)/, '').trim())
-        .filter((q: string) => q.length > 0);
-    } catch {
-      aiQuestions = [];
+    const res = await fetch(`${AI_BASE}/generate_questions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        role: config.role,
+        languages: config.languages,
+        difficulty: config.difficulty,
+        topic: config.topic,
+        additional_context: config.promptContext,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to generate interview questions (${res.status})`)
     }
+
+    const data = await res.json();
+    const rawQuestions: string[] = Array.isArray(data?.questions)
+      ? data.questions
+      : typeof data?.questions === 'string'
+        ? data.questions
+            .split(/\n|\r/)
+            .map((question: string) => question.replace(/^\d+\.|^\d+\)/, '').trim())
+            .filter((question: string) => question.length > 0)
+        : []
+
+    const aiQuestions = rawQuestions.filter(
+      (question): question is string => typeof question === 'string' && question.trim().length > 0
+    )
+
+    if (aiQuestions.length === 0) {
+      throw new Error('The AI service did not return any interview questions.')
+    }
+
     const focusAreaSummary = config.languages.join(', ')
-    const questionCount = aiQuestions.length || 5
+    const questionCount = aiQuestions.length
     const introCopy = `Welcome to your ${config.role} behavioral interview! I'll be asking you ${questionCount} questions focused on ${focusAreaSummary}. Let's get started!`
     const now = new Date();
     // Add introduction and first question
@@ -694,57 +703,43 @@ export default function InterviewPage() {
     const firstQuestionMessage = {
       id: `${Date.now()}-q0`,
       role: 'interviewer' as const,
-      content: aiQuestions[0] || "Tell me about a time you handled a challenging situation at work.",
+      content: aiQuestions[0],
       timestamp: now,
-      transcription: `[${AUREON_NAME}]: ${aiQuestions[0] || "Tell me about a time you handled a challenging situation at work."}`,
+      transcription: `[${AUREON_NAME}]: ${aiQuestions[0]}`,
       isThinking: false,
     };
     const messages = [introMessage, firstQuestionMessage];
     
     // Create interview in database
-    try {
-      const createRequest = {
-        title: `${config.role} Behavioral Interview`,
-        role: config.role,
-        languages: config.languages,
-        difficulty: config.difficulty,
-        questions: aiQuestions,
-        topic: config.topic || null,
-        promptContext: config.promptContext || null,
-      };
-      
-      const savedInterview = await interviewService.createInterview(createRequest);
-      const newInterview = interviewService.convertToInterview(savedInterview);
-      newInterview.messages = messages;
-      newInterview.currentQuestionIndex = 0;
-      newInterview.topic = config.topic || null;
-      newInterview.promptContext = config.promptContext || null;
-      await interviewService.updateInterviewMessages(Number(newInterview.id), {messages: newInterview.messages});
+    const createRequest = {
+      title: `${config.role} Behavioral Interview`,
+      role: config.role,
+      languages: config.languages,
+      difficulty: config.difficulty,
+      questions: aiQuestions,
+      topic: config.topic || null,
+      promptContext: config.promptContext || null,
+    };
+    
+    const savedInterview = await interviewService.createInterview(createRequest);
+    const newInterview = interviewService.convertToInterview(savedInterview);
+    newInterview.messages = messages;
+    newInterview.currentQuestionIndex = 0;
+    newInterview.topic = config.topic || null;
+    newInterview.promptContext = config.promptContext || null;
 
-      setInterviews((prev) => [newInterview, ...prev]);
-      setCurrentInterview(newInterview);
-      setActiveLandingView('home');
+    try {
+      await interviewService.updateInterviewMessages(Number(newInterview.id), { messages: newInterview.messages });
     } catch (error) {
-      console.error('Failed to create interview:', error);
-      // Fallback to in-memory only - this will work even without backend
-      const newInterview: Interview = {
-        id: Date.now().toString(),
-        title: `${config.role} Behavioral Interview`,
-        role: config.role,
-        languages: config.languages,
-        difficulty: config.difficulty,
-        topic: config.topic || null,
-        promptContext: config.promptContext || null,
-        createdAt: now,
-        messages,
-        status: 'active',
-        questions: aiQuestions,
-        currentQuestionIndex: 0,
-      };
-      setInterviews((prev) => [newInterview, ...prev]);
-      setCurrentInterview(newInterview);
-      setActiveLandingView('home');
+      if (!Number.isNaN(Number(newInterview.id))) {
+        await interviewService.deleteInterview(Number(newInterview.id)).catch(() => undefined)
+      }
+      throw error
     }
+
+    setInterviews((prev) => [newInterview, ...prev]);
+    setCurrentInterview(newInterview);
+    setActiveLandingView('home');
   };
 
   const queueInterviewMessageSave = (updated: Interview) => {
@@ -763,6 +758,7 @@ export default function InterviewPage() {
       })
       .catch((error) => {
         console.error('Failed to save interview messages:', error)
+        showWorkspaceToast('error', 'Session changes could not be saved.')
       })
       .finally(() => {
         if (messagePersistQueueRef.current.get(interviewId) === nextSave) {
@@ -786,16 +782,15 @@ export default function InterviewPage() {
       if (!isNaN(Number(interviewId))) {
         await interviewService.deleteInterview(Number(interviewId));
       }
+      setInterviews((prev) => prev.filter((i) => i.id !== interviewId));
+      if (currentInterview?.id === interviewId) {
+        setCurrentInterview(null);
+        setActiveLandingView('home')
+      }
     } catch (error) {
       console.error('Failed to delete interview from backend:', error);
-      // Continue with local deletion even if backend fails
-    }
-    
-    // Always remove from local state
-    setInterviews((prev) => prev.filter((i) => i.id !== interviewId));
-    if (currentInterview?.id === interviewId) {
-      setCurrentInterview(null);
-      setActiveLandingView('home')
+      showWorkspaceToast('error', 'Unable to delete this session right now.')
+      throw error
     }
   }
 
@@ -803,24 +798,25 @@ export default function InterviewPage() {
     const normalizedTitle = title.trim()
     if (!normalizedTitle) return
 
-    setInterviews((prev) =>
-      prev.map((interview) =>
-        interview.id === interviewId ? { ...interview, title: normalizedTitle } : interview
-      )
-    )
-
-    setCurrentInterview((prev) =>
-      prev?.id === interviewId ? { ...prev, title: normalizedTitle } : prev
-    )
-
     if (isNaN(Number(interviewId))) return
 
     try {
       await interviewService.updateInterviewTitle(Number(interviewId), {
         title: normalizedTitle,
       })
+      setInterviews((prev) =>
+        prev.map((interview) =>
+          interview.id === interviewId ? { ...interview, title: normalizedTitle } : interview
+        )
+      )
+
+      setCurrentInterview((prev) =>
+        prev?.id === interviewId ? { ...prev, title: normalizedTitle } : prev
+      )
     } catch (error) {
       console.error('Failed to rename interview:', error)
+      showWorkspaceToast('error', 'Unable to rename this session right now.')
+      throw error
     }
   }
 
@@ -1666,6 +1662,28 @@ export default function InterviewPage() {
                 </button>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {workspaceToast && (
+          <motion.div
+            key={workspaceToast.message}
+            initial={{ opacity: 0, y: 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 28 }}
+            transition={{ duration: 0.2 }}
+            className={`fixed bottom-24 right-4 z-[120] w-[calc(100vw-2rem)] max-w-sm rounded-lg border px-4 py-3 shadow-lg ${
+              workspaceToast.type === 'success'
+                ? 'border-teal-200 bg-teal-50 text-teal-900'
+                : 'border-red-200 bg-red-50 text-red-800'
+            }`}
+          >
+            <p className="text-sm font-medium">
+              {workspaceToast.type === 'success' ? 'Workspace Updated' : 'Workspace Error'}
+            </p>
+            <p className="mt-1 text-sm">{workspaceToast.message}</p>
           </motion.div>
         )}
       </AnimatePresence>
