@@ -101,6 +101,7 @@ const planCards = [
   {
     name: 'Starter',
     price: '$0/mo',
+    ctaLabel: null,
     imageSrc: '/naild_starter.png',
     imageAlt: 'Starter tier illustration',
     imageWidth: 343,

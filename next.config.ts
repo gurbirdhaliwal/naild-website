@@ -2,6 +2,20 @@ import type { NextConfig } from "next";
 
 const isProduction = process.env.NODE_ENV === "production";
 
+const readPublicEnv = (name: string, fallback: string): string => {
+  const value = process.env[name];
+
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  if (isProduction) {
+    throw new Error(`${name} must be set for production builds.`);
+  }
+
+  return fallback;
+};
+
 const toOrigin = (url: string | undefined): string | null => {
   if (!url) return null;
 
@@ -26,9 +40,19 @@ if (!isProduction) {
   connectSrc.add("http://host.docker.internal:8081");
 }
 
-const apiBaseOrigin = toOrigin(process.env.NEXT_PUBLIC_API_BASE);
-const apiOrigin = toOrigin(process.env.NEXT_PUBLIC_API_ORIGIN);
-const aiBaseOrigin = toOrigin(process.env.NEXT_PUBLIC_AI_BASE);
+const publicApiBase = readPublicEnv(
+  "NEXT_PUBLIC_API_BASE",
+  "http://localhost:8080/api/v1"
+);
+const publicApiOrigin = readPublicEnv(
+  "NEXT_PUBLIC_API_ORIGIN",
+  publicApiBase.replace(/\/api\/v1$/, "")
+);
+const publicAiBase = readPublicEnv("NEXT_PUBLIC_AI_BASE", "http://localhost:8081");
+
+const apiBaseOrigin = toOrigin(publicApiBase);
+const apiOrigin = toOrigin(publicApiOrigin);
+const aiBaseOrigin = toOrigin(publicAiBase);
 
 if (apiBaseOrigin) connectSrc.add(apiBaseOrigin);
 if (apiOrigin) connectSrc.add(apiOrigin);
@@ -52,6 +76,7 @@ const contentSecurityPolicy = [
   .trim();
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   async headers() {
     return [
       {
