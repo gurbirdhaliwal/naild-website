@@ -1,10 +1,10 @@
-node_modules
+.git
+.github
 .next
-dist
-coverage
-*.log
-**/__pycache__/
-*.pyc
+node_modules
+npm-debug.log
+Dockerfile.web.dev
+docker-compose.yml
 .env
 .env.*
-.DS_Store
+PRODUCTION_READINESS_AUDIT.md
