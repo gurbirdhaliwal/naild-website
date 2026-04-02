@@ -61,6 +61,35 @@ const tabs = [
   },
 ] as const;
 
+type FeaturePalette = {
+  shell: string;
+  pane: string;
+  paneText: string;
+  card: string;
+  badge: string;
+  title: string;
+  detail: string;
+  bullet: string;
+};
+
+const feedbackFeaturePalette: FeaturePalette = {
+  shell: 'bg-[linear-gradient(135deg,_#d1fae5_0%,_#86efac_48%,_#10b981_100%)]',
+  pane: 'border-r border-emerald-200/80 bg-[linear-gradient(180deg,_rgba(236,253,245,0.96)_0%,_rgba(209,250,229,0.92)_100%)]',
+  paneText: 'text-emerald-950',
+  card: 'border border-emerald-200/80 bg-[linear-gradient(180deg,_rgba(255,255,255,0.97)_0%,_rgba(236,253,245,0.98)_100%)]',
+  badge: 'text-emerald-700',
+  title: 'text-emerald-950',
+  detail: 'text-emerald-900/75',
+  bullet: 'border border-emerald-100 bg-white/75 text-emerald-950',
+};
+
+const featurePalettes: Record<(typeof tabs)[number]['id'], FeaturePalette> = {
+  feedback: feedbackFeaturePalette,
+  scores: feedbackFeaturePalette,
+  personas: feedbackFeaturePalette,
+  replay: feedbackFeaturePalette,
+};
+
 const heroHeadline = 'Explain complex\nsoftware ideas clearly.';
 const universityLogos = [
   {
@@ -173,6 +202,7 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
   });
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const activeFeature = tabs[scrollState.activeIndex];
+  const activePalette = featurePalettes[activeFeature.id];
   const hasDarkBackdrop =
     scrollState.backdropOpacity >= 0.55 || scrollState.activeIndex > 0;
   const surfaceScale = prefersReducedMotion
@@ -382,11 +412,11 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
         <div className="pointer-events-none absolute left-4 top-1/2 z-20 hidden -translate-y-1/2 md:flex md:flex-col md:items-center">
           <div
             className={`relative h-44 w-px overflow-hidden rounded-full transition-colors duration-700 ${
-              hasDarkBackdrop ? 'bg-white/12' : 'bg-black/10'
+              hasDarkBackdrop ? 'bg-emerald-100/10' : 'bg-emerald-200/45'
             }`}
           >
             <motion.div
-              className="absolute inset-x-0 bottom-0 rounded-full bg-green-400"
+              className="absolute inset-x-0 bottom-0 rounded-full bg-emerald-400"
               initial={false}
               animate={{ height: `${Math.max(scrollState.sectionProgress * 100, 6)}%` }}
               transition={{
@@ -410,14 +440,14 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
           <div className="mb-12 text-center">
             <h2
               className={`mb-3 text-5xl font-normal transition-colors duration-700 ${
-                hasDarkBackdrop ? 'text-white' : 'text-black'
+                hasDarkBackdrop ? 'text-emerald-50' : 'text-black'
               }`}
             >
               Train the communication skills strong engineers use every week.
             </h2>
             <p
               className={`text-xl font-normal transition-colors duration-700 ${
-                hasDarkBackdrop ? 'text-gray-300' : 'text-gray-500'
+                hasDarkBackdrop ? 'text-emerald-100/75' : 'text-emerald-900/55'
               }`}
             >
               Pick your field, audience, and scenario. Naild generates the drill,
@@ -441,14 +471,14 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                     <div
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all duration-300 ${
                         i === scrollState.activeIndex
-                          ? 'bg-green-500 text-white'
+                          ? 'bg-emerald-500 text-white'
                           : i < scrollState.activeIndex
                           ? hasDarkBackdrop
-                            ? 'bg-green-950 text-green-300'
-                            : 'bg-green-100 text-green-600'
+                            ? 'bg-emerald-950 text-emerald-300'
+                            : 'bg-emerald-100 text-emerald-700'
                           : hasDarkBackdrop
-                          ? 'bg-zinc-800 text-zinc-500'
-                          : 'bg-gray-100 text-gray-400'
+                          ? 'bg-emerald-950/70 text-emerald-100/45'
+                          : 'bg-emerald-50 text-emerald-300'
                       }`}
                     >
                       {i < scrollState.activeIndex ? '✓' : i + 1}
@@ -456,11 +486,11 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                     {i < tabs.length - 1 && (
                       <div
                         className={`relative h-10 w-0.5 overflow-hidden rounded-full transition-colors duration-700 ${
-                          hasDarkBackdrop ? 'bg-zinc-800' : 'bg-gray-100'
+                          hasDarkBackdrop ? 'bg-emerald-950/70' : 'bg-emerald-100'
                         }`}
                       >
                         <motion.div
-                          className="absolute inset-x-0 top-0 rounded-full bg-green-400"
+                          className="absolute inset-x-0 top-0 rounded-full bg-emerald-400"
                           animate={{ height: i < scrollState.activeIndex ? '100%' : '0%' }}
                           transition={{ duration: 0.4, ease: 'easeOut' }}
                         />
@@ -473,11 +503,11 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                       className={`text-sm font-semibold uppercase tracking-widest transition-colors duration-300 ${
                         i === scrollState.activeIndex
                           ? hasDarkBackdrop
-                            ? 'text-green-400'
-                            : 'text-green-600'
+                            ? 'text-emerald-300'
+                            : 'text-emerald-700'
                           : hasDarkBackdrop
-                          ? 'text-zinc-500'
-                          : 'text-gray-400'
+                          ? 'text-emerald-100/40'
+                          : 'text-emerald-400'
                       }`}
                     >
                       {tab.label}
@@ -486,8 +516,8 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                       className={`mt-0.5 text-sm leading-snug transition-all duration-300 ${
                         i === scrollState.activeIndex
                           ? hasDarkBackdrop
-                            ? 'max-h-20 text-zinc-200 opacity-100'
-                            : 'max-h-20 text-gray-700 opacity-100'
+                            ? 'max-h-20 text-emerald-50/90 opacity-100'
+                            : 'max-h-20 text-emerald-950/80 opacity-100'
                           : 'max-h-0 overflow-hidden opacity-0'
                       }`}
                     >
@@ -522,20 +552,20 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                     duration: prefersReducedMotion ? 0.15 : 0.42,
                     ease: [0.22, 1, 0.36, 1],
                   }}
-                  className="flex aspect-video overflow-hidden rounded-3xl bg-gray-400 shadow-2xl"
+                  className={`flex aspect-video overflow-hidden rounded-3xl border border-white/25 shadow-[0_28px_90px_-32px_rgba(5,150,105,0.55)] ${activePalette.shell}`}
                 >
                   {/* Left pane: label + description */}
                   <motion.div
                     initial={prefersReducedMotion ? undefined : { x: -20, opacity: 0 }}
                     animate={prefersReducedMotion ? undefined : { x: 0, opacity: 1 }}
                     transition={{ duration: 0.32, delay: 0.08 }}
-                    className="flex w-2/5 items-center justify-center rounded-l-3xl bg-gray-300/90"
+                    className={`flex w-2/5 items-center justify-center rounded-l-3xl ${activePalette.pane}`}
                   >
-                    <div className="px-8 text-center text-gray-700">
+                    <div className={`px-8 text-center ${activePalette.paneText}`}>
                       <div className="mb-2 text-lg font-medium">
                         {activeFeature.previewLabel}
                       </div>
-                      <div className="text-sm leading-6">
+                      <div className="text-sm leading-6 opacity-80">
                         {activeFeature.description}
                       </div>
                     </div>
@@ -548,14 +578,14 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                     transition={{ duration: 0.32, delay: 0.12 }}
                     className="flex w-3/5 items-center justify-center px-8"
                   >
-                    <div className="w-full max-w-sm rounded-3xl bg-white/90 p-6 text-left text-gray-700 shadow-lg">
-                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-green-600">
+                    <div className={`w-full max-w-sm rounded-3xl p-6 text-left shadow-lg ${activePalette.card}`}>
+                      <div className={`text-xs font-medium uppercase tracking-[0.18em] ${activePalette.badge}`}>
                         {activeFeature.label}
                       </div>
-                      <div className="mt-3 text-lg font-medium text-gray-900">
+                      <div className={`mt-3 text-lg font-medium ${activePalette.title}`}>
                         {activeFeature.previewTitle}
                       </div>
-                      <div className="mt-2 text-sm text-gray-500">
+                      <div className={`mt-2 text-sm ${activePalette.detail}`}>
                         {activeFeature.previewDetail}
                       </div>
                       <div className="mt-5 grid gap-2">
@@ -576,7 +606,7 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                               duration: 0.26,
                               delay: 0.2 + index * 0.07,
                             }}
-                            className="rounded-2xl border border-black/5 bg-gray-50 px-4 py-3 text-sm"
+                            className={`rounded-2xl px-4 py-3 text-sm ${activePalette.bullet}`}
                           >
                             {bullet}
                           </motion.div>
@@ -852,42 +882,43 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden bg-[linear-gradient(to_bottom,_#000000_0%,_#05140c_42%,_#020604_82%,_#000000_100%)] px-5 pb-40 pt-28 md:pb-48 md:pt-32"
+      className="relative z-20 -mt-16 overflow-hidden bg-[linear-gradient(to_bottom,_#010302_0%,_#03110a_18%,_#05140c_42%,_#020604_82%,_#000000_100%)] px-5 pb-40 pt-44 md:-mt-20 md:pb-48 md:pt-52"
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-[-6rem] h-[24rem] w-[24rem] -translate-x-1/2 -translate-y-1/2 md:top-[-75rem] md:h-[32rem] md:w-[32rem]">
+        <div className="absolute left-1/2 top-[-2rem] h-[24rem] w-[24rem] -translate-x-1/2 -translate-y-1/2 md:top-[-3.5rem] md:h-[32rem] md:w-[32rem]">
           <div
             className="h-full w-full rounded-full blur-[132px] md:blur-[156px]"
             style={{
-              opacity: 0.52,
+              opacity: 0.34,
               transform: 'scale(2.2)',
               background:
                 'radial-gradient(circle, rgba(209,250,229,0.34) 0%, rgba(167,243,208,0.28) 18%, rgba(52,211,153,0.18) 36%, rgba(16,185,129,0.08) 58%, rgba(16,185,129,0) 76%)',
             }}
           />
         </div>
-        <div className="absolute left-1/2 top-[-6rem] h-[20rem] w-[20rem] -translate-x-1/2 -translate-y-1/2 md:top-[-8rem] md:h-[26rem] md:w-[26rem]">
+        <div className="absolute left-1/2 top-[-1rem] h-[20rem] w-[20rem] -translate-x-1/2 -translate-y-1/2 md:top-[-2.5rem] md:h-[26rem] md:w-[26rem]">
           <div
             className="h-full w-full rounded-full blur-[68px] md:blur-[76px]"
             style={{
-              opacity: 0.44,
+              opacity: 0.28,
               transform: 'scale(1.9)',
               background:
                 'radial-gradient(circle, rgba(255,255,255,0.46) 0%, rgba(209,250,229,0.34) 18%, rgba(110,231,183,0.22) 38%, rgba(16,185,129,0.1) 60%, rgba(16,185,129,0) 80%)',
             }}
           />
         </div>
-        <div className="absolute left-[52%] top-[-5rem] h-[9rem] w-[9rem] -translate-x-1/2 -translate-y-1/2 md:top-[-6.5rem] md:h-[11rem] md:w-[11rem]">
+        <div className="absolute left-[52%] top-[0rem] h-[9rem] w-[9rem] -translate-x-1/2 -translate-y-1/2 md:top-[-1rem] md:h-[11rem] md:w-[11rem]">
           <div
             className="h-full w-full rounded-full blur-[28px] md:blur-[32px]"
             style={{
-              opacity: 0.34,
+              opacity: 0.18,
               transform: 'scale(1.28)',
               background:
                 'radial-gradient(circle, rgba(255,255,255,0.62) 0%, rgba(236,253,245,0.4) 24%, rgba(110,231,183,0.2) 52%, rgba(16,185,129,0) 76%)',
             }}
           />
         </div>
+        <div className="absolute inset-x-0 top-0 h-32 bg-[linear-gradient(to_bottom,_rgba(2,6,4,0)_0%,_rgba(2,6,4,0.55)_55%,_rgba(2,6,4,0)_100%)] md:h-40" />
       </div>
       <div className="relative z-10 mx-auto max-w-6xl">
         <div className="mb-14 text-center">
@@ -1150,7 +1181,7 @@ const NaildLanding = () => {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-black/5 bg-white px-5 pb-8 pt-12">
+      <footer className="bg-[#b0efcb] px-5 pb-8 pt-12">
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 grid grid-cols-1 gap-16 text-left md:grid-cols-3">
             <div>
