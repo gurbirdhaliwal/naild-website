@@ -7,6 +7,7 @@ import CommunicationSetup from '../components/CommunicationSetup'
 import InterviewSetup from '../components/InterviewSetup'
 import InterviewChat from '../components/InterviewChat'
 import Library, { LIBRARY_SECTIONS, type LibrarySectionId } from '../components/Library'
+import WorkspaceTutorial, { type WorkspaceTutorialStep } from '../components/WorkspaceTutorial'
 import {
   CommunicationSessionConfig,
   GeneratedPrompt,
@@ -50,6 +51,7 @@ type ProfileToastType = 'success' | 'error'
 type WorkspaceLandingView = 'home' | 'communication' | 'behavioral' | 'notes'
 
 const SETTINGS_STORAGE_KEY = 'naild.settings.preferences.v1'
+const WORKSPACE_TUTORIAL_STORAGE_KEY = 'naild.interview.workspace.tutorial.v2'
 const WORKSPACE_EXAMPLE_TYPING_STEP_MS = 26
 const WORKSPACE_EXAMPLE_DELETING_STEP_MS = 18
 const WORKSPACE_EXAMPLE_PAUSE_MS = 1800
@@ -113,6 +115,64 @@ const WORKSPACE_HOME_HERO_OVERLAY_STYLES: Record<
     ].join(', '),
   },
 }
+const WORKSPACE_TUTORIAL_STEPS: WorkspaceTutorialStep[] = [
+  {
+    id: 'intro',
+    title: 'Welcome to your interview workspace',
+    description:
+      'This short tour will walk you through the main controls before you start practicing. Click Next and I will point out the most important parts one by one.',
+  },
+  {
+    id: 'sidebar',
+    target: '[data-workspace-tour="sidebar"]',
+    title: 'This sidebar is your workspace rail',
+    description:
+      'Use it to jump home, search older sessions, open metrics, and browse the library. Once you finish sessions, they will also show up here for quick review.',
+    placement: 'right',
+  },
+  {
+    id: 'create-session',
+    target: '[data-workspace-tour="create-session"]',
+    title: 'Start new practice rounds from here',
+    description:
+      'This button launches a fresh session whenever you want to practice. It is the fastest way to begin a new interview or speaking drill.',
+    placement: 'bottom',
+  },
+  {
+    id: 'session-type-modal',
+    target: '[data-workspace-tour="session-type-modal"]',
+    title: 'Pick the kind of session you want',
+    description:
+      'Role-specific speaking drills sharpen how you explain technical ideas. Behavioral interviews simulate classic story-based interview questions.',
+    placement: 'bottom',
+  },
+  {
+    id: 'library',
+    target: '[data-workspace-tour="library"]',
+    title: 'Open the library when you need a refresher',
+    description:
+      'The library gives you study guides, communication playbooks, and reference material before or between practice sessions.',
+    placement: 'right',
+  },
+  {
+    id: 'account',
+    target: '[data-workspace-tour="account"]',
+    title: 'Settings and help live here',
+    description:
+      'Open your account menu for settings, logout, and Help. You can replay this walkthrough from Help any time you want another pass.',
+    placement: 'right',
+  },
+  {
+    id: 'conclusion',
+    title: 'You are ready to start',
+    description:
+      'That is the full workspace. Start a session whenever you are ready, and reopen this walkthrough from Help if you want a quick refresher later.',
+  },
+]
+
+const getWorkspaceTutorialStorageKey = (email: string) =>
+  `${WORKSPACE_TUTORIAL_STORAGE_KEY}:${email.trim().toLowerCase()}`
+
 const isThemePreference = (value: unknown): value is ThemePreference =>
   value === 'system' || value === 'light' || value === 'dark'
 
@@ -170,9 +230,14 @@ export default function InterviewPage() {
   const [showAccountEditor, setShowAccountEditor] = useState(false)
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false)
   const [modelMenuOpen, setModelMenuOpen] = useState(false)
+  const [workspaceTutorialOpen, setWorkspaceTutorialOpen] = useState(false)
+  const [workspaceTutorialStepIndex, setWorkspaceTutorialStepIndex] = useState(0)
   const messagePersistQueueRef = useRef<Map<string, Promise<void>>>(new Map())
   const modelMenuRef = useRef<HTMLDivElement | null>(null)
   const prefersReducedMotion = useReducedMotion()
+  const workspaceTutorialStorageKey = user?.email
+    ? getWorkspaceTutorialStorageKey(user.email)
+    : null
 
   // Handle authentication redirect
   useEffect(() => {
@@ -329,6 +394,42 @@ export default function InterviewPage() {
     setWorkspaceToast({ type, message })
   }, [])
 
+  const startWorkspaceTutorial = useCallback(() => {
+    setActiveModal(null)
+    setShowAccountEditor(false)
+    setShowDeleteAccountConfirm(false)
+    setProfileUpdateToast(null)
+    setWorkspaceToast(null)
+    setCurrentInterview(null)
+    setActiveLandingView('home')
+    setCreateSessionModalOpen(false)
+    setModelMenuOpen(false)
+    setWorkspaceTutorialStepIndex(0)
+    setWorkspaceTutorialOpen(true)
+  }, [])
+
+  const closeWorkspaceTutorial = useCallback(() => {
+    if (typeof window !== 'undefined' && workspaceTutorialStorageKey) {
+      window.localStorage.setItem(workspaceTutorialStorageKey, 'seen')
+    }
+    setWorkspaceTutorialOpen(false)
+    setWorkspaceTutorialStepIndex(0)
+    setCreateSessionModalOpen(false)
+  }, [workspaceTutorialStorageKey])
+
+  const goToPreviousWorkspaceTutorialStep = useCallback(() => {
+    setWorkspaceTutorialStepIndex((prev) => Math.max(0, prev - 1))
+  }, [])
+
+  const goToNextWorkspaceTutorialStep = useCallback(() => {
+    if (workspaceTutorialStepIndex >= WORKSPACE_TUTORIAL_STEPS.length - 1) {
+      closeWorkspaceTutorial()
+      return
+    }
+
+    setWorkspaceTutorialStepIndex((prev) => prev + 1)
+  }, [closeWorkspaceTutorial, workspaceTutorialStepIndex])
+
   const loadSavedInterviews = useCallback(async () => {
     try {
       setLoadingInterviews(true);
@@ -403,6 +504,28 @@ export default function InterviewPage() {
       setCreateSessionModalOpen(false)
     }
   }, [activeLandingView, createSessionModalOpen])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || loading || !user) return
+    if (workspaceTutorialStorageKey && window.localStorage.getItem(workspaceTutorialStorageKey)) {
+      return
+    }
+
+    startWorkspaceTutorial()
+  }, [loading, startWorkspaceTutorial, user, workspaceTutorialStorageKey])
+
+  useEffect(() => {
+    if (!workspaceTutorialOpen) return
+
+    setCurrentInterview(null)
+    setActiveLandingView('home')
+    setActiveModal(null)
+    setModelMenuOpen(false)
+
+    const activeTutorialStep = WORKSPACE_TUTORIAL_STEPS[workspaceTutorialStepIndex]
+    const shouldOpenCreateSessionModal = activeTutorialStep?.id === 'session-type-modal'
+    setCreateSessionModalOpen(shouldOpenCreateSessionModal)
+  }, [workspaceTutorialOpen, workspaceTutorialStepIndex])
 
   useEffect(() => {
     if (!modelMenuOpen) return
@@ -1127,6 +1250,7 @@ export default function InterviewPage() {
               <button
                 type="button"
                 onClick={openCreateSessionChooser}
+                data-workspace-tour="create-session"
                 className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-6 py-3 text-sm font-medium text-emerald-950 shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-100"
                 aria-haspopup="dialog"
                 aria-expanded={createSessionModalOpen}
@@ -1173,6 +1297,7 @@ export default function InterviewPage() {
         userName={`${user.firstname} ${user.lastname}`.trim() || user.email}
         userEmail={user.email}
         onOpenSettings={openModal}
+        onOpenHelp={startWorkspaceTutorial}
         onSelectLibrarySection={handleSelectLibrarySection}
         onLogout={handleLogout}
         loading={loadingInterviews}
@@ -1216,6 +1341,7 @@ export default function InterviewPage() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
               transition={{ duration: 0.18 }}
+              data-workspace-tour="session-type-modal"
               className="w-full max-w-md rounded-[28px] border border-emerald-100 bg-white p-6 shadow-[0_28px_80px_-28px_rgba(15,23,42,0.45)]"
               onClick={(event) => event.stopPropagation()}
               role="dialog"
@@ -1709,6 +1835,16 @@ export default function InterviewPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <WorkspaceTutorial
+        open={workspaceTutorialOpen}
+        steps={WORKSPACE_TUTORIAL_STEPS}
+        currentStepIndex={workspaceTutorialStepIndex}
+        onNext={goToNextWorkspaceTutorialStep}
+        onPrevious={goToPreviousWorkspaceTutorialStep}
+        onClose={closeWorkspaceTutorial}
+        resolvedTheme={resolvedTheme}
+      />
     </div>
   )
 }

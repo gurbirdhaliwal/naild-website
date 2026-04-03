@@ -45,6 +45,7 @@ interface SidebarProps {
   userName: string;
   userEmail: string;
   onOpenSettings: () => void;
+  onOpenHelp: () => void;
   onSelectLibrarySection: (sectionId: LibrarySectionId) => void;
   onLogout: () => void;
   loading?: boolean;
@@ -67,6 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   userName,
   userEmail,
   onOpenSettings,
+  onOpenHelp,
   onSelectLibrarySection,
   onLogout,
   loading = false,
@@ -238,6 +240,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div
+      data-workspace-tour="sidebar"
       className={`fixed left-0 top-0 h-full bg-gray-50 border-r border-gray-200 transition-all duration-300 z-40 ${
         collapsed ? 'w-16' : 'w-64'
       }`}
@@ -300,6 +303,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <span>Metrics</span>
             </button>
             <button
+            data-workspace-tour="library"
             onClick={openLibraryChooser}
             className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left ${
                 isLibraryActive || libraryOpen
@@ -715,6 +719,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         <div ref={accountMenuRef} className="p-4 border-t border-gray-200 relative">
           <button
+            data-workspace-tour="account"
             onClick={() => setAccountMenuOpen((prev) => !prev)}
             aria-haspopup="menu"
             aria-expanded={accountMenuOpen}
@@ -754,13 +759,13 @@ const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => {
                   setAccountMenuOpen(false);
+                  onOpenHelp();
                 }}
                 className="dropdown-link py-4"
               >
                 <CircleHelp size={18} />
                 Help
               </button>
-              <div className="border-t border-gray-200" />
               <button
                 onClick={() => {
                   setAccountMenuOpen(false);

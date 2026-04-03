@@ -3,18 +3,24 @@
 import { Suspense, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { FaGoogle, FaArrowLeft } from 'react-icons/fa';
 import { API_BASE, API_ORIGIN } from '../services/api';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { getSafeRedirectPath } from '../services/safeRedirect';
 import { setOAuthHandoffRedirect } from '../services/authSession';
+import { useAuth } from '../context/AuthContext';
 import { AUREON_NAME } from '../lib/modelConfig';
 
+const SIGNUP_SUCCESS_PATH = '/interview';
+
 function SignupContent() {
+  const router = useRouter();
+  const { refreshSession } = useAuth();
   const searchParams = useSearchParams();
   const redirectPath = getSafeRedirectPath(searchParams.get('redirect'));
-  const googleOauthHref = `${API_ORIGIN}/oauth2/authorization/google?redirect=${encodeURIComponent(redirectPath)}`;
+  const googleOauthHref = `${API_ORIGIN}/oauth2/authorization/google?redirect=${encodeURIComponent(SIGNUP_SUCCESS_PATH)}`;
 
   const [step, setStep] = useState<'email' | 'details'>('email');
   const [formData, setFormData] = useState({
@@ -77,7 +83,9 @@ function SignupContent() {
       });
 
       if (response.ok) {
-        window.location.href = redirectPath;
+        setOAuthHandoffRedirect(SIGNUP_SUCCESS_PATH);
+        await refreshSession();
+        router.replace(SIGNUP_SUCCESS_PATH);
       } else {
         setError(data.error || 'Signup failed. Try again.');
       }
@@ -90,7 +98,7 @@ function SignupContent() {
   };
 
   const handleGoogleOAuthStart = () => {
-    setOAuthHandoffRedirect(redirectPath);
+    setOAuthHandoffRedirect(SIGNUP_SUCCESS_PATH);
   };
 
   return (
