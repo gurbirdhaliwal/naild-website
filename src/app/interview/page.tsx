@@ -38,6 +38,7 @@ import {
   getPracticeModeLabel,
   normalizeGeneratedPrompt,
 } from '../lib/practiceConfig'
+import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors'
 import {
   AUREON_MODEL_OPTIONS,
   AUREON_NAME,
@@ -1012,7 +1013,6 @@ export default function InterviewPage() {
         body: JSON.stringify(payload),
       })
 
-      const text = await response.text()
       if (response.ok) {
         setUser({
           ...user,
@@ -1026,10 +1026,10 @@ export default function InterviewPage() {
           currentpassword: '',
         }))
       } else {
-        showProfileUpdateToast('error', text || 'Failed to update profile.')
+        showProfileUpdateToast('error', getUserFacingStatusMessage('profileUpdate', response.status))
       }
-    } catch {
-      showProfileUpdateToast('error', 'An error occurred. Try again.')
+    } catch (error) {
+      showProfileUpdateToast('error', getUserFacingErrorMessage('profileUpdate', error))
     } finally {
       setProfileLoading(false)
     }
@@ -1050,11 +1050,10 @@ export default function InterviewPage() {
       if (response.ok) {
         window.location.href = '/'
       } else {
-        const errMsg = await response.text()
-        showProfileUpdateToast('error', errMsg || 'Error deleting account.')
+        showProfileUpdateToast('error', getUserFacingStatusMessage('accountDelete', response.status))
       }
-    } catch {
-      showProfileUpdateToast('error', 'Error deleting account.')
+    } catch (error) {
+      showProfileUpdateToast('error', getUserFacingErrorMessage('accountDelete', error))
     } finally {
       setProfileLoading(false)
       setShowDeleteAccountConfirm(false)

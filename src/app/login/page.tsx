@@ -9,6 +9,7 @@ import { API_BASE, API_ORIGIN } from '../services/api';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { getSafeRedirectPath } from '../services/safeRedirect';
 import { setOAuthHandoffRedirect } from '../services/authSession';
+import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -41,18 +42,14 @@ function LoginContent() {
         body: JSON.stringify(formData),
       });
 
-      await response.json().catch(err => {
-        throw err;
-      });
-
       if (response.ok) {
         window.location.href = redirectPath;
       } else {
-        setError('Login failed. Check your credentials.');
+        setError(getUserFacingStatusMessage('login', response.status));
       }
     } catch (err) {
       console.error('❌ Login error', err);
-      setError('Server error. Please try again.');
+      setError(getUserFacingErrorMessage('login', err));
     } finally {
       setLoading(false);
     }

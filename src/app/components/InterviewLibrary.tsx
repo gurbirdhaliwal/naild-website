@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import CustomMicRecorder from './CustomMicRecorder'
 import { AI_BASE } from '../services/api'
+import { getUserFacingErrorMessage } from '../lib/userFacingErrors'
 
 export type LibraryTopicId =
   | 'star-storytelling'
@@ -829,8 +830,7 @@ const PracticeDrillPanel: React.FC<{ topic: LibraryTopic }> = ({ topic }) => {
       setResponse(transcript)
       setEvaluation(evaluatePracticeResponse(topic, transcript))
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unable to transcribe your answer right now'
+      const message = getUserFacingErrorMessage('transcription', error)
       setTranscriptionError(message)
       setEvaluation(null)
     } finally {

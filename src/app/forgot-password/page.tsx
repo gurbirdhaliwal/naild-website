@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { API_BASE } from '../services/api';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { getSafeRedirectPath } from '../services/safeRedirect';
+import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
 
 function ForgotPasswordContent() {
   const searchParams = useSearchParams();
@@ -35,21 +36,15 @@ function ForgotPasswordContent() {
         body: JSON.stringify({ email }),
       });
 
-      const data = await response.json().catch(() => ({}));
-
       if (!response.ok) {
-        setError(typeof data?.message === 'string' ? data.message : 'Unable to send reset link right now.');
+        setError(getUserFacingStatusMessage('forgotPassword', response.status));
         return;
       }
 
-      setMessage(
-        typeof data?.message === 'string'
-          ? data.message
-          : 'If an account exists for that email, a password reset link has been sent.'
-      );
+      setMessage('If an account exists for that email, a password reset link has been sent.')
     } catch (err) {
       console.error('❌ Forgot password error', err);
-      setError('Server error. Please try again.');
+      setError(getUserFacingErrorMessage('forgotPassword', err));
     } finally {
       setLoading(false);
     }

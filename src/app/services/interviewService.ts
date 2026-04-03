@@ -193,13 +193,7 @@ class InterviewService {
       }
       
       if (!response.ok) {
-        const errorPayload = await readResponsePayload(response).catch(() => null);
-        const errorText =
-          typeof errorPayload === 'string'
-            ? errorPayload
-            : errorPayload != null
-              ? JSON.stringify(errorPayload)
-              : '';
+        await readResponsePayload(response).catch(() => null);
         if (response.status === 401) {
           const sessionExpired = await confirmSessionExpired();
           if (sessionExpired) {
@@ -208,7 +202,7 @@ class InterviewService {
         }
         throw new HttpError(
           response.status,
-          `HTTP error! status: ${response.status}${errorText ? ` - ${errorText}` : ''}`
+          `Request failed (${response.status})`
         );
       }
 

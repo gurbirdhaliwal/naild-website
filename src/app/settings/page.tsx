@@ -6,6 +6,12 @@ import { useRouter } from 'next/navigation';
 import { API_BASE } from '../services/api';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { useAuth } from '../context/AuthContext';
+import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
+
+type FeedbackState = {
+  type: 'success' | 'error';
+  message: string;
+};
 
 export default function Settings() {
   const router = useRouter();
@@ -19,7 +25,7 @@ export default function Settings() {
   });
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   useEffect(() => {
@@ -57,7 +63,7 @@ export default function Settings() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage('');
+    setFeedback(null);
     setLoading(true);
 
     try {
@@ -83,19 +89,24 @@ export default function Settings() {
         body: JSON.stringify(payload),
       });
 
-      const text = await response.text();
       if (response.ok) {
-        setMessage('✅ Profile updated successfully.');
+        setFeedback({ type: 'success', message: 'Profile updated successfully.' });
         setFormData((prev) => ({
           ...prev,
           password: '',
           currentpassword: '',
         }));
       } else {
-        setMessage(`❌ ${text}`);
+        setFeedback({
+          type: 'error',
+          message: getUserFacingStatusMessage('profileUpdate', response.status),
+        });
       }
-    } catch {
-      setMessage('❌ An error occurred. Try again.');
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: getUserFacingErrorMessage('profileUpdate', error),
+      });
     } finally {
       setLoading(false);
     }
@@ -116,11 +127,16 @@ export default function Settings() {
       if (response.ok) {
         window.location.href = '/signup';
       } else {
-        const errMsg = await response.text();
-        setMessage(`❌ ${errMsg}`);
+        setFeedback({
+          type: 'error',
+          message: getUserFacingStatusMessage('accountDelete', response.status),
+        });
       }
-    } catch {
-      setMessage('❌ Error deleting account.');
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: getUserFacingErrorMessage('accountDelete', error),
+      });
     } finally {
       setLoading(false);
       setShowConfirmDelete(false);
@@ -205,7 +221,15 @@ export default function Settings() {
               )}
             </div>
 
-            {message && <p className="text-sm text-center text-green-600">{message}</p>}
+            {feedback ? (
+              <p
+                className={`text-sm text-center ${
+                  feedback.type === 'success' ? 'text-green-600' : 'text-red-600'
+                }`}
+              >
+                {feedback.message}
+              </p>
+            ) : null}
 
             <div>
               <button

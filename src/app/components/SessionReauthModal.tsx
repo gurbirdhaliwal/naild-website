@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { API_BASE, API_ORIGIN } from '../services/api';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { setOAuthHandoffRedirect } from '../services/authSession';
+import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
 
 const DEFAULT_REDIRECT = '/interview';
 
@@ -134,17 +135,17 @@ export default function SessionReauthModal() {
       });
 
       if (!response.ok) {
-        setError('Re-sign in failed. Check your credentials and try again.');
+        setError(getUserFacingStatusMessage('reauth', response.status));
         return;
       }
 
       const refreshedUser = await refreshSession();
       if (!refreshedUser) {
-        setError('The session was refreshed, but your account could not be restored. Try again.');
+        setError('Your session was refreshed, but we could not restore the app state. Try again.')
       }
     } catch (reauthError) {
       console.error('Session re-sign in failed:', reauthError);
-      setError('Server error. Please try again.');
+      setError(getUserFacingErrorMessage('reauth', reauthError));
     } finally {
       setLoading(false);
     }

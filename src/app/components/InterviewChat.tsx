@@ -29,6 +29,7 @@ import {
   getSessionTypeLabel,
   normalizeGeneratedPrompt,
 } from '../lib/practiceConfig'
+import { getUserFacingErrorMessage } from '../lib/userFacingErrors'
 import { AUREON_NAME } from '../lib/modelConfig'
 
 interface InterviewChatProps {
@@ -609,7 +610,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         })
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to evaluate this answer.'
+      const message = getUserFacingErrorMessage('drillEvaluation', error)
       console.error('Failed to evaluate drill:', error)
       setRecordingError(message)
       setGradingResult({ error: message })
@@ -781,8 +782,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
               })
             }
           } catch (error) {
-            const message =
-              error instanceof Error ? error.message : 'Failed to grade answers. Please try again.'
+            const message = getUserFacingErrorMessage('interviewGrading', error)
             setGradingResult({ error: message })
           } finally {
             setGradingLoading(false)
@@ -790,7 +790,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         }
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to process voice input.'
+      const message = getUserFacingErrorMessage('interviewProgress', error)
       console.error('Failed to process voice input:', error)
       setRecordingError(message)
     } finally {

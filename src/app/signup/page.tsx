@@ -12,6 +12,7 @@ import { getSafeRedirectPath } from '../services/safeRedirect';
 import { setOAuthHandoffRedirect } from '../services/authSession';
 import { useAuth } from '../context/AuthContext';
 import { AUREON_NAME } from '../lib/modelConfig';
+import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
 
 const SIGNUP_SUCCESS_PATH = '/interview';
 
@@ -77,21 +78,16 @@ function SignupContent() {
         }),
       });
 
-      const data = await response.json().catch(async () => {
-        const fallbackText = await response.text();
-        throw new Error(fallbackText || 'Unknown server error.');
-      });
-
       if (response.ok) {
         setOAuthHandoffRedirect(SIGNUP_SUCCESS_PATH);
         await refreshSession();
         router.replace(SIGNUP_SUCCESS_PATH);
       } else {
-        setError(data.error || 'Signup failed. Try again.');
+        setError(getUserFacingStatusMessage('signup', response.status));
       }
     } catch (err: unknown) {
       console.error('❌ Signup error:', err);
-      setError(err instanceof Error ? err.message : 'Server error. Please try again.');
+      setError(getUserFacingErrorMessage('signup', err));
     } finally {
       setLoading(false);
     }

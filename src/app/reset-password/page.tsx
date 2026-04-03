@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { API_BASE } from '../services/api';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
+import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
 
 function ResetPasswordContent() {
   const searchParams = useSearchParams();
@@ -49,23 +50,17 @@ function ResetPasswordContent() {
         }),
       });
 
-      const data = await response.json().catch(() => ({}));
-
       if (!response.ok) {
-        setError(typeof data?.message === 'string' ? data.message : 'Unable to reset password.');
+        setError(getUserFacingStatusMessage('resetPassword', response.status));
         return;
       }
 
-      setMessage(
-        typeof data?.message === 'string'
-          ? data.message
-          : 'Password reset successfully. You can now log in with your new password.'
-      );
+      setMessage('Password reset successfully. You can now log in with your new password.')
       setPassword('');
       setConfirmPassword('');
     } catch (err) {
       console.error('❌ Reset password error', err);
-      setError('Server error. Please try again.');
+      setError(getUserFacingErrorMessage('resetPassword', err));
     } finally {
       setLoading(false);
     }

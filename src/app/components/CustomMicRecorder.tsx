@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { LuMic } from "react-icons/lu";
+import { getUserFacingErrorMessage } from "../lib/userFacingErrors";
 
 interface CustomMicRecorderProps {
   onAudioRecorded: (audioBlob: Blob) => void | Promise<void>;
@@ -69,7 +70,7 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
         try {
           await Promise.resolve(onAudioRecorded(audioBlob));
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Failed to process recording";
+          const message = getUserFacingErrorMessage("recordingProcessing", error);
           onRecordingError?.(message);
         } finally {
           stream.getTracks().forEach((track) => track.stop());
@@ -89,7 +90,7 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
         clearTimeout(maxTimer.current);
         maxTimer.current = null;
       }
-      const message = error instanceof Error ? error.message : "Unable to access microphone";
+      const message = getUserFacingErrorMessage("microphoneAccess", error);
       onRecordingError?.(message);
     }
   };
