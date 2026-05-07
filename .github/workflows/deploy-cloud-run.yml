@@ -116,7 +116,7 @@ jobs:
             --region "${REGION}"
             --platform managed
             --allow-unauthenticated
-            --set-env-vars "^@^APP_ENV=production@AI_PROVIDER=${AI_PROVIDER}@GOOGLE_CLOUD_PROJECT=${PROJECT_ID}@VERTEX_AI_LOCATION=${VERTEX_AI_LOCATION}@GEMINI_MODEL=${GEMINI_MODEL}@SPRING_API_BASE=${SPRING_API_BASE}@CORS_ALLOW_ORIGINS=${WEB_ORIGIN}"
+            --set-env-vars "^|^APP_ENV=production|AI_PROVIDER=${AI_PROVIDER}|GOOGLE_CLOUD_PROJECT=${PROJECT_ID}|VERTEX_AI_LOCATION=${VERTEX_AI_LOCATION}|GEMINI_MODEL=${GEMINI_MODEL}|SPRING_API_BASE=${SPRING_API_BASE}|CORS_ALLOW_ORIGINS=${WEB_ORIGIN}"
           )
 
           if [[ -n "${CLOUD_RUN_SERVICE_ACCOUNT:-}" ]]; then
