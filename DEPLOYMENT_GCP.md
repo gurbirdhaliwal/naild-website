@@ -50,27 +50,58 @@ Spring API runtime variables:
 
 ## Deploy with GitHub Actions
 
-The root workflow `.github/workflows/deploy-cloud-run.yml` builds all three containers, pushes them to Artifact Registry, and deploys them to Cloud Run. It uses GitHub OIDC with GCP Workload Identity Federation, not a downloaded service account key.
+Deployment is split across the service repos. Each repo uses GitHub OIDC with GCP Workload Identity Federation, not a downloaded service account key.
 
-Create these GitHub Actions secrets:
+The configured Workload Identity provider is:
 
-- `GCP_WORKLOAD_IDENTITY_PROVIDER`: full provider resource name, for example `projects/123456789/locations/global/workloadIdentityPools/github/providers/github`
-- `GCP_SERVICE_ACCOUNT`: deployer service account email, for example `github-deployer@your-project.iam.gserviceaccount.com`
+```text
+projects/788527456103/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+```
 
-Create these GitHub Actions variables:
+The configured deployer service account is:
+
+```text
+788527456103-compute@developer.gserviceaccount.com
+```
+
+### Web repo
+
+The web repo workflow `.github/workflows/deploy-cloud-run.yml` builds and deploys:
+
+- `naild-web`
+- `naild-ai`
+
+Create these GitHub Actions variables in the web repo:
 
 - `GCP_PROJECT_ID`
 - `GCP_REGION`, default used by the workflow is `us-central1`
 - `ARTIFACT_REGISTRY_REPO`, default used by the workflow is `naild-repo`
 - `CLOUD_RUN_WEB_SERVICE`, default `naild-web`
 - `CLOUD_RUN_AI_SERVICE`, default `naild-ai`
-- `CLOUD_RUN_SPRING_SERVICE`, default `naild-spring`
 - `CLOUD_RUN_SERVICE_ACCOUNT`, optional runtime service account email
 - `WEB_ORIGIN`, for example `https://app.your-domain.com`
 - `NEXT_PUBLIC_API_BASE`, for example `https://api.your-domain.com/api/v1`
 - `NEXT_PUBLIC_API_ORIGIN`, for example `https://api.your-domain.com`
 - `NEXT_PUBLIC_AI_BASE`, for example `https://ai.your-domain.com`
 - `SPRING_API_BASE`, usually same as `NEXT_PUBLIC_API_BASE`
+- `AI_PROVIDER`, optional, default `vertex_ai`
+- `VERTEX_AI_LOCATION`, optional, default `us-central1`
+- `GEMINI_MODEL`, optional, default `gemini-2.5-flash`
+
+### Spring repo
+
+The Spring repo workflow `.github/workflows/deploy-cloud-run.yml` builds and deploys:
+
+- `naild-spring`
+
+Create these GitHub Actions variables in the Spring repo:
+
+- `GCP_PROJECT_ID`
+- `GCP_REGION`, default used by the workflow is `us-central1`
+- `ARTIFACT_REGISTRY_REPO`, default used by the workflow is `naild-repo`
+- `CLOUD_RUN_SPRING_SERVICE`, default `naild-spring`
+- `CLOUD_RUN_SERVICE_ACCOUNT`, optional runtime service account email
+- `WEB_ORIGIN`, for example `https://app.your-domain.com`
 - `SPRING_DATASOURCE_URL`
 - `SPRING_DATASOURCE_USERNAME`
 - `GOOGLE_OAUTH_CLIENT_ID`
@@ -78,9 +109,6 @@ Create these GitHub Actions variables:
 - `APP_PASSWORD_RESET_EXPIRY_MINUTES`, optional, default `60`
 - `APP_MAIL_MODE`, optional, default `log`
 - `APP_MAIL_FROM`, optional, default `no-reply@naild.local`
-- `AI_PROVIDER`, optional, default `vertex_ai`
-- `VERTEX_AI_LOCATION`, optional, default `us-central1`
-- `GEMINI_MODEL`, optional, default `gemini-2.5-flash`
 - `SPRING_DATASOURCE_PASSWORD_SECRET_NAME`, optional, default `spring-datasource-password`
 - `APP_JWT_SECRET_NAME`, optional, default `app-jwt-secret`
 - `GOOGLE_OAUTH_CLIENT_SECRET_NAME`, optional, default `google-oauth-client-secret`
@@ -103,7 +131,7 @@ Required GCP resources and IAM:
 - Give the AI service runtime service account permission to call Vertex AI, for example `roles/aiplatform.user`.
 - Configure the Google OAuth app redirect URI to `https://api.your-domain.com/login/oauth2/code/google`, using your actual Spring API origin.
 
-After the GitHub and GCP setup exists, run the `Deploy to Cloud Run` workflow manually from GitHub Actions, or push to `main`.
+After the GitHub and GCP setup exists, run each repo's deploy workflow manually from GitHub Actions, or push to `main` in the repo you want to deploy.
 
 ## Deploy with Cloud Build
 

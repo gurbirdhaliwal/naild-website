@@ -1,0 +1,147 @@
+name: Deploy Web and AI to Cloud Run
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  WORKLOAD_IDENTITY_PROVIDER: projects/788527456103/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+  DEPLOY_SERVICE_ACCOUNT: 788527456103-compute@developer.gserviceaccount.com
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+  ARTIFACT_REGISTRY_REPO: ${{ vars.ARTIFACT_REGISTRY_REPO || 'naild-repo' }}
+  WEB_SERVICE: ${{ vars.CLOUD_RUN_WEB_SERVICE || 'naild-web' }}
+  AI_SERVICE: ${{ vars.CLOUD_RUN_AI_SERVICE || 'naild-ai' }}
+  CLOUD_RUN_SERVICE_ACCOUNT: ${{ vars.CLOUD_RUN_SERVICE_ACCOUNT }}
+  WEB_ORIGIN: ${{ vars.WEB_ORIGIN }}
+  NEXT_PUBLIC_API_BASE: ${{ vars.NEXT_PUBLIC_API_BASE }}
+  NEXT_PUBLIC_API_ORIGIN: ${{ vars.NEXT_PUBLIC_API_ORIGIN }}
+  NEXT_PUBLIC_AI_BASE: ${{ vars.NEXT_PUBLIC_AI_BASE }}
+  SPRING_API_BASE: ${{ vars.SPRING_API_BASE }}
+  AI_PROVIDER: ${{ vars.AI_PROVIDER || 'vertex_ai' }}
+  VERTEX_AI_LOCATION: ${{ vars.VERTEX_AI_LOCATION || 'us-central1' }}
+  GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required=(
+            PROJECT_ID
+            WEB_ORIGIN
+            NEXT_PUBLIC_API_BASE
+            NEXT_PUBLIC_API_ORIGIN
+            NEXT_PUBLIC_AI_BASE
+            SPRING_API_BASE
+          )
+
+          for name in "${required[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing GitHub Actions variable: ${name}"
+              exit 1
+            fi
+          done
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Test gcloud
+        run: gcloud info
+
+      - name: Configure Docker for Artifact Registry
+        shell: bash
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build images
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IMAGE_PREFIX="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}"
+          WEB_IMAGE="${IMAGE_PREFIX}/${WEB_SERVICE}:${GITHUB_SHA}"
+          AI_IMAGE="${IMAGE_PREFIX}/${AI_SERVICE}:${GITHUB_SHA}"
+
+          docker build \
+            -f Dockerfile.web \
+            --build-arg "NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}" \
+            --build-arg "NEXT_PUBLIC_API_ORIGIN=${NEXT_PUBLIC_API_ORIGIN}" \
+            --build-arg "NEXT_PUBLIC_AI_BASE=${NEXT_PUBLIC_AI_BASE}" \
+            -t "${WEB_IMAGE}" \
+            .
+
+          docker build \
+            -f python_backend/Dockerfile \
+            -t "${AI_IMAGE}" \
+            .
+
+      - name: Push images
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IMAGE_PREFIX="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}"
+          docker push "${IMAGE_PREFIX}/${WEB_SERVICE}:${GITHUB_SHA}"
+          docker push "${IMAGE_PREFIX}/${AI_SERVICE}:${GITHUB_SHA}"
+
+      - name: Deploy AI service
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/${AI_SERVICE}:${GITHUB_SHA}"
+          args=(
+            run deploy "${AI_SERVICE}"
+            --image "${IMAGE}"
+            --region "${REGION}"
+            --platform managed
+            --allow-unauthenticated
+            --set-env-vars "^@^APP_ENV=production@AI_PROVIDER=${AI_PROVIDER}@GOOGLE_CLOUD_PROJECT=${PROJECT_ID}@VERTEX_AI_LOCATION=${VERTEX_AI_LOCATION}@GEMINI_MODEL=${GEMINI_MODEL}@SPRING_API_BASE=${SPRING_API_BASE}@CORS_ALLOW_ORIGINS=${WEB_ORIGIN}"
+          )
+
+          if [[ -n "${CLOUD_RUN_SERVICE_ACCOUNT:-}" ]]; then
+            args+=(--service-account "${CLOUD_RUN_SERVICE_ACCOUNT}")
+          fi
+
+          gcloud "${args[@]}"
+
+      - name: Deploy web app
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/${WEB_SERVICE}:${GITHUB_SHA}"
+          args=(
+            run deploy "${WEB_SERVICE}"
+            --image "${IMAGE}"
+            --region "${REGION}"
+            --platform managed
+            --allow-unauthenticated
+            --set-env-vars "NODE_ENV=production"
+          )
+
+          if [[ -n "${CLOUD_RUN_SERVICE_ACCOUNT:-}" ]]; then
+            args+=(--service-account "${CLOUD_RUN_SERVICE_ACCOUNT}")
+          fi
+
+          gcloud "${args[@]}"
