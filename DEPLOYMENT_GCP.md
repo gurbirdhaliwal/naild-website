@@ -1,12 +1,12 @@
 # GCP Deployment
 
-This repo is set up to deploy the Next.js web app and the FastAPI AI service as separate Cloud Run services.
+This repo is set up to deploy the Next.js web app, FastAPI AI service, and Spring Boot API as separate Cloud Run services.
 
 ## Target topology
 
-- `naild-web`: Next.js standalone server built from `Dockerfile.web`
-- `naild-ai`: FastAPI AI service built from `python_backend/Dockerfile`
-- External Spring Boot API: configured through `SPRING_API_BASE`
+- `naild-web`: Next.js standalone server built from `Naild-WebApp/naild-website/Dockerfile.web`
+- `naild-ai`: FastAPI AI service built from `Naild-WebApp/naild-website/python_backend/Dockerfile`
+- `naild-spring`: Spring Boot API built from `security/Dockerfile`
 - Model provider in production: Vertex AI Gemini 2.5 Flash
 
 ## Production environment contract
@@ -27,6 +27,20 @@ AI backend runtime variables:
 - `SPRING_API_BASE`
 - `CORS_ALLOW_ORIGINS`
 
+Spring API runtime variables:
+
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD` from Secret Manager
+- `CORS_ALLOW_ORIGINS`
+- `APP_JWT_SECRET` from Secret Manager
+- `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID`
+- `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET` from Secret Manager
+- `APP_PASSWORD_RESET_BASE_URL`
+- `APP_PASSWORD_RESET_EXPIRY_MINUTES`
+- `APP_MAIL_MODE`
+- `APP_MAIL_FROM`
+
 ## Cloud Run notes
 
 - The AI service must remain publicly reachable from the browser because the frontend calls it directly.
@@ -34,7 +48,66 @@ AI backend runtime variables:
 - Cloud Run injects `PORT`; the backend now respects that automatically.
 - The AI service exposes `GET /healthz` and `GET /readyz` for platform probes.
 
+## Deploy with GitHub Actions
+
+The root workflow `.github/workflows/deploy-cloud-run.yml` builds all three containers, pushes them to Artifact Registry, and deploys them to Cloud Run. It uses GitHub OIDC with GCP Workload Identity Federation, not a downloaded service account key.
+
+Create these GitHub Actions secrets:
+
+- `GCP_WORKLOAD_IDENTITY_PROVIDER`: full provider resource name, for example `projects/123456789/locations/global/workloadIdentityPools/github/providers/github`
+- `GCP_SERVICE_ACCOUNT`: deployer service account email, for example `github-deployer@your-project.iam.gserviceaccount.com`
+
+Create these GitHub Actions variables:
+
+- `GCP_PROJECT_ID`
+- `GCP_REGION`, default used by the workflow is `us-central1`
+- `ARTIFACT_REGISTRY_REPO`, default used by the workflow is `naild-repo`
+- `CLOUD_RUN_WEB_SERVICE`, default `naild-web`
+- `CLOUD_RUN_AI_SERVICE`, default `naild-ai`
+- `CLOUD_RUN_SPRING_SERVICE`, default `naild-spring`
+- `CLOUD_RUN_SERVICE_ACCOUNT`, optional runtime service account email
+- `WEB_ORIGIN`, for example `https://app.your-domain.com`
+- `NEXT_PUBLIC_API_BASE`, for example `https://api.your-domain.com/api/v1`
+- `NEXT_PUBLIC_API_ORIGIN`, for example `https://api.your-domain.com`
+- `NEXT_PUBLIC_AI_BASE`, for example `https://ai.your-domain.com`
+- `SPRING_API_BASE`, usually same as `NEXT_PUBLIC_API_BASE`
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `GOOGLE_OAUTH_CLIENT_ID`
+- `APP_PASSWORD_RESET_BASE_URL`, for example `https://app.your-domain.com/reset-password`
+- `APP_PASSWORD_RESET_EXPIRY_MINUTES`, optional, default `60`
+- `APP_MAIL_MODE`, optional, default `log`
+- `APP_MAIL_FROM`, optional, default `no-reply@naild.local`
+- `AI_PROVIDER`, optional, default `vertex_ai`
+- `VERTEX_AI_LOCATION`, optional, default `us-central1`
+- `GEMINI_MODEL`, optional, default `gemini-2.5-flash`
+- `SPRING_DATASOURCE_PASSWORD_SECRET_NAME`, optional, default `spring-datasource-password`
+- `APP_JWT_SECRET_NAME`, optional, default `app-jwt-secret`
+- `GOOGLE_OAUTH_CLIENT_SECRET_NAME`, optional, default `google-oauth-client-secret`
+
+Create these Secret Manager secrets in GCP:
+
+- `spring-datasource-password`
+- `app-jwt-secret`
+- `google-oauth-client-secret`
+
+If you use different names, set the three `*_SECRET_NAME` GitHub variables above to match.
+
+Required GCP resources and IAM:
+
+- Enable Cloud Run Admin API, Artifact Registry API, IAM Credentials API, Secret Manager API, and Vertex AI API.
+- Create an Artifact Registry Docker repository matching `ARTIFACT_REGISTRY_REPO`.
+- Give the GitHub deployer service account permission to push images and deploy Cloud Run, typically `roles/artifactregistry.writer` and `roles/run.admin`.
+- If `CLOUD_RUN_SERVICE_ACCOUNT` is set, give the GitHub deployer service account `roles/iam.serviceAccountUser` on that runtime service account.
+- Give the Cloud Run runtime service account `roles/secretmanager.secretAccessor` for the Spring secrets.
+- Give the AI service runtime service account permission to call Vertex AI, for example `roles/aiplatform.user`.
+- Configure the Google OAuth app redirect URI to `https://api.your-domain.com/login/oauth2/code/google`, using your actual Spring API origin.
+
+After the GitHub and GCP setup exists, run the `Deploy to Cloud Run` workflow manually from GitHub Actions, or push to `main`.
+
 ## Deploy with Cloud Build
+
+Cloud Build remains available as a direct GCP deployment path. The app-local `cloudbuild.gcp.yaml` deploys the web and AI services. The root `cloudbuild.yaml` builds and pushes all three images, but does not deploy them.
 
 1. Create an Artifact Registry Docker repository in your target region.
 2. Configure the substitutions in `cloudbuild.gcp.yaml`:
