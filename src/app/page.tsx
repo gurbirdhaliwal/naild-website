@@ -8,10 +8,8 @@ import { FaLinkedinIn } from 'react-icons/fa6';
 import { useAuth } from './context/AuthContext';
 import { AUREON_NAME } from './lib/modelConfig';
 import {
-  broadcastLogout,
   clearOAuthHandoffRedirect,
   getOAuthHandoffRedirect,
-  requestLogout,
 } from './services/authSession';
 
 const tabs = [
@@ -996,13 +994,12 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
 
 const NaildLanding = () => {
   const [isVideoMuted, setIsVideoMuted] = useState(true);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRedirectingToInterview, setIsRedirectingToInterview] = useState(false);
   const [typedHeroHeadline, setTypedHeroHeadline] = useState('');
 
   const prefersReducedMotion = useReducedMotion();
   const router = useRouter();
-  const { user, loading, setUser } = useAuth();
+  const { user, loading } = useAuth();
 
   React.useEffect(() => {
     if (loading || !user) return;
@@ -1014,26 +1011,9 @@ const NaildLanding = () => {
       return;
     }
 
-    let active = true;
-    setIsLoggingOut(true);
-
-    (async () => {
-      try {
-        await requestLogout();
-      } catch (err) {
-        console.error('Landing auto-logout failed:', err);
-      } finally {
-        if (!active) return;
-        setUser(null);
-        broadcastLogout();
-        setIsLoggingOut(false);
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [loading, router, user, setUser]);
+    setIsRedirectingToInterview(true);
+    router.replace('/interview');
+  }, [loading, router, user]);
 
   React.useEffect(() => {
     if (loading || user) return;
@@ -1065,12 +1045,12 @@ const NaildLanding = () => {
   }, [prefersReducedMotion]);
 
   const handleGetStarted = () => {
-    if (loading || isLoggingOut) return;
+    if (loading) return;
     window.history.pushState({}, '', '/');
     router.push('/login?redirect=/interview');
   };
 
-  if (loading || isLoggingOut || isRedirectingToInterview) {
+  if (loading || isRedirectingToInterview) {
     return <div className="min-h-screen bg-white" />;
   }
 
