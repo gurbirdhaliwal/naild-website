@@ -1,7 +1,6 @@
 import { GeneratedPrompt, GradingResult, Interview, Message, SessionType, PracticeMode, AudienceType } from '../types/Interview';
 import { API_BASE } from './api';
-import { getAuthHeaders } from './authToken';
-import { CSRF_HEADER_NAME, getCsrfToken } from './csrf';
+import { getOrLoadAuthHeaders } from './authToken';
 import { confirmSessionExpired, notifySessionExpired } from './authSession';
 import { normalizeGeneratedPrompt } from '../lib/practiceConfig';
 
@@ -173,24 +172,20 @@ class InterviewService {
         console.debug('Request options:', options);
       }
 
-      const method = (options.method ?? 'GET').toUpperCase();
-      const requiresCsrf = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method);
       const headers = new Headers(options.headers);
       if (options.body != null && !headers.has('Content-Type')) {
         headers.set('Content-Type', 'application/json');
       }
-      for (const [name, value] of Object.entries(getAuthHeaders())) {
+      for (const [name, value] of Object.entries(await getOrLoadAuthHeaders(API_BASE))) {
         if (!headers.has(name)) {
           headers.set(name, value);
         }
       }
-      if (requiresCsrf) {
-        headers.set(CSRF_HEADER_NAME, await getCsrfToken());
-      }
+      const hasBearerAuth = headers.has('Authorization');
       
       const response = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
-        credentials: 'include',
+        credentials: hasBearerAuth ? 'omit' : 'include',
         headers,
       });
 

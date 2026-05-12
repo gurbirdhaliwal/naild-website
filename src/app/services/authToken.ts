@@ -22,3 +22,27 @@ export function getAuthHeaders(): Record<string, string> {
   const token = getAuthToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
+
+export async function getOrLoadAuthHeaders(apiBase: string): Promise<Record<string, string>> {
+  const existingHeaders = getAuthHeaders()
+  if (existingHeaders.Authorization) {
+    return existingHeaders
+  }
+
+  if (typeof window === 'undefined') {
+    return {}
+  }
+
+  const response = await fetch(`${apiBase}/auth/me`, {
+    credentials: 'include',
+    cache: 'no-store',
+  }).catch(() => null)
+
+  if (!response?.ok) {
+    return {}
+  }
+
+  const payload = (await response.json().catch(() => ({}))) as { token?: string }
+  setAuthToken(payload.token)
+  return getAuthHeaders()
+}
