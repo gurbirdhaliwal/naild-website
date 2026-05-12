@@ -50,12 +50,12 @@ export async function confirmSessionExpired(): Promise<boolean> {
 }
 
 export async function requestLogout(): Promise<void> {
-  const csrfToken = await getCsrfToken();
+  const csrfToken = await getCsrfToken().catch(() => null);
   await fetch(`${API_BASE}/auth/logout`, {
     method: 'POST',
     headers: {
       ...getAuthHeaders(),
-      [CSRF_HEADER_NAME]: csrfToken,
+      ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
     },
     credentials: 'include',
   });

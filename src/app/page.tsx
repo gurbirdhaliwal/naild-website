@@ -1005,14 +1005,10 @@ const NaildLanding = () => {
     if (loading || !user) return;
 
     const oauthTarget = getOAuthHandoffRedirect();
-    if (oauthTarget) {
-      setIsRedirectingToInterview(true);
-      router.replace(oauthTarget);
-      return;
-    }
+    if (!oauthTarget) return;
 
     setIsRedirectingToInterview(true);
-    router.replace('/interview');
+    router.replace(oauthTarget);
   }, [loading, router, user]);
 
   React.useEffect(() => {
