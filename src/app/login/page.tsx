@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { FaGoogle } from "react-icons/fa";
 import { API_BASE, API_ORIGIN } from '../services/api';
-import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { getSafeRedirectPath } from '../services/safeRedirect';
 import { setOAuthHandoffRedirect } from '../services/authSession';
 import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
@@ -31,12 +30,10 @@ function LoginContent() {
     setLoading(true);
 
     try {
-      const csrfToken = await getCsrfToken();
       const response = await fetch(`${API_BASE}/auth/authenticate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          [CSRF_HEADER_NAME]: csrfToken,
         },
         credentials: 'include',
         body: JSON.stringify(formData),

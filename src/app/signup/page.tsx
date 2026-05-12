@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { FaGoogle, FaArrowLeft } from 'react-icons/fa';
 import { API_BASE, API_ORIGIN } from '../services/api';
-import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { getSafeRedirectPath } from '../services/safeRedirect';
 import { setOAuthHandoffRedirect } from '../services/authSession';
 import { useAuth } from '../context/AuthContext';
@@ -62,12 +61,10 @@ function SignupContent() {
     }
 
     try {
-      const csrfToken = await getCsrfToken();
       const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          [CSRF_HEADER_NAME]: csrfToken,
         },
         credentials: 'include',
         body: JSON.stringify({

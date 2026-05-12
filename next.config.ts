@@ -4,10 +4,10 @@ const isProduction = process.env.NODE_ENV === "production";
 
 const productionPublicEnvDefaults: Record<string, string> = {
   NEXT_PUBLIC_API_BASE:
-    "https://naild-spring-788527456103.us-central1.run.app/api/v1",
+    "https://naild-spring-cvolibfsla-uc.a.run.app/api/v1",
   NEXT_PUBLIC_API_ORIGIN:
-    "https://naild-spring-788527456103.us-central1.run.app",
-  NEXT_PUBLIC_AI_BASE: "https://naild-ai-788527456103.us-central1.run.app",
+    "https://naild-spring-cvolibfsla-uc.a.run.app",
+  NEXT_PUBLIC_AI_BASE: "https://naild-ai-cvolibfsla-uc.a.run.app",
 };
 
 const readPublicEnv = (name: string, fallback: string): string => {
