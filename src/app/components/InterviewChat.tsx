@@ -21,6 +21,7 @@ import {
 import CustomMicRecorder from './CustomMicRecorder'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
+import { getAuthHeaders } from '../services/authToken'
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
 import { confirmSessionExpired, notifySessionExpired } from '../services/authSession'
 import {
@@ -500,6 +501,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
     const response = await fetch(`${AI_BASE}/transcription`, {
       method: 'POST',
+      headers: getAuthHeaders(),
       credentials: 'include',
       body: formData,
     })
@@ -556,7 +558,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
       const evaluationResponse = await fetch(`${AI_BASE}/evaluate_drill`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         credentials: 'include',
         body: JSON.stringify({
           field: interview.role,
@@ -658,6 +660,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...getAuthHeaders(),
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -748,7 +751,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
           try {
             const gradeResponse = await fetch(`${AI_BASE}/grade_interview`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
               credentials: 'include',
               body: JSON.stringify({
                 questions: canonicalQuestions,

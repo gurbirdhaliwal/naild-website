@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { User } from '../types/Users';
 import { API_BASE } from '../services/api';
+import { clearAuthToken, getAuthHeaders, setAuthToken } from '../services/authToken';
 import {
   LOGOUT_BROADCAST_KEY,
   SESSION_EXPIRED_BROADCAST_KEY,
@@ -13,6 +14,7 @@ type AuthSessionResponse = {
   user: User;
   sessionExpiresAt: string;
   sessionDurationSeconds: number;
+  token?: string;
 };
 
 interface AuthContextType {
@@ -37,6 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const sessionExpiredRef = useRef(false);
 
   const applyUnauthenticatedState = useCallback(() => {
+    clearAuthToken();
     setUserState(null);
     setExpiredUser(null);
     setSessionExpired(false);
@@ -62,6 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const refreshSession = useCallback(async (): Promise<User | null> => {
     try {
       const response = await fetch(`${API_BASE}/auth/me`, {
+        headers: getAuthHeaders(),
         credentials: 'include',
         cache: 'no-store',
       });
@@ -76,6 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const session = (await response.json()) as AuthSessionResponse;
+      setAuthToken(session.token);
       applyAuthenticatedSession(session);
       return session.user;
     } catch {
@@ -92,6 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUserState(nextUser);
 
     if (!nextUser) {
+      clearAuthToken();
       setExpiredUser(null);
       setSessionExpired(false);
       setSessionExpiresAt(null);

@@ -1,4 +1,5 @@
 import { API_BASE } from './api';
+import { clearAuthToken, getAuthHeaders } from './authToken';
 import { CSRF_HEADER_NAME, getCsrfToken } from './csrf';
 import { getSafeRedirectPath } from './safeRedirect';
 
@@ -32,6 +33,7 @@ export async function confirmSessionExpired(): Promise<boolean> {
   pendingSessionExpiryCheck = (async () => {
     try {
       const response = await fetch(`${API_BASE}/auth/me`, {
+        headers: getAuthHeaders(),
         credentials: 'include',
         cache: 'no-store',
       });
@@ -52,10 +54,12 @@ export async function requestLogout(): Promise<void> {
   await fetch(`${API_BASE}/auth/logout`, {
     method: 'POST',
     headers: {
+      ...getAuthHeaders(),
       [CSRF_HEADER_NAME]: csrfToken,
     },
     credentials: 'include',
   });
+  clearAuthToken();
 }
 
 export function setOAuthHandoffRedirect(path: string): void {

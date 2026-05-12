@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
+import { getAuthHeaders } from '../services/authToken'
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
 import { broadcastLogout, consumeOAuthHandoffRedirect, requestLogout } from '../services/authSession'
 import {
@@ -696,7 +697,7 @@ export default function InterviewPage() {
     const fallbackPrompt = buildFallbackPrompt(config)
     const res = await fetch(`${AI_BASE}/generate_drill`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       credentials: 'include',
       body: JSON.stringify({
         field: config.role,
@@ -778,7 +779,7 @@ export default function InterviewPage() {
   const handleCreateBehavioralInterview = async (config: InterviewConfig) => {
     const res = await fetch(`${AI_BASE}/generate_questions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       credentials: 'include',
       body: JSON.stringify({
         role: config.role,
@@ -1042,6 +1043,7 @@ export default function InterviewPage() {
       const response = await fetch(`${API_BASE}/user/delete`, {
         method: 'DELETE',
         headers: {
+          ...getAuthHeaders(),
           [CSRF_HEADER_NAME]: csrfToken,
         },
         credentials: 'include',

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import CustomMicRecorder from './CustomMicRecorder'
 import { AI_BASE } from '../services/api'
+import { getAuthHeaders } from '../services/authToken'
 import { getUserFacingErrorMessage } from '../lib/userFacingErrors'
 
 export type LibraryTopicId =
@@ -812,6 +813,7 @@ const PracticeDrillPanel: React.FC<{ topic: LibraryTopic }> = ({ topic }) => {
 
       const transcriptionResponse = await fetch(`${AI_BASE}/transcription`, {
         method: 'POST',
+        headers: getAuthHeaders(),
         credentials: 'include',
         body: formData,
       })
