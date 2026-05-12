@@ -1,5 +1,13 @@
 const isProduction = process.env.NODE_ENV === 'production'
 
+const productionPublicEnvDefaults: Record<string, string> = {
+  NEXT_PUBLIC_API_BASE:
+    'https://naild-spring-788527456103.us-central1.run.app/api/v1',
+  NEXT_PUBLIC_API_ORIGIN:
+    'https://naild-spring-788527456103.us-central1.run.app',
+  NEXT_PUBLIC_AI_BASE: 'https://naild-ai-788527456103.us-central1.run.app',
+}
+
 const readPublicRuntimeEnv = (name: string, fallback: string): string => {
   const value = process.env[name]
 
@@ -8,7 +16,7 @@ const readPublicRuntimeEnv = (name: string, fallback: string): string => {
   }
 
   if (isProduction) {
-    throw new Error(`${name} must be defined for production builds.`)
+    return productionPublicEnvDefaults[name] ?? fallback
   }
 
   return fallback
