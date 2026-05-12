@@ -84,6 +84,7 @@ export default function Settings() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           [CSRF_HEADER_NAME]: csrfToken,
         },
         credentials: "include",

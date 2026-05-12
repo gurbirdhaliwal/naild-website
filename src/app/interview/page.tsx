@@ -1008,6 +1008,7 @@ export default function InterviewPage() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           [CSRF_HEADER_NAME]: csrfToken,
         },
         credentials: 'include',

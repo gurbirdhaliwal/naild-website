@@ -1,5 +1,6 @@
 import { GeneratedPrompt, GradingResult, Interview, Message, SessionType, PracticeMode, AudienceType } from '../types/Interview';
 import { API_BASE } from './api';
+import { getAuthHeaders } from './authToken';
 import { CSRF_HEADER_NAME, getCsrfToken } from './csrf';
 import { confirmSessionExpired, notifySessionExpired } from './authSession';
 import { normalizeGeneratedPrompt } from '../lib/practiceConfig';
@@ -177,6 +178,11 @@ class InterviewService {
       const headers = new Headers(options.headers);
       if (options.body != null && !headers.has('Content-Type')) {
         headers.set('Content-Type', 'application/json');
+      }
+      for (const [name, value] of Object.entries(getAuthHeaders())) {
+        if (!headers.has(name)) {
+          headers.set(name, value);
+        }
       }
       if (requiresCsrf) {
         headers.set(CSRF_HEADER_NAME, await getCsrfToken());

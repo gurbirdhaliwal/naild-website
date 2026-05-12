@@ -5,6 +5,7 @@ import { FaGoogle } from 'react-icons/fa';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE, API_ORIGIN } from '../services/api';
+import { setAuthToken } from '../services/authToken';
 import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { setOAuthHandoffRedirect } from '../services/authSession';
 import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
@@ -139,6 +140,8 @@ export default function SessionReauthModal() {
         return;
       }
 
+      const payload = (await response.json().catch(() => ({}))) as { token?: string };
+      setAuthToken(payload.token);
       const refreshedUser = await refreshSession();
       if (!refreshedUser) {
         setError('Your session was refreshed, but we could not restore the app state. Try again.')

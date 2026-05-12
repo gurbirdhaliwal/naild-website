@@ -716,6 +716,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
+            ...getAuthHeaders(),
             [CSRF_HEADER_NAME]: csrfToken,
           },
           credentials: 'include',
