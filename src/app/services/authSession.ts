@@ -1,6 +1,5 @@
 import { API_BASE } from './api';
 import { clearAuthToken, getAuthHeaders } from './authToken';
-import { CSRF_HEADER_NAME, getCsrfToken } from './csrf';
 import { getSafeRedirectPath } from './safeRedirect';
 
 export const LOGOUT_BROADCAST_KEY = 'naild:logout';
@@ -50,12 +49,10 @@ export async function confirmSessionExpired(): Promise<boolean> {
 }
 
 export async function requestLogout(): Promise<void> {
-  const csrfToken = await getCsrfToken().catch(() => null);
   await fetch(`${API_BASE}/auth/logout`, {
     method: 'POST',
     headers: {
       ...getAuthHeaders(),
-      ...(csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
     },
     credentials: 'include',
   });

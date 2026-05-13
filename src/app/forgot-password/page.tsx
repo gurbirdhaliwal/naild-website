@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { API_BASE } from '../services/api';
-import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { getSafeRedirectPath } from '../services/safeRedirect';
 import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
 
@@ -25,12 +24,10 @@ function ForgotPasswordContent() {
     setLoading(true);
 
     try {
-      const csrfToken = await getCsrfToken();
       const response = await fetch(`${API_BASE}/auth/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          [CSRF_HEADER_NAME]: csrfToken,
         },
         credentials: 'include',
         body: JSON.stringify({ email }),

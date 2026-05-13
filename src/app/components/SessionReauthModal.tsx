@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE, API_ORIGIN } from '../services/api';
 import { setAuthToken } from '../services/authToken';
-import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
 import { setOAuthHandoffRedirect } from '../services/authSession';
 import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
 
@@ -124,12 +123,10 @@ export default function SessionReauthModal() {
     setLoading(true);
 
     try {
-      const csrfToken = await getCsrfToken();
       const response = await fetch(`${API_BASE}/auth/authenticate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          [CSRF_HEADER_NAME]: csrfToken,
         },
         credentials: 'include',
         body: JSON.stringify(formData),

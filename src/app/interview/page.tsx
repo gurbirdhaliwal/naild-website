@@ -31,8 +31,7 @@ import {
 } from 'lucide-react'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
-import { getAuthHeaders } from '../services/authToken'
-import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
+import { getAuthHeaders, getOrLoadAuthHeaders } from '../services/authToken'
 import { broadcastLogout, consumeOAuthHandoffRedirect, requestLogout } from '../services/authSession'
 import {
   getAudienceLabel,
@@ -247,12 +246,6 @@ export default function InterviewPage() {
       router.push('/')
     }
   }, [loading, user, router])
-
-  useEffect(() => {
-    getCsrfToken().catch((err) => {
-      console.error('Failed to initialize CSRF token:', err)
-    })
-  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -1003,15 +996,14 @@ export default function InterviewPage() {
         payload.currentpassword = profileFormData.currentpassword
       }
 
-      const csrfToken = await getCsrfToken()
+      const authHeaders = await getOrLoadAuthHeaders(API_BASE)
       const response = await fetch(`${API_BASE}/user/update`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-          [CSRF_HEADER_NAME]: csrfToken,
+          ...authHeaders,
         },
-        credentials: 'include',
+        credentials: authHeaders.Authorization ? 'omit' : 'include',
         body: JSON.stringify(payload),
       })
 
@@ -1040,14 +1032,13 @@ export default function InterviewPage() {
   const handleDeleteAccount = async () => {
     setProfileLoading(true)
     try {
-      const csrfToken = await getCsrfToken()
+      const authHeaders = await getOrLoadAuthHeaders(API_BASE)
       const response = await fetch(`${API_BASE}/user/delete`, {
         method: 'DELETE',
         headers: {
-          ...getAuthHeaders(),
-          [CSRF_HEADER_NAME]: csrfToken,
+          ...authHeaders,
         },
-        credentials: 'include',
+        credentials: authHeaders.Authorization ? 'omit' : 'include',
       })
 
       if (response.ok) {

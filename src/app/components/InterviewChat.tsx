@@ -21,8 +21,7 @@ import {
 import CustomMicRecorder from './CustomMicRecorder'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
-import { getAuthHeaders } from '../services/authToken'
-import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf'
+import { getAuthHeaders, getOrLoadAuthHeaders } from '../services/authToken'
 import { confirmSessionExpired, notifySessionExpired } from '../services/authSession'
 import {
   COMMUNICATION_CATEGORY_LABELS,
@@ -711,15 +710,14 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       await persistMessages(messagesWithoutThinking)
 
       try {
-        const csrfToken = await getCsrfToken()
+        const authHeaders = await getOrLoadAuthHeaders(API_BASE)
         const response = await fetch(`${API_BASE}/interviews/${interview.id}/current_question_index`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            ...getAuthHeaders(),
-            [CSRF_HEADER_NAME]: csrfToken,
+            ...authHeaders,
           },
-          credentials: 'include',
+          credentials: authHeaders.Authorization ? 'omit' : 'include',
           body: JSON.stringify({ currentQuestionIndex: updatedInterview.currentQuestionIndex }),
         })
 

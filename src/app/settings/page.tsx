@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { API_BASE } from '../services/api';
-import { getAuthHeaders } from '../services/authToken';
-import { CSRF_HEADER_NAME, getCsrfToken } from '../services/csrf';
+import { getOrLoadAuthHeaders } from '../services/authToken';
 import { useAuth } from '../context/AuthContext';
 import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
 
@@ -28,12 +27,6 @@ export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-
-  useEffect(() => {
-    getCsrfToken().catch((err) => {
-      console.error('Failed to initialize CSRF token:', err);
-    });
-  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -79,15 +72,14 @@ export default function Settings() {
         payload.currentpassword = formData.currentpassword;
       }
 
-      const csrfToken = await getCsrfToken();
+      const authHeaders = await getOrLoadAuthHeaders(API_BASE);
       const response = await fetch(`${API_BASE}/user/update`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-          [CSRF_HEADER_NAME]: csrfToken,
+          ...authHeaders,
         },
-        credentials: "include",
+        credentials: authHeaders.Authorization ? 'omit' : 'include',
         body: JSON.stringify(payload),
       });
 
@@ -117,14 +109,13 @@ export default function Settings() {
   const handleDelete = async () => {
     setLoading(true);
     try {
-      const csrfToken = await getCsrfToken();
+      const authHeaders = await getOrLoadAuthHeaders(API_BASE);
       const response = await fetch(`${API_BASE}/user/delete`, {
         method: 'DELETE',
         headers: {
-          ...getAuthHeaders(),
-          [CSRF_HEADER_NAME]: csrfToken,
+          ...authHeaders,
         },
-        credentials: "include",
+        credentials: authHeaders.Authorization ? 'omit' : 'include',
       });
 
       if (response.ok) {
