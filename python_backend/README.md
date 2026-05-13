@@ -1,6 +1,6 @@
-# Python Backend for Naild Interview Platform
+# Python Backend for Memotree Interview Platform
 
-This backend provides transcription, drill generation, interview acknowledgements, and grading for Naild.
+This backend provides transcription, drill generation, interview acknowledgements, and grading for Memotree.
 
 ## Setup
 

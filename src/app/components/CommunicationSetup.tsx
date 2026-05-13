@@ -42,13 +42,13 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({
       { label: 'Audience', value: getAudienceLabel(config.audience) },
       {
         label: 'Topic',
-        value: config.topic.trim() || 'Let Naild pick a realistic topic from your field',
+        value: config.topic.trim() || 'Let Memotree pick a realistic topic from your field',
       },
       {
         label: 'Context',
         value:
           config.promptContext.trim() ||
-          'No extra context added. Naild will infer the scenario from your selections.',
+          'No extra context added. Memotree will infer the scenario from your selections.',
       },
       {
         label: 'Experience',
@@ -64,7 +64,7 @@ const CommunicationSetup: React.FC<CommunicationSetupProps> = ({
     { title: 'Field', description: 'Choose the type of developer you want the drill tailored to.' },
     { title: 'Mode', description: 'Pick how you want to practice explaining the idea.' },
     { title: 'Audience', description: 'Choose who you need to make the idea click for.' },
-    { title: 'Context', description: 'Add a topic or let Naild generate one for you.' },
+    { title: 'Context', description: 'Add a topic or let Memotree generate one for you.' },
     { title: 'Confirm', description: 'Review the drill setup before it is generated.' },
   ]
 

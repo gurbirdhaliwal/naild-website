@@ -51,8 +51,8 @@ type SidebarPreference = 'standard' | 'compact'
 type ProfileToastType = 'success' | 'error'
 type WorkspaceLandingView = 'home' | 'communication' | 'behavioral' | 'notes'
 
-const SETTINGS_STORAGE_KEY = 'naild.settings.preferences.v1'
-const WORKSPACE_TUTORIAL_STORAGE_KEY = 'naild.interview.workspace.tutorial.v2'
+const SETTINGS_STORAGE_KEY = 'memotree.settings.preferences.v1'
+const WORKSPACE_TUTORIAL_STORAGE_KEY = 'memotree.interview.workspace.tutorial.v2'
 const WORKSPACE_EXAMPLE_TYPING_STEP_MS = 26
 const WORKSPACE_EXAMPLE_DELETING_STEP_MS = 18
 const WORKSPACE_EXAMPLE_PAUSE_MS = 1800
@@ -475,7 +475,7 @@ export default function InterviewPage() {
     !hasResolvedWorkspaceGreeting
       ? `Welcome, ${greetingName}`
       : hasLoadedInterviewHistory && !hasSavedSessions
-        ? `Welcome to Naild, ${greetingName}`
+        ? `Welcome to Memotree, ${greetingName}`
         : `Welcome back, ${greetingName}`
 
   useEffect(() => {
@@ -1205,8 +1205,8 @@ export default function InterviewPage() {
               <div className="mt-6 flex flex-col items-center justify-center text-center">
                 <div className="flex h-24 w-24 items-center justify-center">
                   <Image
-                    src="/naild_logo.png"
-                    alt="Naild Logo"
+                    src="/memotree_logo.png"
+                    alt="Memotree Logo"
                     width={80}
                     height={80}
                     className="h-20 w-20 object-contain"

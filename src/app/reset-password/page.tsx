@@ -76,7 +76,7 @@ function ResetPasswordContent() {
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-gray-900">Choose a new password</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Set a new password for your Naild account. This link can only be used once.
+            Set a new password for your Memotree account. This link can only be used once.
           </p>
         </div>
 

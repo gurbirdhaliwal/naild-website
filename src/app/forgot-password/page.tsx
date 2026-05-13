@@ -58,7 +58,7 @@ function ForgotPasswordContent() {
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-gray-900">Reset your password</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Enter the email address tied to your Naild account and we&apos;ll send a reset link.
+            Enter the email address tied to your Memotree account and we&apos;ll send a reset link.
           </p>
         </div>
 

@@ -15,14 +15,14 @@ export default function Navbar() {
           <div className="flex items-center space-x-2 -ml-20">
             <Link href="/" className="flex items-center space-x-2">
               <Image
-                src="/naild_logo.png"
-                alt="Naild Logo"
+                src="/memotree_logo.png"
+                alt="Memotree Logo"
                 width={40}
                 height={40}
                 className="h-10 w-10 object-contain mr-0 mb-1"
               />
               <span className="text-2xl font-regular text-black tracking-tight">
-                naild.
+                Memotree
               </span>
             </Link>
           </div>

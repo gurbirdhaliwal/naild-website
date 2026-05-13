@@ -102,13 +102,13 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview, reso
       },
       {
         label: 'Topic',
-        value: config.topic.trim() || 'Let Naild steer the interview topic from your role and focus areas',
+        value: config.topic.trim() || 'Let Memotree steer the interview topic from your role and focus areas',
       },
       {
         label: 'Context',
         value:
           config.promptContext.trim() ||
-          'No extra context added. Naild will infer realistic situations from your selections.',
+          'No extra context added. Memotree will infer realistic situations from your selections.',
       },
       { label: 'Experience Level', value: getDifficultyLabel(config.difficulty) },
     ],

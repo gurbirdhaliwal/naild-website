@@ -1,6 +1,6 @@
-# Naild - AI-Powered Interview Practice Platform
+# Memotree - AI-Powered Interview Practice Platform
 
-Naild helps students practice and improve interview and technical communication skills through spoken drills, transcription, and AI feedback.
+Memotree helps students practice and improve interview and technical communication skills through spoken drills, transcription, and AI feedback.
 
 ## Features
 

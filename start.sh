@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Starting Naild Interview Platform..."
+echo "🚀 Starting Memotree Interview Platform..."
 
 # Check if Python is installed
 if ! command -v python3 &> /dev/null; then

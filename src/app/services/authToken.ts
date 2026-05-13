@@ -1,4 +1,4 @@
-const AUTH_TOKEN_KEY = 'naild:auth_token'
+const AUTH_TOKEN_KEY = 'memotree:auth_token'
 
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null

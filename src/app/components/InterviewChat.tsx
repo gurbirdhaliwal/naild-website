@@ -1150,7 +1150,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
                 <div className="mb-4 max-w-xl text-center text-sm text-gray-600">
                   {isBehavioralSession
                     ? 'Record your next answer when you are ready.'
-                    : 'Record one clear answer. Naild will score the explanation right after you finish.'}
+                    : 'Record one clear answer. Memotree will score the explanation right after you finish.'}
                 </div>
                 <CustomMicRecorder
                   onAudioRecorded={isBehavioralSession ? handleBehavioralUpload : handleTechnicalDrillUpload}

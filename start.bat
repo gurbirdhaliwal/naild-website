@@ -1,5 +1,5 @@
 @echo off
-echo 🚀 Starting Naild Interview Platform...
+echo 🚀 Starting Memotree Interview Platform...
 
 REM Check if Python is installed
 python --version >nul 2>&1
