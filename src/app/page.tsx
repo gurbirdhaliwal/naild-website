@@ -18,7 +18,7 @@ const tabs = [
     label: 'Feedback',
     title: 'Get feedback that improves how you explain technical ideas.',
     description:
-      'Memova scores clarity, correctness, depth, and audience fit so every drill ends with specific direction for the next retry.',
+      'Knappi scores clarity, correctness, depth, and audience fit so every drill ends with specific direction for the next retry.',
     previewLabel: `${AUREON_NAME} Feedback`,
     previewTitle: 'Explain why you chose retrieval-augmented generation over fine-tuning.',
     previewDetail: 'Audience: Non-technical stakeholder',
@@ -40,7 +40,7 @@ const tabs = [
     label: 'Audience',
     title: 'Practice the same idea for different listeners.',
     description:
-      'A product manager, recruiter, and senior engineer should not hear the same explanation. Memova changes the drill and grading based on audience.',
+      'A product manager, recruiter, and senior engineer should not hear the same explanation. Knappi changes the drill and grading based on audience.',
     previewLabel: 'Audience Variation',
     previewTitle: 'Precision vs recall',
     previewDetail: 'Compare how you explain it to a PM vs a peer engineer',
@@ -138,7 +138,7 @@ const planCards = [
     name: 'Starter',
     price: '$0/mo',
     ctaLabel: null,
-    imageSrc: '/memova_starter.png',
+    imageSrc: '/knappi_starter.png',
     imageAlt: 'Starter tier illustration',
     imageWidth: 343,
     imageHeight: 350,
@@ -148,7 +148,7 @@ const planCards = [
     name: 'Growth',
     price: '$15/mo',
     ctaLabel: 'Coming Soon',
-    imageSrc: '/memova_growth.png',
+    imageSrc: '/knappi_growth.png',
     imageAlt: 'Growth tier illustration',
     imageWidth: 387,
     imageHeight: 384,
@@ -158,7 +158,7 @@ const planCards = [
     name: 'Teams',
     price: '$25/mo',
     ctaLabel: 'Coming Soon',
-    imageSrc: '/memova_teams.png',
+    imageSrc: '/knappi_teams.png',
     imageAlt: 'Teams tier illustration',
     imageWidth: 375,
     imageHeight: 384,
@@ -448,7 +448,7 @@ function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion:
                 hasDarkBackdrop ? 'text-emerald-100/75' : 'text-emerald-900/55'
               }`}
             >
-              Pick your field, audience, and scenario. Memova generates the drill,
+              Pick your field, audience, and scenario. Knappi generates the drill,
               <br />
               listens to your answer, and tells you how to tighten it.
             </p>
@@ -752,7 +752,7 @@ function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boo
             <p className="mb-20 text-xl font-normal text-gray-500">
               Whether you are preparing for interviews, design reviews, or stakeholder updates,
               <br />
-              Memova gives you a repeatable way to practice out loud.
+              Knappi gives you a repeatable way to practice out loud.
             </p>
 
             <div className="flex justify-center">
@@ -921,7 +921,7 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
       <div className="relative z-10 mx-auto max-w-6xl">
         <div className="mb-14 text-center">
           <div className="mb-4 text-sm font-medium uppercase tracking-[0.24em] text-emerald-300/70">
-            The Team Behind Memova
+            The Team Behind Knappi
           </div>
           <h2
             aria-label={foundersHeading}
@@ -992,7 +992,7 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
 
 // ─── Main Landing Page ─────────────────────────────────────────────────────────
 
-const MemovaLanding = () => {
+const KnappiLanding = () => {
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const [isRedirectingToInterview, setIsRedirectingToInterview] = useState(false);
   const [typedHeroHeadline, setTypedHeroHeadline] = useState('');
@@ -1145,7 +1145,7 @@ const MemovaLanding = () => {
       <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e6faef_20%,_#c3f3d8_60%,_#b0efcb_100%)] px-5 py-40 text-center md:py-48">
         <div className="mx-auto flex w-full max-w-xl flex-col items-center">
           <h3 className="mb-6 text-[4.5rem] font-normal leading-none text-black md:text-[5.625rem]">
-            Try Memova Now.
+            Try Knappi Now.
           </h3>
           <button
             onClick={handleGetStarted}
@@ -1161,8 +1161,8 @@ const MemovaLanding = () => {
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 grid grid-cols-1 gap-16 text-left md:grid-cols-3">
             <div>
-              <h4 className="mb-2 text-lg font-medium text-black">Memova</h4>
-              <p className="mb-4 text-sm text-gray-500">© 2026 Memova. Toronto, ON</p>
+              <h4 className="mb-2 text-lg font-medium text-black">Knappi</h4>
+              <p className="mb-4 text-sm text-gray-500">© 2026 Knappi. Toronto, ON</p>
               <div className="flex gap-4">
                 {['Discord', 'Twitter', 'YouTube', 'Instagram', 'LinkedIn'].map((social, index) => (
                   <a
@@ -1205,4 +1205,4 @@ const MemovaLanding = () => {
   );
 };
 
-export default MemovaLanding;
+export default KnappiLanding;

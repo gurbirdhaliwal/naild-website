@@ -1,6 +1,6 @@
-# Memova - AI-Powered Interview Practice Platform
+# Knappi - AI-Powered Interview Practice Platform
 
-Memova helps students practice and improve interview and technical communication skills through spoken drills, transcription, and AI feedback.
+Knappi helps students practice and improve interview and technical communication skills through spoken drills, transcription, and AI feedback.
 
 ## Features
 

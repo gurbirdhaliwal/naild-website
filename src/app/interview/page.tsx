@@ -51,8 +51,8 @@ type SidebarPreference = 'standard' | 'compact'
 type ProfileToastType = 'success' | 'error'
 type WorkspaceLandingView = 'home' | 'communication' | 'behavioral' | 'notes'
 
-const SETTINGS_STORAGE_KEY = 'memova.settings.preferences.v1'
-const WORKSPACE_TUTORIAL_STORAGE_KEY = 'memova.interview.workspace.tutorial.v2'
+const SETTINGS_STORAGE_KEY = 'knappi.settings.preferences.v1'
+const WORKSPACE_TUTORIAL_STORAGE_KEY = 'knappi.interview.workspace.tutorial.v2'
 const WORKSPACE_EXAMPLE_TYPING_STEP_MS = 26
 const WORKSPACE_EXAMPLE_DELETING_STEP_MS = 18
 const WORKSPACE_EXAMPLE_PAUSE_MS = 1800
@@ -475,7 +475,7 @@ export default function InterviewPage() {
     !hasResolvedWorkspaceGreeting
       ? `Welcome, ${greetingName}`
       : hasLoadedInterviewHistory && !hasSavedSessions
-        ? `Welcome to Memova, ${greetingName}`
+        ? `Welcome to Knappi, ${greetingName}`
         : `Welcome back, ${greetingName}`
 
   useEffect(() => {
@@ -1205,8 +1205,8 @@ export default function InterviewPage() {
               <div className="mt-6 flex flex-col items-center justify-center text-center">
                 <div className="flex h-24 w-24 items-center justify-center">
                   <Image
-                    src="/memova_logo.png"
-                    alt="Memova Logo"
+                    src="/knappi_logo.png"
+                    alt="Knappi Logo"
                     width={80}
                     height={80}
                     className="h-20 w-20 object-contain"

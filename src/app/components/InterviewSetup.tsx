@@ -102,13 +102,13 @@ const InterviewSetup: React.FC<InterviewSetupProps> = ({ onCreateInterview, reso
       },
       {
         label: 'Topic',
-        value: config.topic.trim() || 'Let Memova steer the interview topic from your role and focus areas',
+        value: config.topic.trim() || 'Let Knappi steer the interview topic from your role and focus areas',
       },
       {
         label: 'Context',
         value:
           config.promptContext.trim() ||
-          'No extra context added. Memova will infer realistic situations from your selections.',
+          'No extra context added. Knappi will infer realistic situations from your selections.',
       },
       { label: 'Experience Level', value: getDifficultyLabel(config.difficulty) },
     ],

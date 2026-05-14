@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Starting Memova Interview Platform..."
+echo "🚀 Starting Knappi Interview Platform..."
 
 # Check if Python is installed
 if ! command -v python3 &> /dev/null; then

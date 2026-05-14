@@ -1,6 +1,6 @@
-# Python Backend for Memova Interview Platform
+# Python Backend for Knappi Interview Platform
 
-This backend provides transcription, drill generation, interview acknowledgements, and grading for Memova.
+This backend provides transcription, drill generation, interview acknowledgements, and grading for Knappi.
 
 ## Setup
 

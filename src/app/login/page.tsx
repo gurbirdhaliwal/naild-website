@@ -68,7 +68,7 @@ function LoginContent() {
         className="w-full max-w-md bg-white rounded-2xl shadow-md p-8"
       >
         <div className="text-center">
-          <h2 className="text-2xl font-semibold text-gray-900">Memova</h2>
+          <h2 className="text-2xl font-semibold text-gray-900">Knappi</h2>
           <p className="mt-1 text-sm text-gray-600">Log in to your account</p>
         </div>
 

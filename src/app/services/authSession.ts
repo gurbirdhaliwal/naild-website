@@ -2,10 +2,10 @@ import { API_BASE } from './api';
 import { clearAuthToken, getAuthHeaders } from './authToken';
 import { getSafeRedirectPath } from './safeRedirect';
 
-export const LOGOUT_BROADCAST_KEY = 'memova:logout';
-export const OAUTH_HANDOFF_REDIRECT_KEY = 'memova:oauth_handoff_redirect';
-export const SESSION_EXPIRED_BROADCAST_KEY = 'memova:session_expired';
-export const SESSION_EXPIRED_EVENT = 'memova:session-expired';
+export const LOGOUT_BROADCAST_KEY = 'knappi:logout';
+export const OAUTH_HANDOFF_REDIRECT_KEY = 'knappi:oauth_handoff_redirect';
+export const SESSION_EXPIRED_BROADCAST_KEY = 'knappi:session_expired';
+export const SESSION_EXPIRED_EVENT = 'knappi:session-expired';
 
 let pendingSessionExpiryCheck: Promise<boolean> | null = null;
 

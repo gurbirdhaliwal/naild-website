@@ -170,7 +170,7 @@ export default function SessionReauthModal() {
             Session expired
           </p>
           <h2 id="session-expired-title" className="mt-3 text-2xl font-semibold text-gray-900">
-            Sign in again to keep using Memova
+            Sign in again to keep using Knappi
           </h2>
           <p className="mt-3 text-sm leading-6 text-gray-600">
             Your authentication token expired while this page was open. The site is locked until

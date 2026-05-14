@@ -4,9 +4,9 @@ This repo is set up to deploy the Next.js web app, FastAPI AI service, and Sprin
 
 ## Target topology
 
-- `memova-web`: Next.js standalone server built from `Naild-WebApp/naild-website/Dockerfile.web`
-- `memova-ai`: FastAPI AI service built from `Naild-WebApp/naild-website/python_backend/Dockerfile`
-- `memova-spring`: Spring Boot API built from `security/Dockerfile`
+- `knappi-web`: Next.js standalone server built from `Naild-WebApp/naild-website/Dockerfile.web`
+- `knappi-ai`: FastAPI AI service built from `Naild-WebApp/naild-website/python_backend/Dockerfile`
+- `knappi-spring`: Spring Boot API built from `security/Dockerfile`
 - Model provider in production: Vertex AI Gemini 2.5 Flash
 
 ## Production environment contract
@@ -68,16 +68,16 @@ The configured deployer service account is:
 
 The web repo workflow `.github/workflows/deploy-cloud-run.yml` builds and deploys:
 
-- `memova-web`
-- `memova-ai`
+- `knappi-web`
+- `knappi-ai`
 
 Create these GitHub Actions variables in the web repo:
 
 - `GCP_PROJECT_ID`
 - `GCP_REGION`, default used by the workflow is `us-central1`
-- `ARTIFACT_REGISTRY_REPO`, default used by the workflow is `memova-repo`
-- `CLOUD_RUN_WEB_SERVICE`, default `memova-web`
-- `CLOUD_RUN_AI_SERVICE`, default `memova-ai`
+- `ARTIFACT_REGISTRY_REPO`, default used by the workflow is `knappi-repo`
+- `CLOUD_RUN_WEB_SERVICE`, default `knappi-web`
+- `CLOUD_RUN_AI_SERVICE`, default `knappi-ai`
 - `CLOUD_RUN_SERVICE_ACCOUNT`, optional runtime service account email
 - `WEB_ORIGIN`, currently `https://naild-web-788527456103.us-central1.run.app`
 - `NEXT_PUBLIC_API_BASE`, currently `https://naild-spring-788527456103.us-central1.run.app/api/v1`
@@ -92,14 +92,14 @@ Create these GitHub Actions variables in the web repo:
 
 The Spring repo workflow `.github/workflows/deploy-cloud-run.yml` builds and deploys:
 
-- `memova-spring`
+- `knappi-spring`
 
 Create these GitHub Actions variables in the Spring repo:
 
 - `GCP_PROJECT_ID`
 - `GCP_REGION`, default used by the workflow is `us-central1`
-- `ARTIFACT_REGISTRY_REPO`, default used by the workflow is `memova-repo`
-- `CLOUD_RUN_SPRING_SERVICE`, default `memova-spring`
+- `ARTIFACT_REGISTRY_REPO`, default used by the workflow is `knappi-repo`
+- `CLOUD_RUN_SPRING_SERVICE`, default `knappi-spring`
 - `CLOUD_RUN_SERVICE_ACCOUNT`, optional runtime service account email
 - `CLOUD_SQL_INSTANCE_CONNECTION_NAME`, optional, default `naild-491922:us-central1:naild-mysql`
 - `WEB_ORIGIN`, currently `https://naild-web-788527456103.us-central1.run.app`
@@ -109,7 +109,7 @@ Create these GitHub Actions variables in the Spring repo:
 - `APP_PASSWORD_RESET_BASE_URL`, currently `https://naild-web-788527456103.us-central1.run.app/reset-password`
 - `APP_PASSWORD_RESET_EXPIRY_MINUTES`, optional, default `60`
 - `APP_MAIL_MODE`, optional, default `log`
-- `APP_MAIL_FROM`, optional, default `no-reply@memova.local`
+- `APP_MAIL_FROM`, optional, default `no-reply@knappi.local`
 - `SPRING_DATASOURCE_PASSWORD_SECRET_NAME`, optional, default `spring-datasource-password`
 - `APP_JWT_SECRET_NAME`, optional, default `app-jwt-secret`
 - `GOOGLE_OAUTH_CLIENT_SECRET_NAME`, optional, default `google-oauth-client-secret`
@@ -162,4 +162,4 @@ Ensure the target GCP project has:
 - Artifact Registry API enabled
 - Vertex AI API enabled
 
-The Cloud Run service account for `memova-ai` needs permission to call Vertex AI.
+The Cloud Run service account for `knappi-ai` needs permission to call Vertex AI.
