@@ -2,10 +2,10 @@ import { API_BASE } from './api';
 import { clearAuthToken, getAuthHeaders } from './authToken';
 import { getSafeRedirectPath } from './safeRedirect';
 
-export const LOGOUT_BROADCAST_KEY = 'memotree:logout';
-export const OAUTH_HANDOFF_REDIRECT_KEY = 'memotree:oauth_handoff_redirect';
-export const SESSION_EXPIRED_BROADCAST_KEY = 'memotree:session_expired';
-export const SESSION_EXPIRED_EVENT = 'memotree:session-expired';
+export const LOGOUT_BROADCAST_KEY = 'memova:logout';
+export const OAUTH_HANDOFF_REDIRECT_KEY = 'memova:oauth_handoff_redirect';
+export const SESSION_EXPIRED_BROADCAST_KEY = 'memova:session_expired';
+export const SESSION_EXPIRED_EVENT = 'memova:session-expired';
 
 let pendingSessionExpiryCheck: Promise<boolean> | null = null;
 

@@ -253,14 +253,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex items-center space-x-2 -ml-3">
                   <Link href="/" className="flex items-center space-x-2">
                     <Image
-                      src="/memotree_logo.png"
-                      alt="Memotree Logo"
+                      src="/memova_logo.png"
+                      alt="Memova Logo"
                       width={40}
                       height={40}
                       className="h-10 w-10 object-contain mr-0 mb-1"
                     />
-                    <span className="text-2xl font-regular text-gray-900 tracking-tight font-memotree">
-                      Memotree
+                    <span className="text-2xl font-regular text-gray-900 tracking-tight font-memova">
+                      Memova
                     </span>
                   </Link>
                 </div>

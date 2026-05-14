@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Starting Memotree Interview Platform..."
+echo "🚀 Starting Memova Interview Platform..."
 
 # Check if Python is installed
 if ! command -v python3 &> /dev/null; then

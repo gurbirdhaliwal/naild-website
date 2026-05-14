@@ -1,6 +1,6 @@
-# Python Backend for Memotree Interview Platform
+# Python Backend for Memova Interview Platform
 
-This backend provides transcription, drill generation, interview acknowledgements, and grading for Memotree.
+This backend provides transcription, drill generation, interview acknowledgements, and grading for Memova.
 
 ## Setup
 

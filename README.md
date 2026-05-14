@@ -1,6 +1,6 @@
-# Memotree - AI-Powered Interview Practice Platform
+# Memova - AI-Powered Interview Practice Platform
 
-Memotree helps students practice and improve interview and technical communication skills through spoken drills, transcription, and AI feedback.
+Memova helps students practice and improve interview and technical communication skills through spoken drills, transcription, and AI feedback.
 
 ## Features
 
