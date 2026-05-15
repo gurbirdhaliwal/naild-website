@@ -79,10 +79,10 @@ Create these GitHub Actions variables in the web repo:
 - `CLOUD_RUN_WEB_SERVICE`, default `knappi-web`
 - `CLOUD_RUN_AI_SERVICE`, default `knappi-ai`
 - `CLOUD_RUN_SERVICE_ACCOUNT`, optional runtime service account email
-- `WEB_ORIGIN`, currently `https://naild-web-788527456103.us-central1.run.app`
-- `NEXT_PUBLIC_API_BASE`, currently `https://naild-spring-788527456103.us-central1.run.app/api/v1`
-- `NEXT_PUBLIC_API_ORIGIN`, currently `https://naild-spring-788527456103.us-central1.run.app`
-- `NEXT_PUBLIC_AI_BASE`, currently `https://naild-ai-788527456103.us-central1.run.app`
+- `WEB_ORIGIN`, currently `https://knappi-web-788527456103.us-central1.run.app`
+- `NEXT_PUBLIC_API_BASE`, currently `https://knappi-spring-788527456103.us-central1.run.app/api/v1`
+- `NEXT_PUBLIC_API_ORIGIN`, currently `https://knappi-spring-788527456103.us-central1.run.app`
+- `NEXT_PUBLIC_AI_BASE`, currently `https://knappi-ai-788527456103.us-central1.run.app`
 - `SPRING_API_BASE`, usually same as `NEXT_PUBLIC_API_BASE`
 - `AI_PROVIDER`, optional, default `vertex_ai`
 - `VERTEX_AI_LOCATION`, optional, default `us-central1`
@@ -102,11 +102,11 @@ Create these GitHub Actions variables in the Spring repo:
 - `CLOUD_RUN_SPRING_SERVICE`, default `knappi-spring`
 - `CLOUD_RUN_SERVICE_ACCOUNT`, optional runtime service account email
 - `CLOUD_SQL_INSTANCE_CONNECTION_NAME`, optional, default `naild-491922:us-central1:naild-mysql`
-- `WEB_ORIGIN`, currently `https://naild-web-788527456103.us-central1.run.app`
+- `WEB_ORIGIN`, currently `https://knappi-web-788527456103.us-central1.run.app`
 - `SPRING_DATASOURCE_URL`, use `jdbc:mysql:///naild_db?cloudSqlInstance=naild-491922:us-central1:naild-mysql&socketFactory=com.google.cloud.sql.mysql.SocketFactory&useSSL=false`
 - `SPRING_DATASOURCE_USERNAME`, use `naild_user`
 - `GOOGLE_OAUTH_CLIENT_ID`
-- `APP_PASSWORD_RESET_BASE_URL`, currently `https://naild-web-788527456103.us-central1.run.app/reset-password`
+- `APP_PASSWORD_RESET_BASE_URL`, currently `https://knappi-web-788527456103.us-central1.run.app/reset-password`
 - `APP_PASSWORD_RESET_EXPIRY_MINUTES`, optional, default `60`
 - `APP_MAIL_MODE`, optional, default `log`
 - `APP_MAIL_FROM`, optional, default `no-reply@knappi.local`
@@ -132,7 +132,7 @@ Required GCP resources and IAM:
 - If `CLOUD_RUN_SERVICE_ACCOUNT` is set, give the GitHub deployer service account `roles/iam.serviceAccountUser` on that runtime service account.
 - Give the Cloud Run runtime service account `roles/secretmanager.secretAccessor` for the Spring secrets.
 - Give the AI service runtime service account permission to call Vertex AI, for example `roles/aiplatform.user`.
-- Configure the Google OAuth app redirect URI to `https://naild-spring-788527456103.us-central1.run.app/login/oauth2/code/google`, using your actual Spring API origin.
+- Configure the Google OAuth app redirect URI to `https://knappi-spring-788527456103.us-central1.run.app/login/oauth2/code/google`, using your actual Spring API origin.
 
 After the GitHub and GCP setup exists, run each repo's deploy workflow manually from GitHub Actions, or push to `main` in the repo you want to deploy.
 

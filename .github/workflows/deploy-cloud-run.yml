@@ -15,9 +15,9 @@ env:
   DEPLOY_SERVICE_ACCOUNT: 788527456103-compute@developer.gserviceaccount.com
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   REGION: ${{ vars.GCP_REGION || 'us-central1' }}
-  ARTIFACT_REGISTRY_REPO: ${{ vars.ARTIFACT_REGISTRY_REPO || 'memotree-repo' }}
-  WEB_SERVICE: ${{ vars.CLOUD_RUN_WEB_SERVICE || 'memotree-web' }}
-  AI_SERVICE: ${{ vars.CLOUD_RUN_AI_SERVICE || 'memotree-ai' }}
+  ARTIFACT_REGISTRY_REPO: ${{ vars.ARTIFACT_REGISTRY_REPO || 'knappi-repo' }}
+  WEB_SERVICE: ${{ vars.CLOUD_RUN_WEB_SERVICE || 'knappi-web' }}
+  AI_SERVICE: ${{ vars.CLOUD_RUN_AI_SERVICE || 'knappi-ai' }}
   CLOUD_RUN_SERVICE_ACCOUNT: ${{ vars.CLOUD_RUN_SERVICE_ACCOUNT }}
   WEB_ORIGIN: ${{ vars.WEB_ORIGIN }}
   NEXT_PUBLIC_API_BASE: ${{ vars.NEXT_PUBLIC_API_BASE }}

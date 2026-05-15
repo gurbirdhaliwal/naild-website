@@ -3,11 +3,11 @@ substitutions:
   _ARTIFACT_REGISTRY_REPO: knappi
   _WEB_SERVICE: knappi-web
   _AI_SERVICE: knappi-ai
-  _WEB_ORIGIN: https://naild-web-cvolibfsla-uc.a.run.app
-  _API_PUBLIC_BASE: https://naild-spring-788527456103.us-central1.run.app/api/v1
-  _API_PUBLIC_ORIGIN: https://naild-spring-788527456103.us-central1.run.app
-  _AI_PUBLIC_BASE: https://naild-ai-cvolibfsla-uc.a.run.app
-  _SPRING_API_BASE: https://naild-spring-788527456103.us-central1.run.app/api/v1
+  _WEB_ORIGIN: https://knappi-web-cvolibfsla-uc.a.run.app
+  _API_PUBLIC_BASE: https://knappi-spring-788527456103.us-central1.run.app/api/v1
+  _API_PUBLIC_ORIGIN: https://knappi-spring-788527456103.us-central1.run.app
+  _AI_PUBLIC_BASE: https://knappi-ai-cvolibfsla-uc.a.run.app
+  _SPRING_API_BASE: https://knappi-spring-788527456103.us-central1.run.app/api/v1
   _VERTEX_AI_LOCATION: us-central1
   _GEMINI_MODEL: gemini-2.5-flash
 
