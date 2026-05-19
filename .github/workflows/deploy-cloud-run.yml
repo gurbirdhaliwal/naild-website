@@ -19,11 +19,11 @@ env:
   WEB_SERVICE: ${{ vars.CLOUD_RUN_WEB_SERVICE || 'knappi-web' }}
   AI_SERVICE: ${{ vars.CLOUD_RUN_AI_SERVICE || 'knappi-ai' }}
   CLOUD_RUN_SERVICE_ACCOUNT: ${{ vars.CLOUD_RUN_SERVICE_ACCOUNT }}
-  WEB_ORIGIN: ${{ vars.WEB_ORIGIN }}
-  NEXT_PUBLIC_API_BASE: ${{ vars.NEXT_PUBLIC_API_BASE }}
-  NEXT_PUBLIC_API_ORIGIN: ${{ vars.NEXT_PUBLIC_API_ORIGIN }}
-  NEXT_PUBLIC_AI_BASE: ${{ vars.NEXT_PUBLIC_AI_BASE }}
-  SPRING_API_BASE: ${{ vars.SPRING_API_BASE }}
+  WEB_ORIGIN: ${{ vars.WEB_ORIGIN || 'https://knappi.ca' }}
+  NEXT_PUBLIC_API_BASE: ${{ vars.NEXT_PUBLIC_API_BASE || 'https://api.knappi.ca/api/v1' }}
+  NEXT_PUBLIC_API_ORIGIN: ${{ vars.NEXT_PUBLIC_API_ORIGIN || 'https://api.knappi.ca' }}
+  NEXT_PUBLIC_AI_BASE: ${{ vars.NEXT_PUBLIC_AI_BASE || 'https://ai.knappi.ca' }}
+  SPRING_API_BASE: ${{ vars.SPRING_API_BASE || 'https://api.knappi.ca/api/v1' }}
   CORS_ALLOW_ORIGINS: ${{ vars.CORS_ALLOW_ORIGINS || vars.WEB_ORIGIN }}
   AI_PROVIDER: ${{ vars.AI_PROVIDER || 'vertex_ai' }}
   VERTEX_AI_LOCATION: ${{ vars.VERTEX_AI_LOCATION || 'us-central1' }}
@@ -56,6 +56,24 @@ jobs:
               exit 1
             fi
           done
+
+          if [[ "${WEB_SERVICE}" == naild-* || "${AI_SERVICE}" == naild-* ]]; then
+            echo "::error::Cloud Run service variables still point to old naild services. Set CLOUD_RUN_WEB_SERVICE=knappi-web and CLOUD_RUN_AI_SERVICE=knappi-ai."
+            exit 1
+          fi
+
+          if [[ "${NEXT_PUBLIC_API_BASE}" != "https://api.knappi.ca/api/v1" || "${NEXT_PUBLIC_API_ORIGIN}" != "https://api.knappi.ca" || "${NEXT_PUBLIC_AI_BASE}" != "https://ai.knappi.ca" ]]; then
+            echo "::error::Public frontend URLs must point to the knappi custom domains."
+            echo "NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}"
+            echo "NEXT_PUBLIC_API_ORIGIN=${NEXT_PUBLIC_API_ORIGIN}"
+            echo "NEXT_PUBLIC_AI_BASE=${NEXT_PUBLIC_AI_BASE}"
+            exit 1
+          fi
+
+          if [[ "${SPRING_API_BASE}" != "https://api.knappi.ca/api/v1" ]]; then
+            echo "::error::SPRING_API_BASE must be https://api.knappi.ca/api/v1 for the AI service."
+            exit 1
+          fi
 
       - id: auth
         name: Authenticate to Google Cloud
