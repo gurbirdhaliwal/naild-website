@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { API_BASE } from '../services/api';
-import { getOrLoadAuthHeaders } from '../services/authToken';
 import { useAuth } from '../context/AuthContext';
 import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
 
@@ -72,14 +71,12 @@ export default function Settings() {
         payload.currentpassword = formData.currentpassword;
       }
 
-      const authHeaders = await getOrLoadAuthHeaders(API_BASE);
       const response = await fetch(`${API_BASE}/user/update`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders,
         },
-        credentials: authHeaders.Authorization ? 'omit' : 'include',
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -109,13 +106,9 @@ export default function Settings() {
   const handleDelete = async () => {
     setLoading(true);
     try {
-      const authHeaders = await getOrLoadAuthHeaders(API_BASE);
       const response = await fetch(`${API_BASE}/user/delete`, {
         method: 'DELETE',
-        headers: {
-          ...authHeaders,
-        },
-        credentials: authHeaders.Authorization ? 'omit' : 'include',
+        credentials: 'include',
       });
 
       if (response.ok) {

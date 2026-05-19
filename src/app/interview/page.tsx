@@ -31,7 +31,7 @@ import {
 } from 'lucide-react'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
-import { getAuthHeaders, getOrLoadAuthHeaders } from '../services/authToken'
+import { getAuthHeaders } from '../services/authToken'
 import { broadcastLogout, consumeOAuthHandoffRedirect, requestLogout } from '../services/authSession'
 import {
   getAudienceLabel,
@@ -996,14 +996,12 @@ export default function InterviewPage() {
         payload.currentpassword = profileFormData.currentpassword
       }
 
-      const authHeaders = await getOrLoadAuthHeaders(API_BASE)
       const response = await fetch(`${API_BASE}/user/update`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders,
         },
-        credentials: authHeaders.Authorization ? 'omit' : 'include',
+        credentials: 'include',
         body: JSON.stringify(payload),
       })
 
@@ -1032,13 +1030,9 @@ export default function InterviewPage() {
   const handleDeleteAccount = async () => {
     setProfileLoading(true)
     try {
-      const authHeaders = await getOrLoadAuthHeaders(API_BASE)
       const response = await fetch(`${API_BASE}/user/delete`, {
         method: 'DELETE',
-        headers: {
-          ...authHeaders,
-        },
-        credentials: authHeaders.Authorization ? 'omit' : 'include',
+        credentials: 'include',
       })
 
       if (response.ok) {

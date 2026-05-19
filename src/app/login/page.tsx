@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { FaGoogle } from "react-icons/fa";
 import { API_BASE, API_ORIGIN } from '../services/api';
-import { setAuthToken } from '../services/authToken';
 import { getSafeRedirectPath } from '../services/safeRedirect';
 import { setOAuthHandoffRedirect } from '../services/authSession';
 import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
@@ -41,8 +40,6 @@ function LoginContent() {
       });
 
       if (response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as { token?: string };
-        setAuthToken(payload.token);
         window.location.href = redirectPath;
       } else {
         setError(getUserFacingStatusMessage('login', response.status));

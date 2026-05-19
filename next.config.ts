@@ -3,11 +3,9 @@ import type { NextConfig } from "next";
 const isProduction = process.env.NODE_ENV === "production";
 
 const productionPublicEnvDefaults: Record<string, string> = {
-  NEXT_PUBLIC_API_BASE:
-    "https://knappi-spring-788527456103.us-central1.run.app/api/v1",
-  NEXT_PUBLIC_API_ORIGIN:
-    "https://knappi-spring-788527456103.us-central1.run.app",
-  NEXT_PUBLIC_AI_BASE: "https://knappi-ai-cvolibfsla-uc.a.run.app",
+  NEXT_PUBLIC_API_BASE: "https://api.knappi.ca/api/v1",
+  NEXT_PUBLIC_API_ORIGIN: "https://api.knappi.ca",
+  NEXT_PUBLIC_AI_BASE: "https://ai.knappi.ca",
 };
 
 const readPublicEnv = (name: string, fallback: string): string => {

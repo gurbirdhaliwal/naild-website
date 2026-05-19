@@ -21,7 +21,7 @@ import {
 import CustomMicRecorder from './CustomMicRecorder'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
-import { getAuthHeaders, getOrLoadAuthHeaders } from '../services/authToken'
+import { getAuthHeaders } from '../services/authToken'
 import { confirmSessionExpired, notifySessionExpired } from '../services/authSession'
 import {
   COMMUNICATION_CATEGORY_LABELS,
@@ -710,14 +710,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       await persistMessages(messagesWithoutThinking)
 
       try {
-        const authHeaders = await getOrLoadAuthHeaders(API_BASE)
         const response = await fetch(`${API_BASE}/interviews/${interview.id}/current_question_index`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            ...authHeaders,
           },
-          credentials: authHeaders.Authorization ? 'omit' : 'include',
+          credentials: 'include',
           body: JSON.stringify({ currentQuestionIndex: updatedInterview.currentQuestionIndex }),
         })
 

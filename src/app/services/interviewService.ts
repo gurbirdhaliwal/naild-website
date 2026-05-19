@@ -1,6 +1,5 @@
 import { GeneratedPrompt, GradingResult, Interview, Message, SessionType, PracticeMode, AudienceType } from '../types/Interview';
 import { API_BASE } from './api';
-import { getOrLoadAuthHeaders } from './authToken';
 import { confirmSessionExpired, notifySessionExpired } from './authSession';
 import { normalizeGeneratedPrompt } from '../lib/practiceConfig';
 
@@ -176,16 +175,10 @@ class InterviewService {
       if (options.body != null && !headers.has('Content-Type')) {
         headers.set('Content-Type', 'application/json');
       }
-      for (const [name, value] of Object.entries(await getOrLoadAuthHeaders(API_BASE))) {
-        if (!headers.has(name)) {
-          headers.set(name, value);
-        }
-      }
-      const hasBearerAuth = headers.has('Authorization');
-      
+
       const response = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
-        credentials: hasBearerAuth ? 'omit' : 'include',
+        credentials: 'include',
         headers,
       });
 
