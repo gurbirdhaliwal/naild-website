@@ -14,6 +14,8 @@ export default function SessionReauthModal() {
   const pathname = usePathname();
   const { sessionExpired, expiredUser, refreshSession } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationPending, setVerificationPending] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -37,6 +39,8 @@ export default function SessionReauthModal() {
     if (!sessionExpired) {
       setError('');
       setLoading(false);
+      setVerificationCode('');
+      setVerificationPending(false);
       setFormData((current) => ({ ...current, password: '' }));
       return;
     }
@@ -122,17 +126,30 @@ export default function SessionReauthModal() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE}/auth/authenticate`, {
+      const response = await fetch(
+        `${API_BASE}/auth/${verificationPending ? 'authenticate/verify' : 'authenticate'}`,
+        {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify(formData),
-      });
+          body: JSON.stringify(
+            verificationPending
+              ? { email: formData.email, code: verificationCode }
+              : formData
+          ),
+        }
+      );
 
       if (!response.ok) {
         setError(getUserFacingStatusMessage('reauth', response.status));
+        return;
+      }
+
+      if (!verificationPending) {
+        setVerificationPending(true);
+        setVerificationCode('');
         return;
       }
 
@@ -186,19 +203,53 @@ export default function SessionReauthModal() {
               required
               value={formData.email}
               onChange={handleChange}
+              disabled={verificationPending}
               className="w-full rounded-xl border border-gray-300 px-4 py-3 shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
             />
-            <input
-              id="session-password"
-              name="password"
-              type="password"
-              placeholder="Password"
-              autoComplete="current-password"
-              required
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
-            />
+            {verificationPending ? (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Enter the 6-digit code sent to {formData.email}.
+                </p>
+                <input
+                  id="session-verification-code"
+                  name="verificationCode"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  placeholder="Verification code"
+                  autoComplete="one-time-code"
+                  required
+                  value={verificationCode}
+                  onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVerificationPending(false);
+                    setVerificationCode('');
+                    setError('');
+                  }}
+                  className="text-sm font-medium text-green-700 hover:text-green-600"
+                >
+                  Use a different email or password
+                </button>
+              </div>
+            ) : (
+              <input
+                id="session-password"
+                name="password"
+                type="password"
+                placeholder="Password"
+                autoComplete="current-password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
+              />
+            )}
 
             {error ? <p className="text-sm text-center text-red-600">{error}</p> : null}
 
@@ -209,7 +260,7 @@ export default function SessionReauthModal() {
                 loading ? 'cursor-not-allowed opacity-70' : ''
               }`}
             >
-              {loading ? 'Signing in...' : 'Sign in again'}
+              {loading ? 'Signing in...' : verificationPending ? 'Verify and unlock' : 'Sign in again'}
             </button>
           </form>
         ) : (

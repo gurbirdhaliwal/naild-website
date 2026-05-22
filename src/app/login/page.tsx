@@ -16,6 +16,8 @@ function LoginContent() {
   const googleOauthHref = `${API_ORIGIN}/oauth2/authorization/google?redirect=${encodeURIComponent(redirectPath)}`;
 
   const [formData, setFormData] = useState({ email: '', password: '' });
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationPending, setVerificationPending] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -30,17 +32,29 @@ function LoginContent() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE}/auth/authenticate`, {
+      const response = await fetch(
+        `${API_BASE}/auth/${verificationPending ? 'authenticate/verify' : 'authenticate'}`,
+        {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify(formData),
-      });
+          body: JSON.stringify(
+            verificationPending
+              ? { email: formData.email, code: verificationCode }
+              : formData
+          ),
+        }
+      );
 
       if (response.ok) {
-        window.location.href = redirectPath;
+        if (verificationPending) {
+          window.location.href = redirectPath;
+        } else {
+          setVerificationPending(true);
+          setVerificationCode('');
+        }
       } else {
         setError(getUserFacingStatusMessage('login', response.status));
       }
@@ -79,27 +93,63 @@ function LoginContent() {
             required
             value={formData.email}
             onChange={handleChange}
+            disabled={verificationPending}
             className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500 focus:outline-none"
           />
-          <input
-            id="password"
-            name="password"
-            type="password"
-            placeholder="Password"
-            autoComplete="current-password"
-            required
-            value={formData.password}
-            onChange={handleChange}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500 focus:outline-none"
-          />
-          <div className="flex justify-end">
-            <Link
-              href={`/forgot-password?redirect=${encodeURIComponent(redirectPath)}`}
-              className="text-sm font-medium text-green-700 hover:text-green-600"
-            >
-              Forgot password?
-            </Link>
-          </div>
+          {verificationPending ? (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">
+                Enter the 6-digit code sent to {formData.email}.
+              </p>
+              <input
+                id="verificationCode"
+                name="verificationCode"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                placeholder="Verification code"
+                autoComplete="one-time-code"
+                required
+                value={verificationCode}
+                onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setVerificationPending(false);
+                  setVerificationCode('');
+                  setError('');
+                }}
+                className="text-sm font-medium text-green-700 hover:text-green-600"
+              >
+                Use a different email or password
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Password"
+                autoComplete="current-password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500 focus:outline-none"
+              />
+              <div className="flex justify-end">
+                <Link
+                  href={`/forgot-password?redirect=${encodeURIComponent(redirectPath)}`}
+                  className="text-sm font-medium text-green-700 hover:text-green-600"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            </>
+          )}
 
           {error && <div className="text-red-500 text-sm text-center">{error}</div>}
 
@@ -110,7 +160,7 @@ function LoginContent() {
               loading ? 'opacity-70 cursor-not-allowed' : ''
             }`}
           >
-            {loading ? 'Logging in...' : 'Continue with email'}
+            {loading ? 'Logging in...' : verificationPending ? 'Verify and log in' : 'Continue with email'}
           </button>
         </form>
 

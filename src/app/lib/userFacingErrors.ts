@@ -51,7 +51,7 @@ export const getUserFacingStatusMessage = (
     case 'login':
     case 'reauth':
       if (status === 400 || status === 401 || status === 403) {
-        return 'Incorrect email or password. Try again.'
+        return 'Incorrect email, password, or verification code. Try again.'
       }
       return 'We could not sign you in right now. Please try again.'
 
