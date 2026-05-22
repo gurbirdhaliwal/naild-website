@@ -116,7 +116,7 @@ Create these GitHub Actions variables in the Spring repo:
 - `APP_AUTH_COOKIE_DOMAIN`, use `.knappi.ca`
 - `APP_PASSWORD_RESET_EXPIRY_MINUTES`, optional, default `60`
 - `APP_MAIL_MODE`, optional, default `log`
-- `APP_MAIL_FROM`, optional, default `no-reply@knappi.local`
+- `APP_MAIL_FROM`, optional, default `noreply@knappi.local`
 - `SPRING_DATASOURCE_PASSWORD_SECRET_NAME`, optional, default `spring-datasource-password`
 - `APP_JWT_SECRET_NAME`, optional, default `app-jwt-secret`
 - `GOOGLE_OAUTH_CLIENT_SECRET_NAME`, optional, default `google-oauth-client-secret`
