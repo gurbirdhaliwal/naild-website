@@ -3,21 +3,17 @@
 import { Suspense, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { FaGoogle, FaArrowLeft } from 'react-icons/fa';
 import { API_BASE, API_ORIGIN } from '../services/api';
 import { getSafeRedirectPath } from '../services/safeRedirect';
 import { setOAuthHandoffRedirect } from '../services/authSession';
-import { useAuth } from '../context/AuthContext';
 import { AUREON_NAME } from '../lib/modelConfig';
 import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors';
 
 const SIGNUP_SUCCESS_PATH = '/interview';
 
 function SignupContent() {
-  const router = useRouter();
-  const { refreshSession } = useAuth();
   const searchParams = useSearchParams();
   const redirectPath = getSafeRedirectPath(searchParams.get('redirect'));
   const googleOauthHref = `${API_ORIGIN}/oauth2/authorization/google?redirect=${encodeURIComponent(SIGNUP_SUCCESS_PATH)}`;
@@ -110,8 +106,7 @@ function SignupContent() {
 
       if (response.ok) {
         setOAuthHandoffRedirect(SIGNUP_SUCCESS_PATH);
-        await refreshSession();
-        router.replace(SIGNUP_SUCCESS_PATH);
+        window.location.href = SIGNUP_SUCCESS_PATH;
       } else {
         setError(getUserFacingStatusMessage('signup', response.status));
       }
