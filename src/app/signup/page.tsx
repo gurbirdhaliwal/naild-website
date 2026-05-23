@@ -22,7 +22,7 @@ function SignupContent() {
   const redirectPath = getSafeRedirectPath(searchParams.get('redirect'));
   const googleOauthHref = `${API_ORIGIN}/oauth2/authorization/google?redirect=${encodeURIComponent(SIGNUP_SUCCESS_PATH)}`;
 
-  const [step, setStep] = useState<'email' | 'details'>('email');
+  const [step, setStep] = useState<'email' | 'details' | 'verify'>('email');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -30,6 +30,7 @@ function SignupContent() {
     firstName: '',
     lastName: '',
   });
+  const [verificationCode, setVerificationCode] = useState('');
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,7 +50,7 @@ function SignupContent() {
     setStep('details');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -76,6 +77,38 @@ function SignupContent() {
       });
 
       if (response.ok) {
+        setVerificationCode('');
+        setStep('verify');
+      } else {
+        setError(getUserFacingStatusMessage('signup', response.status));
+      }
+    } catch (err: unknown) {
+      console.error('❌ Signup error:', err);
+      setError(getUserFacingErrorMessage('signup', err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerificationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/auth/register/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: formData.email,
+          code: verificationCode,
+        }),
+      });
+
+      if (response.ok) {
         setOAuthHandoffRedirect(SIGNUP_SUCCESS_PATH);
         await refreshSession();
         router.replace(SIGNUP_SUCCESS_PATH);
@@ -83,7 +116,7 @@ function SignupContent() {
         setError(getUserFacingStatusMessage('signup', response.status));
       }
     } catch (err: unknown) {
-      console.error('❌ Signup error:', err);
+      console.error('❌ Signup verification error:', err);
       setError(getUserFacingErrorMessage('signup', err));
     } finally {
       setLoading(false);
@@ -138,10 +171,10 @@ function SignupContent() {
                 Continue with email
               </button>
             </motion.form>
-          ) : (
+          ) : step === 'details' ? (
             <motion.form
               key="detailsStep"
-              onSubmit={handleSubmit}
+              onSubmit={handleSignupSubmit}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -211,6 +244,57 @@ function SignupContent() {
                 }`}
               >
                 {loading ? 'Creating account...' : 'Sign up'}
+              </button>
+            </motion.form>
+          ) : (
+            <motion.form
+              key="verifyStep"
+              onSubmit={handleVerificationSubmit}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="mt-6 space-y-4"
+            >
+              <p className="text-sm text-gray-600 text-center">
+                Enter the 6-digit code sent to {formData.email}.
+              </p>
+              <input
+                id="verificationCode"
+                name="verificationCode"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                placeholder="Verification code"
+                autoComplete="one-time-code"
+                required
+                value={verificationCode}
+                onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="rounded-md border border-gray-300 px-3 py-2 shadow-sm w-full focus:outline-none focus:ring-green-500 focus:border-green-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setStep('details');
+                  setVerificationCode('');
+                  setError('');
+                }}
+                className="text-sm font-medium text-green-700 hover:text-green-600"
+              >
+                Edit signup details
+              </button>
+
+              {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full py-2 px-4 text-white bg-black rounded-md text-sm font-semibold shadow-sm hover:bg-gray-900 transition ${
+                  loading ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
+              >
+                {loading ? 'Verifying...' : 'Verify and continue'}
               </button>
             </motion.form>
           )}
