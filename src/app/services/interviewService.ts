@@ -1,4 +1,4 @@
-import { GeneratedPrompt, GradingResult, Interview, Message, SessionType, PracticeMode, AudienceType } from '../types/Interview';
+import { GeneratedPrompt, GradingResult, Interview, Message, SessionType, PracticeMode } from '../types/Interview';
 import { API_BASE } from './api';
 import { confirmSessionExpired, notifySessionExpired } from './authSession';
 import { normalizeGeneratedPrompt } from '../lib/practiceConfig';
@@ -92,7 +92,7 @@ export interface InterviewResponse {
   difficulty: string;
   sessionType?: SessionType | null;
   practiceMode?: PracticeMode | null;
-  audience?: AudienceType | null;
+  audience?: string | null;
   topic?: string | null;
   promptContext?: string | null;
   generatedPrompt?: string | null;
@@ -113,7 +113,7 @@ export interface CreateInterviewRequest {
   questions: string[];
   sessionType?: SessionType;
   practiceMode?: PracticeMode | null;
-  audience?: AudienceType | null;
+  audience?: string | null;
   topic?: string | null;
   promptContext?: string | null;
   generatedPrompt?: GeneratedPrompt | null;
@@ -125,11 +125,15 @@ export interface UpdateMessagesRequest {
 }
 
 export interface UpdateGradingRequest {
-  gradingResult: GradingResult;
+  gradingResult: GradingResult | Record<string, unknown>;
 }
 
 export interface UpdateInterviewTitleRequest {
   title: string;
+}
+
+export interface UpdateInterviewStatusRequest {
+  status: string;
 }
 
 class HttpError extends Error {
@@ -239,6 +243,13 @@ class InterviewService {
 
   async updateGradingResult(id: number, data: UpdateGradingRequest): Promise<InterviewResponse> {
     return await this.makeRequest<InterviewResponse>(`/interviews/${id}/grading`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateInterviewStatus(id: number, data: UpdateInterviewStatusRequest): Promise<InterviewResponse> {
+    return await this.makeRequest<InterviewResponse>(`/interviews/${id}/status`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });

@@ -7,7 +7,7 @@ export interface Message {
   isThinking: boolean
 }
 
-export type SessionType = 'technical-communication' | 'behavioral-interview'
+export type SessionType = 'technical-communication' | 'behavioral-interview' | 'tech-chat'
 
 export type PracticeMode = 'explain-concept' | 'explain-decision' | 'explain-tradeoff'
 
@@ -60,6 +60,13 @@ export type GradingSuccessResult =
 
 export type GradingResult = GradingSuccessResult | GradingErrorResult
 
+export interface TechChatRecap {
+  highlights: string[]
+  fuzzySpots: string[]
+  topicsCovered: string[]
+  takeawayLine: string
+}
+
 export interface GeneratedPrompt {
   title: string
   scenario: string
@@ -81,7 +88,7 @@ export interface Interview {
   difficulty: string
   sessionType?: SessionType
   practiceMode?: PracticeMode | null
-  audience?: AudienceType | null
+  audience?: string | null
   topic?: string | null
   promptContext?: string | null
   generatedPrompt?: GeneratedPrompt | null

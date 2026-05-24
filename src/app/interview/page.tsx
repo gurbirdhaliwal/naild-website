@@ -6,6 +6,8 @@ import Sidebar from '../components/Sidebar'
 import CommunicationSetup from '../components/CommunicationSetup'
 import InterviewSetup from '../components/InterviewSetup'
 import InterviewChat from '../components/InterviewChat'
+import TechChatSession from '../components/TechChatSession'
+import TechChatSetup, { type TechChatSessionConfig } from '../components/TechChatSetup'
 import Library, { LIBRARY_SECTIONS, type LibrarySectionId } from '../components/Library'
 import WorkspaceTutorial, { type WorkspaceTutorialStep } from '../components/WorkspaceTutorial'
 import {
@@ -44,12 +46,13 @@ import {
   AUREON_NAME,
   AUREON_VERSION_LABEL,
 } from '../lib/modelConfig'
+import { getTechChatPersona } from '../lib/techChatConfig'
 
 type SettingsTab = 'account' | 'appearance' | 'notifications'
 type ThemePreference = 'system' | 'light' | 'dark'
 type SidebarPreference = 'standard' | 'compact'
 type ProfileToastType = 'success' | 'error'
-type WorkspaceLandingView = 'home' | 'communication' | 'behavioral' | 'notes'
+type WorkspaceLandingView = 'home' | 'communication' | 'behavioral' | 'tech-chat' | 'notes'
 
 const SETTINGS_STORAGE_KEY = 'knappi.settings.preferences.v1'
 const WORKSPACE_TUTORIAL_STORAGE_KEY = 'knappi.interview.workspace.tutorial.v2'
@@ -641,6 +644,12 @@ export default function InterviewPage() {
     setCurrentInterview(null)
   }
 
+  const openTechChatSetup = () => {
+    setCreateSessionModalOpen(false)
+    setActiveLandingView('tech-chat')
+    setCurrentInterview(null)
+  }
+
   const handleSelectLibrarySection = (sectionId: LibrarySectionId) => {
     setSelectedLibrarySectionId(sectionId)
     setActiveLandingView('notes')
@@ -752,6 +761,82 @@ export default function InterviewPage() {
     const newInterview = interviewService.convertToInterview(savedInterview)
     newInterview.messages = messages
     newInterview.currentQuestionIndex = 0
+
+    try {
+      await interviewService.updateInterviewMessages(Number(newInterview.id), {
+        messages: newInterview.messages,
+      })
+    } catch (error) {
+      if (!Number.isNaN(Number(newInterview.id))) {
+        await interviewService.deleteInterview(Number(newInterview.id)).catch(() => undefined)
+      }
+      throw error
+    }
+
+    setInterviews((prev) => [newInterview, ...prev])
+    setCurrentInterview(newInterview)
+    setActiveLandingView('home')
+  }
+
+  const handleCreateTechChatSession = async (config: TechChatSessionConfig) => {
+    const persona = getTechChatPersona(config.personaId)
+    const response = await fetch(`${AI_BASE}/tech_chat/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      credentials: 'include',
+      body: JSON.stringify({
+        persona_id: config.personaId,
+        topic_seed: config.topicSeed,
+        surprise_me: config.surpriseMe,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to start Tech Chat (${response.status})`)
+    }
+
+    const data = await response.json()
+    const opener =
+      typeof data?.opener === 'string' && data.opener.trim()
+        ? data.opener.trim()
+        : `${persona.sampleLine}`
+    const topic =
+      typeof data?.topic_seed === 'string' && data.topic_seed.trim()
+        ? data.topic_seed.trim()
+        : config.topicSeed || persona.topicAffinity[0]
+
+    const now = new Date()
+    const messages = [
+      {
+        id: `${Date.now()}-opener`,
+        role: 'interviewer' as const,
+        content: opener,
+        timestamp: now,
+        transcription: `[${persona.name}]: ${opener}`,
+        isThinking: false,
+      },
+    ]
+
+    const createRequest = {
+      title: `Tech Chat with ${persona.name}`,
+      role: 'Tech Chat',
+      languages: persona.topicAffinity,
+      difficulty: 'mid',
+      questions: [],
+      sessionType: 'tech-chat' as const,
+      practiceMode: null,
+      audience: persona.id,
+      topic,
+      promptContext: persona.archetype,
+      generatedPrompt: null,
+    }
+
+    const savedInterview = await interviewService.createInterview(createRequest)
+    const newInterview = interviewService.convertToInterview(savedInterview)
+    newInterview.messages = messages
+    newInterview.currentQuestionIndex = 0
+    newInterview.audience = persona.id
+    newInterview.topic = topic
 
     try {
       await interviewService.updateInterviewMessages(Number(newInterview.id), {
@@ -1097,6 +1182,11 @@ export default function InterviewPage() {
               onCreateInterview={handleCreateBehavioralInterview}
               resolvedTheme={resolvedTheme}
             />
+          ) : activeLandingView === 'tech-chat' ? (
+            <TechChatSetup
+              onCreateSession={handleCreateTechChatSession}
+              resolvedTheme={resolvedTheme}
+            />
           ) : (
             <CommunicationSetup
               onCreateSession={handleCreateTechnicalSession}
@@ -1298,11 +1388,20 @@ export default function InterviewPage() {
         {/* Interview Section */}
         <div className="flex-1 overflow-hidden">
           {currentInterview ? (
-            <InterviewChat
-              interview={currentInterview}
-              onUpdateInterview={handleUpdate}
-              resolvedTheme={resolvedTheme}
-            />
+            currentInterview.sessionType === 'tech-chat' ? (
+              <TechChatSession
+                interview={currentInterview}
+                onUpdateInterview={handleUpdate}
+                onStartAnother={openTechChatSetup}
+                resolvedTheme={resolvedTheme}
+              />
+            ) : (
+              <InterviewChat
+                interview={currentInterview}
+                onUpdateInterview={handleUpdate}
+                resolvedTheme={resolvedTheme}
+              />
+            )
           ) : activeLandingView === 'notes' ? (
             <Library
               selectedSectionId={selectedLibrarySectionId}
@@ -1381,6 +1480,19 @@ export default function InterviewPage() {
                   </span>
                   <span className="mt-1 text-sm leading-5 text-gray-600">
                     Run a story-based interview round with classic behavioral prompts.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={openTechChatSetup}
+                  className="flex w-full flex-col rounded-3xl border border-gray-200 bg-white px-5 py-4 text-left transition-colors hover:bg-gray-50"
+                >
+                  <span className="text-sm font-semibold text-gray-900">
+                    Tech Chat
+                  </span>
+                  <span className="mt-1 text-sm leading-5 text-gray-600">
+                    Have a casual technical conversation with a colleague-style persona.
                   </span>
                 </button>
               </div>

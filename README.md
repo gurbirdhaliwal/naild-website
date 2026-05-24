@@ -36,45 +36,49 @@ Knappi helps students practice and improve interview and technical communication
    ollama pull mistral
    ```
 
-2. **Install Python dependencies** (for backend):
-   ```bash
-   cd python_backend
-   pip install -r requirements.txt
-   ```
+2. **Install Docker Desktop** (for the local web, auth API, AI API, and MySQL stack).
 
 ### Quick Start (Recommended)
 
-**On macOS/Linux:**
+**With Docker Compose:**
 ```bash
-./start.sh
+docker compose up -d --build
 ```
 
-**On Windows:**
-```bash
-start.bat
-```
+This starts the frontend, Spring auth API, Python AI API, and MySQL:
+- Web: `http://localhost:3000`
+- Spring auth API: `http://localhost:8080/api/v1`
+- Python AI API: `http://localhost:8081`
 
-These scripts will automatically:
-- Install all dependencies
-- Check for required software
-- Start both frontend and backend services
+For Google OAuth locally, set real Google OAuth credentials before starting:
+- `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID`
+- `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET`
+
+The local Google OAuth redirect URI must be allowed in Google Cloud:
+`http://localhost:8080/login/oauth2/code/google`
 
 ### Manual Setup
 
-1. **Start the Python backend** (Terminal 1):
+1. **Start the Spring auth API and MySQL**:
+   ```bash
+   docker compose up -d mysql spring_api
+   ```
+   The auth API will run on `http://localhost:8080/api/v1`
+
+2. **Start the Python backend** (Terminal 1):
    ```bash
    cd python_backend
    python main.py
    ```
    The backend will run on `http://localhost:8081`
 
-2. **Start the Next.js frontend** (Terminal 2):
+3. **Start the Next.js frontend** (Terminal 2):
    ```bash
    npm install
    npm run dev
    ```
 
-3. **Open your browser** and navigate to [http://localhost:3000](http://localhost:3000)
+4. **Open your browser** and navigate to [http://localhost:3000](http://localhost:3000)
 
 ### Quality Gates
 

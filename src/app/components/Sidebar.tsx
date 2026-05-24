@@ -194,11 +194,17 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const getSidebarSessionTypeText = (interview: Interview) =>
-    (interview.sessionType ?? 'behavioral-interview') === 'technical-communication'
-      ? 'technical communication'
-      : 'interview';
+    interview.sessionType === 'tech-chat'
+      ? 'tech chat'
+      : (interview.sessionType ?? 'behavioral-interview') === 'technical-communication'
+        ? 'technical communication'
+        : 'interview';
 
   const getSidebarSessionBaseTitle = (interview: Interview) => {
+    if (interview.sessionType === 'tech-chat') {
+      return interview.title.trim() || 'Tech Chat';
+    }
+
     const defaultTitle =
       (interview.sessionType ?? 'behavioral-interview') === 'technical-communication'
         ? `${interview.role} • ${getPracticeModeLabel(interview.practiceMode)}`
@@ -212,6 +218,11 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
 
     const totalQuestions = interview.questions?.length ?? 0;
+    if (interview.sessionType === 'tech-chat') {
+      const turns = interview.messages.filter((message) => message.role === 'candidate').length;
+      return turns > 0 ? `${turns} turns` : 'In progress';
+    }
+
     if ((interview.sessionType ?? 'behavioral-interview') === 'behavioral-interview' && totalQuestions > 0) {
       const completedQuestions = Math.min(interview.currentQuestionIndex ?? 0, totalQuestions);
       return `${completedQuestions}/${totalQuestions} complete`;

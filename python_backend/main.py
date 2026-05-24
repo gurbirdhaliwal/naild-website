@@ -112,6 +112,7 @@ RATE_LIMIT_QUESTION_GENERATION_PER_WINDOW = int(
 )
 RATE_LIMIT_ACK_PER_WINDOW = int(_get_env("RATE_LIMIT_ACK_PER_WINDOW", "30"))
 RATE_LIMIT_GRADING_PER_WINDOW = int(_get_env("RATE_LIMIT_GRADING_PER_WINDOW", "12"))
+RATE_LIMIT_TECH_CHAT_PER_WINDOW = int(_get_env("RATE_LIMIT_TECH_CHAT_PER_WINDOW", "30"))
 AI_CONCURRENCY_LIMIT = int(_get_env("AI_CONCURRENCY_LIMIT", "4"))
 AI_CONCURRENCY_ACQUIRE_TIMEOUT_SECONDS = float(
     _get_env("AI_CONCURRENCY_ACQUIRE_TIMEOUT_SECONDS", "2")
@@ -618,6 +619,42 @@ COMMUNICATION_CATEGORY_LABELS = {
 }
 
 
+TECH_CHAT_PERSONAS = {
+    "curious-generalist": {
+        "name": "Maya",
+        "archetype": "Curious generalist",
+        "bio": "A senior engineer who connects ideas across product, infrastructure, and developer experience.",
+        "affinities": "architecture tradeoffs, AI tooling, developer workflows, product engineering",
+        "prompt": """You are Maya, a senior engineer and curious generalist. You like connecting ideas across domains, following useful tangents, and asking how one technical choice relates to another. You are warm, quick, and conversational, not evaluative.""",
+        "wind_down": "Close by tying the conversation back to a broader idea the user raised.",
+    },
+    "skeptical-tech-lead": {
+        "name": "Dev",
+        "archetype": "Skeptical tech lead",
+        "bio": "A technically deep lead who pushes for concrete reasoning and tradeoffs.",
+        "affinities": "system design, backend architecture, operational constraints, engineering tradeoffs",
+        "prompt": """You are Dev, a skeptical but constructive tech lead. You push back on vague claims, ask why simpler options are not enough, and care about precise technical reasoning. You should feel like a colleague pressure-testing an idea, not an interviewer.""",
+        "wind_down": "Close by naming the strongest claim and one assumption still worth testing.",
+    },
+    "pm-who-doesnt-code": {
+        "name": "Leah",
+        "archetype": "PM who does not code",
+        "bio": "A sharp product partner who asks for first-principles explanations and user impact.",
+        "affinities": "user impact, product tradeoffs, launch risk, technical decisions for non-engineers",
+        "prompt": """You are Leah, a smart product manager who does not code. You ask for first-principles explanations, user impact, and plain language. When the user leans on jargon, ask what it actually means for users or decisions.""",
+        "wind_down": "Close by translating the thread back into user or business impact.",
+    },
+    "systems-thinker": {
+        "name": "Ravi",
+        "archetype": "Systems thinker",
+        "bio": "An engineer who naturally looks for edge cases, reliability, and long-term pressure.",
+        "affinities": "scale, reliability, distributed systems, queues, failure modes",
+        "prompt": """You are Ravi, a systems thinker. You naturally look for scale limits, edge cases, long-tail behavior, and failure modes. You are calm and thoughtful, and you treat reliability questions as interesting rather than scary.""",
+        "wind_down": "Close with one lingering edge case or systems implication to keep thinking about.",
+    },
+}
+
+
 def _display_label(value):
     if not isinstance(value, str):
         return ""
@@ -631,6 +668,91 @@ def _display_practice_mode(practice_mode):
         "explain-tradeoff": "Explain a tradeoff",
     }
     return labels.get(practice_mode, "Practice session")
+
+
+def _get_tech_chat_persona(persona_id):
+    if isinstance(persona_id, str) and persona_id in TECH_CHAT_PERSONAS:
+        return TECH_CHAT_PERSONAS[persona_id]
+    return TECH_CHAT_PERSONAS["curious-generalist"]
+
+
+def _normalize_tech_chat_messages(value, *, max_items=40):
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="messages must be a list.",
+        )
+    if len(value) > max_items:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"messages exceeds the {max_items} item limit.",
+        )
+
+    messages = []
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="messages must contain objects.",
+            )
+        role = item.get("role")
+        if role not in ("candidate", "interviewer", "user", "assistant"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"messages[{index}].role is invalid.",
+            )
+        content = _normalize_text_field(
+            item.get("content"),
+            f"messages[{index}].content",
+            default="",
+            max_length=MAX_TRANSCRIPT_LENGTH,
+        )
+        if content:
+            messages.append(
+                {
+                    "role": "user" if role in ("candidate", "user") else "assistant",
+                    "content": content,
+                }
+            )
+    return messages
+
+
+def _format_tech_chat_messages(messages):
+    lines = []
+    for message in messages:
+        speaker = "User" if message["role"] == "user" else "Persona"
+        lines.append(f"{speaker}: {message['content']}")
+    return "\n".join(lines)
+
+
+def _build_tech_chat_context(messages):
+    active_window = messages[-12:]
+    older = messages[:-12]
+    memory = ""
+    if older:
+        memory = _format_tech_chat_messages(older[-16:])
+    return memory, active_window
+
+
+def _normalize_tech_chat_recap(raw_result):
+    result = raw_result if isinstance(raw_result, dict) else {}
+    highlights = _normalize_string_list(result.get("highlights"), limit=3)
+    fuzzy_spots = _normalize_string_list(result.get("fuzzySpots"), limit=2)
+    topics_covered = _normalize_string_list(result.get("topicsCovered"), limit=10)
+    takeaway_line = result.get("takeawayLine")
+
+    return {
+        "highlights": highlights
+        or ["You gave at least one concrete explanation that made the technical idea easier to follow."],
+        "fuzzySpots": fuzzy_spots
+        or ["A few parts could use sharper stakes, examples, or less shorthand next time."],
+        "topicsCovered": topics_covered or ["technical communication"],
+        "takeawayLine": takeaway_line.strip()
+        if isinstance(takeaway_line, str) and takeaway_line.strip()
+        else "You had a useful thread here; next time, make the concrete stakes visible a little earlier.",
+    }
 
 
 def _normalize_string_list(value, limit=4):
@@ -848,6 +970,10 @@ require_grade_interview_user = _rate_limited_auth_dependency(
     "grade_interview",
     RATE_LIMIT_GRADING_PER_WINDOW,
 )
+require_tech_chat_user = _rate_limited_auth_dependency(
+    "tech_chat",
+    RATE_LIMIT_TECH_CHAT_PER_WINDOW,
+)
 
 
 @app.get("/healthz")
@@ -933,6 +1059,231 @@ async def transcription(
         await audio.close()
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+
+@app.post("/tech_chat/start")
+async def tech_chat_start(
+    request: Request,
+    _: dict = Depends(require_tech_chat_user),
+):
+    data = await _parse_json_request(request)
+    persona_id = _normalize_text_field(
+        data.get("persona_id"),
+        "persona_id",
+        default="curious-generalist",
+        max_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    persona = _get_tech_chat_persona(persona_id)
+    topic_seed = _normalize_text_field(
+        data.get("topic_seed"),
+        "topic_seed",
+        default="",
+        max_length=MAX_TOPIC_LENGTH,
+    )
+    surprise_me = bool(data.get("surprise_me", False))
+
+    prompt = f"""
+You are opening a casual Tech Chat session as {persona["name"]}, {persona["archetype"]}.
+
+Persona bio: {persona["bio"]}
+Natural topic affinities: {persona["affinities"]}
+
+User-provided topic seed: {topic_seed or "none"}
+Surprise me requested: {surprise_me}
+
+Return valid JSON with:
+- topic_seed: a short topic label
+- opener: your first chat message to the user
+
+Rules:
+- If the user provided a topic, open by engaging that topic directly.
+- If no topic was provided or surprise_me is true, propose one spontaneous topic that fits the persona.
+- Sound like a colleague starting a thoughtful chat, not a coach, examiner, or menu.
+- Ask exactly one question.
+- Keep the opener under 90 words.
+- Return JSON only.
+"""
+    response_text = await _generate_ai_text(
+        system_prompt=persona["prompt"],
+        user_prompt=prompt,
+        json_mode=True,
+        temperature=0.7,
+    )
+
+    try:
+        parsed = _parse_model_json_content(response_text)
+    except Exception:
+        logger.exception("Failed to parse Tech Chat opener response.")
+        parsed = {}
+
+    opener = parsed.get("opener") if isinstance(parsed, dict) else None
+    resolved_topic = parsed.get("topic_seed") if isinstance(parsed, dict) else None
+    return {
+        "topic_seed": resolved_topic.strip()
+        if isinstance(resolved_topic, str) and resolved_topic.strip()
+        else topic_seed
+        or persona["affinities"].split(",", 1)[0].strip(),
+        "opener": opener.strip()
+        if isinstance(opener, str) and opener.strip()
+        else "I was thinking about a technical tradeoff earlier, and I am curious how you would frame it. What angle feels most interesting to you?",
+    }
+
+
+@app.post("/tech_chat/respond")
+async def tech_chat_respond(
+    request: Request,
+    _: dict = Depends(require_tech_chat_user),
+):
+    data = await _parse_json_request(request)
+    persona_id = _normalize_text_field(
+        data.get("persona_id"),
+        "persona_id",
+        default="curious-generalist",
+        max_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    persona = _get_tech_chat_persona(persona_id)
+    topic_seed = _normalize_text_field(
+        data.get("topic_seed"),
+        "topic_seed",
+        default="",
+        max_length=MAX_TOPIC_LENGTH,
+    )
+    turn_count = _normalize_optional_positive_int(data.get("turn_count"), "turn_count") or 1
+    soft_turn_limit = _normalize_optional_positive_int(
+        data.get("soft_turn_limit"),
+        "soft_turn_limit",
+    ) or 16
+    messages = _normalize_tech_chat_messages(data.get("messages"))
+    memory, active_window = _build_tech_chat_context(messages)
+
+    phase = "open"
+    if turn_count >= soft_turn_limit:
+        phase = "close"
+    elif turn_count >= max(1, soft_turn_limit - 2):
+        phase = "wind_down"
+
+    prompt = f"""
+You are continuing a casual Tech Chat session.
+
+Topic seed: {topic_seed or "open technical conversation"}
+Conversation phase: {phase}
+Turn count: {turn_count}
+Soft session limit: {soft_turn_limit}
+Persona wind-down style: {persona["wind_down"]}
+
+[SESSION MEMORY]
+{memory or "No earlier compressed memory yet."}
+[END SESSION MEMORY]
+
+[ACTIVE WINDOW]
+{_format_tech_chat_messages(active_window)}
+[END ACTIVE WINDOW]
+
+Return valid JSON:
+{{
+  "response": "<your next message>",
+  "should_end": <true only when this response naturally closes the session>
+}}
+
+Rules:
+- Be a curious colleague, not an evaluator.
+- Ask at most one question.
+- React to what the user said before asking anything.
+- Follow useful tangents.
+- Occasionally push for precision, but never be hostile.
+- Keep most replies between 1 and 5 sentences.
+- If phase is wind_down, wrap the current thread instead of opening a brand-new one.
+- If phase is close, close warmly in persona voice and set should_end to true.
+- Return JSON only.
+"""
+
+    response_text = await _generate_ai_text(
+        system_prompt=persona["prompt"],
+        user_prompt=prompt,
+        json_mode=True,
+        temperature=0.75,
+    )
+
+    try:
+        parsed = _parse_model_json_content(response_text)
+    except Exception:
+        logger.exception("Failed to parse Tech Chat response.")
+        parsed = {}
+
+    response = parsed.get("response") if isinstance(parsed, dict) else None
+    should_end = bool(parsed.get("should_end")) if isinstance(parsed, dict) else False
+    if phase == "close":
+        should_end = True
+
+    return {
+        "response": response.strip()
+        if isinstance(response, str) and response.strip()
+        else "That is interesting. Say a little more about the part that feels most important to you.",
+        "should_end": should_end,
+    }
+
+
+@app.post("/tech_chat/recap")
+async def tech_chat_recap(
+    request: Request,
+    _: dict = Depends(require_tech_chat_user),
+):
+    data = await _parse_json_request(request)
+    persona_id = _normalize_text_field(
+        data.get("persona_id"),
+        "persona_id",
+        default="curious-generalist",
+        max_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    persona = _get_tech_chat_persona(persona_id)
+    messages = _normalize_tech_chat_messages(data.get("messages"))
+    session_id = _normalize_optional_positive_int(data.get("session_id"), "session_id")
+    memory, active_window = _build_tech_chat_context(messages)
+
+    prompt = f"""
+You are generating a post-session recap for a technical communication practice app.
+
+The user just completed a casual technical conversation with you, playing the persona of {persona["name"]}.
+
+Return valid JSON with exactly:
+{{
+  "highlights": ["<2-3 strings describing specific moments of strong articulation>"],
+  "fuzzySpots": ["<1-2 strings describing where explanation got vague or jargon-heavy>"],
+  "topicsCovered": ["<technical topics or concepts mentioned>"],
+  "takeawayLine": "<one sentence in {persona["name"]}'s voice>"
+}}
+
+Rules:
+- No scores, grades, or percentages.
+- Be constructive and honest.
+- Reference specific moments, not generic praise.
+- Return JSON only.
+
+[SESSION MEMORY]
+{memory or "No earlier compressed memory."}
+[END SESSION MEMORY]
+
+[ACTIVE WINDOW]
+{_format_tech_chat_messages(active_window)}
+[END ACTIVE WINDOW]
+"""
+    response_text = await _generate_ai_text(
+        system_prompt=persona["prompt"],
+        user_prompt=prompt,
+        json_mode=True,
+        temperature=0.35,
+    )
+
+    try:
+        parsed = _parse_model_json_content(response_text)
+    except Exception:
+        logger.exception("Failed to parse Tech Chat recap.")
+        parsed = {}
+
+    result = _normalize_tech_chat_recap(parsed)
+    await _persist_grading_result(session_id, result, request)
+    return result
+
 
 @app.post("/generate_drill")
 async def generate_drill(

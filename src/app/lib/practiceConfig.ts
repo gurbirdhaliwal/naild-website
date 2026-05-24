@@ -118,6 +118,7 @@ export const BEHAVIORAL_FOCUS_AREAS = [
 export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   'technical-communication': 'Technical communication',
   'behavioral-interview': 'Behavioral interview',
+  'tech-chat': 'Tech Chat',
 }
 
 export const PRACTICE_MODE_LABELS: Record<PracticeMode, string> = {
@@ -193,6 +194,12 @@ export const getOverallScore = (gradingResult: GradingResult | null | undefined)
 }
 
 export const getSessionSubtitle = (session: Interview) => {
+  if (session.sessionType === 'tech-chat') {
+    return [session.audience || 'Tech Chat', session.topic || 'Open conversation']
+      .filter(Boolean)
+      .join(' • ')
+  }
+
   if ((session.sessionType ?? 'behavioral-interview') === 'technical-communication') {
     const labels = [
       session.role,
@@ -207,6 +214,10 @@ export const getSessionSubtitle = (session: Interview) => {
 }
 
 export const getSessionFocusSummary = (session: Interview) => {
+  if (session.sessionType === 'tech-chat') {
+    return session.topic || session.audience || 'Casual technical conversation'
+  }
+
   if ((session.sessionType ?? 'behavioral-interview') === 'technical-communication') {
     if (session.topic) return session.topic
     return session.generatedPrompt?.topic || `${AUREON_NAME}-generated drill`

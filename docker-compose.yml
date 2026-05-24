@@ -1,4 +1,39 @@
 services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-User}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-knappi-local-password}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  spring_api:
+    build:
+      context: ../../security
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://mysql:3306/User}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-knappi-local-password}
+      SPRING_CLOUD_GCP_SQL_ENABLED: ${SPRING_CLOUD_GCP_SQL_ENABLED:-false}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-bG9jYWwtZGV2LWp3dC1zZWNyZXQtbXVzdC1iZS0zMi1ieXRlcy1taW4=}
+      APP_AUTH_COOKIE_SECURE: ${APP_AUTH_COOKIE_SECURE:-false}
+      APP_AUTH_COOKIE_SAME_SITE: ${APP_AUTH_COOKIE_SAME_SITE:-Lax}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      APP_OAUTH_SUCCESS_REDIRECT_URL: ${APP_OAUTH_SUCCESS_REDIRECT_URL:-http://localhost:3000/interview}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID:-local-google-client-id}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET:-local-google-client-secret}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
   python_backend:
     build:
       context: .
@@ -10,8 +45,10 @@ services:
       AI_PROVIDER: ollama
       OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-mistral}
-      SPRING_API_BASE: ${SPRING_API_BASE:-http://host.docker.internal:8080/api/v1}
+      SPRING_API_BASE: ${SPRING_API_BASE:-http://spring_api:8080/api/v1}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+    depends_on:
+      - spring_api
   web:
     build:
       context: .
@@ -30,3 +67,6 @@ services:
       - /app/.next
     depends_on:
       - python_backend
+
+volumes:
+  mysql_data:
