@@ -15,6 +15,8 @@ interface CustomMicRecorderProps {
   idleText?: string;
   recordingText?: string;
   processingText?: string;
+  disabled?: boolean;
+  disabledText?: string;
 }
 
 const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
@@ -30,6 +32,8 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
   idleText,
   recordingText,
   processingText,
+  disabled = false,
+  disabledText,
 }) => {
   const [recording, setRecording] = useState(false);
   const [status, setStatus] = useState<"idle" | "recording" | "processing">("idle");
@@ -39,6 +43,8 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
   const isRecordingRef = useRef<boolean>(false);
 
   const startRecording = async () => {
+    if (disabled) return;
+
     try {
       setRecording(true);
       isRecordingRef.current = true;
@@ -123,6 +129,7 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
   const idleStatusText = idleText ?? "Click the microphone to speak your answer";
   const recordingStatusText = recordingText ?? `Recording... (max ${maxDuration} seconds)`;
   const processingStatusText = processingText ?? "Processing...";
+  const disabledStatusText = disabledText ?? processingStatusText;
 
   return (
     <div className={wrapperClasses}>
@@ -131,13 +138,13 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
         onClick={recording ? stopRecording : startRecording}
         className={`p-6 rounded-full transition-all duration-300 ${
           recording ? activeButtonClasses : idleButtonClasses
-        }`}
-        disabled={status === "processing"}
+        } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+        disabled={status === "processing" || disabled}
       >
         {recording ? "Stop" : <LuMic />}
       </button>
       <div className={statusClasses}>
-        {status === "idle" && idleStatusText}
+        {status === "idle" && (disabled ? disabledStatusText : idleStatusText)}
         {status === "recording" && recordingStatusText}
         {status === "processing" && processingStatusText}
       </div>

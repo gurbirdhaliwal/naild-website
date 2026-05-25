@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
-  Camera,
-  CameraOff,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -19,10 +17,12 @@ import {
   isGradingErrorResult,
 } from '../types/Interview'
 import CustomMicRecorder from './CustomMicRecorder'
+import SessionStage from './SessionStage'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
 import { getAuthHeaders } from '../services/authToken'
 import { confirmSessionExpired, notifySessionExpired } from '../services/authSession'
+import { useAuth } from '../context/AuthContext'
 import {
   COMMUNICATION_CATEGORY_LABELS,
   getAudienceLabel,
@@ -31,6 +31,8 @@ import {
 } from '../lib/practiceConfig'
 import { getUserFacingErrorMessage } from '../lib/userFacingErrors'
 import { AUREON_NAME } from '../lib/modelConfig'
+import { getAureonVoicePersona, type AISessionState } from '../lib/voicePersonasConfig'
+import { cancelActiveSpeech, speakWithVoicePersona } from '../services/voiceService'
 
 interface InterviewChatProps {
   interview: Interview
@@ -315,15 +317,19 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   onUpdateInterview,
   resolvedTheme,
 }) => {
+  const { user } = useAuth()
   const isBehavioralSession = (interview.sessionType ?? 'behavioral-interview') === 'behavioral-interview'
   const maxRecordingDuration = isBehavioralSession ? 60 : 120
   const modelLabel = AUREON_NAME
+  const aureonVoice = getAureonVoicePersona(user?.aureonVoiceId)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const initialPromptSpokenRef = useRef<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [showTranscription, setShowTranscription] = useState(true)
+  const [showTranscription, setShowTranscription] = useState(false)
   const [cameraOn, setCameraOn] = useState(true)
+  const [aiState, setAiState] = useState<AISessionState>('idle')
   const [gradingResult, setGradingResult] = useState<GradingResult | null>(null)
   const [gradingLoading, setGradingLoading] = useState(false)
   const [loadingExistingGrade, setLoadingExistingGrade] = useState(false)
@@ -355,7 +361,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
   useEffect(() => {
     setExpandedTranscriptIds([])
+    setAiState('idle')
+    initialPromptSpokenRef.current = null
+    cancelActiveSpeech()
   }, [interview.id])
+
+  useEffect(() => () => cancelActiveSpeech(), [])
 
   useEffect(() => {
     setGradingResult(
@@ -424,6 +435,37 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   }, [interview, isBehavioralSession, modelLabel, onUpdateInterview])
 
   useEffect(() => {
+    if (interview.status === 'completed') return
+    if (interview.messages.some((message) => message.role === 'candidate')) return
+
+    const initialPrompt = [...interview.messages]
+      .reverse()
+      .find((message) => message.role === 'interviewer' && !message.isThinking && message.content.trim())
+
+    if (!initialPrompt || initialPromptSpokenRef.current === initialPrompt.id) return
+
+    initialPromptSpokenRef.current = initialPrompt.id
+    let cancelled = false
+
+    const speakInitialPrompt = async () => {
+      setIsProcessing(true)
+      setAiState('speaking')
+      await speakWithVoicePersona(initialPrompt.content, aureonVoice)
+
+      if (!cancelled) {
+        setIsProcessing(false)
+        setAiState('idle')
+      }
+    }
+
+    void speakInitialPrompt()
+
+    return () => {
+      cancelled = true
+    }
+  }, [aureonVoice, interview.id, interview.messages, interview.status])
+
+  useEffect(() => {
     if (!isTimerRunning || timer <= 0) {
       if (timer === 0) setIsTimerRunning(false)
       return
@@ -478,6 +520,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   }
 
   const startTimer = () => {
+    setAiState('listening')
     setTimer(maxRecordingDuration)
     setIsTimerRunning(true)
   }
@@ -535,9 +578,15 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
     isThinking: true,
   })
 
+  const speakAsAureon = async (text: string) => {
+    setAiState('speaking')
+    await speakWithVoicePersona(text, aureonVoice)
+  }
+
   const handleTechnicalDrillUpload = async (audioBlob: Blob) => {
     stopTimer()
     setIsProcessing(true)
+    setAiState('thinking')
     setRecordingError(null)
 
     try {
@@ -610,6 +659,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
           gradingResult: evaluationData,
         })
       }
+
+      await speakAsAureon(summaryMessage.content)
     } catch (error) {
       const message = getUserFacingErrorMessage('drillEvaluation', error)
       console.error('Failed to evaluate drill:', error)
@@ -617,12 +668,14 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       setGradingResult({ error: message })
     } finally {
       setIsProcessing(false)
+      setAiState('idle')
     }
   }
 
   const handleBehavioralUpload = async (audioBlob: Blob) => {
     stopTimer()
     setIsProcessing(true)
+    setAiState('thinking')
     setRecordingError(null)
 
     try {
@@ -734,7 +787,10 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         console.error('Failed to update current question index:', error)
       }
 
+      await speakAsAureon(`${acknowledgementMessage.content} ${closingMessage.content}`)
+
       if (isLastQuestion) {
+        setAiState('thinking')
         const canonicalQuestions = (updatedInterview.questions || []).slice(0, EXPECTED_QUESTION_COUNT)
         const userAnswers = extractCandidateAnswers(updatedInterview.messages, canonicalQuestions)
 
@@ -795,6 +851,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       setRecordingError(message)
     } finally {
       setIsProcessing(false)
+      setAiState('idle')
     }
   }
 
@@ -894,37 +951,20 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
           className="relative flex w-full flex-1 flex-col items-center"
           style={SESSION_STAGE_BACKGROUND_STYLES[resolvedTheme]}
         >
-          <div className="relative flex w-full max-w-4xl items-center justify-center px-6 pt-8">
-            {cameraOn ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                style={{ transform: 'scaleX(-1)' }}
-                className="aspect-video w-full rounded-[24px] bg-black object-cover shadow-lg"
-              />
-            ) : (
-              <div className="flex aspect-video w-full flex-col items-center justify-center rounded-[24px] bg-gray-200 shadow-lg">
-                <CameraOff size={64} className="text-gray-400" />
-                <p className="mt-4 text-lg text-gray-500">Camera is off.</p>
-              </div>
-            )}
-
-            {isTimerRunning ? (
-              <div className="absolute right-10 top-12 z-[2] rounded-lg bg-black/75 px-3 py-2 font-mono text-lg font-bold text-white">
-                {formatTime(timer)}
-              </div>
-            ) : null}
-
-            <button
-              onClick={() => setCameraOn((prev) => !prev)}
-              className="absolute -bottom-6 left-1/2 z-[1] -translate-x-1/2 rounded-full border border-gray-200 bg-white/90 p-3 shadow-md transition hover:bg-white"
-              title={cameraOn ? 'Turn camera off' : 'Turn camera on'}
-            >
-              {cameraOn ? <CameraOff size={28} className="text-gray-700" /> : <Camera size={28} className="text-gray-700" />}
-            </button>
-          </div>
+          <SessionStage
+            cameraOn={cameraOn}
+            videoRef={videoRef}
+            onToggleCamera={() => setCameraOn((prev) => !prev)}
+            ai={{
+              name: modelLabel,
+              subtitle: isBehavioralSession ? 'Interview coach' : 'Communication coach',
+              initials: aureonVoice.initials,
+              avatarClassName: aureonVoice.avatarClassName,
+            }}
+            aiState={aiState}
+            resolvedTheme={resolvedTheme}
+            timerLabel={isTimerRunning ? formatTime(timer) : null}
+          />
 
           <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-10">
             {recordingError ? (
@@ -1156,12 +1196,26 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
                   onRecordingStop={stopTimer}
                   onRecordingError={setRecordingError}
                   maxDuration={maxRecordingDuration}
+                  disabled={isProcessing || gradingLoading || aiState === 'thinking' || aiState === 'speaking'}
                   idleText={
                     isBehavioralSession
                       ? 'Click the microphone to answer the current question.'
                       : 'Click the microphone to answer this drill.'
                   }
-                  processingText={isProcessing ? `${modelLabel} is reviewing your answer...` : 'Processing...'}
+                  processingText={
+                    aiState === 'speaking'
+                      ? `${modelLabel} is speaking...`
+                      : isProcessing
+                        ? `${modelLabel} is reviewing your answer...`
+                        : 'Processing...'
+                  }
+                  disabledText={
+                    aiState === 'speaking'
+                      ? `${modelLabel} is speaking...`
+                      : aiState === 'thinking'
+                        ? `${modelLabel} is gathering a response...`
+                        : 'Please wait...'
+                  }
                   wrapperClassName="flex flex-col items-center gap-3"
                   statusClassName="text-center text-sm text-gray-600"
                 />

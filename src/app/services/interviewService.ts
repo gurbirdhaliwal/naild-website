@@ -132,6 +132,10 @@ export interface UpdateInterviewTitleRequest {
   title: string;
 }
 
+export interface UpdateInterviewPromptContextRequest {
+  promptContext: string | null;
+}
+
 export interface UpdateInterviewStatusRequest {
   status: string;
 }
@@ -271,6 +275,16 @@ class InterviewService {
         body: JSON.stringify(data),
       });
     }
+  }
+
+  async updateInterviewPromptContext(
+    id: number,
+    data: UpdateInterviewPromptContextRequest
+  ): Promise<InterviewResponse> {
+    return await this.makeRequest<InterviewResponse>(`/interviews/${id}/prompt_context`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   }
 
   async deleteInterview(id: number): Promise<void> {

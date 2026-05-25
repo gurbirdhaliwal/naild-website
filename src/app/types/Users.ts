@@ -4,4 +4,5 @@ export type User = {
     email: string;
     createdAt?: string;
     authProvider?: string | null;
+    aureonVoiceId?: string | null;
 };

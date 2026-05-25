@@ -5,7 +5,7 @@ import LayoutWrapper from "./components/LayoutWrapper";
 import { AUREON_NAME } from "./lib/modelConfig";
 
 export const metadata: Metadata = {
-  title: `Knappi. - ${AUREON_NAME} Technical Communication Trainer`,
+  title: `Knappi`,
   description:
     `Practice explaining technical ideas out loud with ${AUREON_NAME} feedback on clarity, correctness, depth, and audience fit.`,
 };

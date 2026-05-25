@@ -98,6 +98,9 @@ MAX_TOPIC_LENGTH = int(_get_env("MAX_TOPIC_LENGTH", "160"))
 MAX_SHORT_TEXT_LENGTH = int(_get_env("MAX_SHORT_TEXT_LENGTH", "500"))
 MAX_ADDITIONAL_CONTEXT_LENGTH = int(_get_env("MAX_ADDITIONAL_CONTEXT_LENGTH", "1000"))
 MAX_TRANSCRIPT_LENGTH = int(_get_env("MAX_TRANSCRIPT_LENGTH", "12000"))
+MAX_TECH_CHAT_MEMORY_BLOCK_LENGTH = int(
+    _get_env("MAX_TECH_CHAT_MEMORY_BLOCK_LENGTH", "2400")
+)
 MAX_PREVIOUS_QA_ITEMS = int(_get_env("MAX_PREVIOUS_QA_ITEMS", "5"))
 RATE_LIMIT_WINDOW_SECONDS = int(_get_env("RATE_LIMIT_WINDOW_SECONDS", "60"))
 RATE_LIMIT_TRANSCRIPTION_PER_WINDOW = int(_get_env("RATE_LIMIT_TRANSCRIPTION_PER_WINDOW", "10"))
@@ -676,7 +679,7 @@ def _get_tech_chat_persona(persona_id):
     return TECH_CHAT_PERSONAS["curious-generalist"]
 
 
-def _normalize_tech_chat_messages(value, *, max_items=40):
+def _normalize_tech_chat_messages(value, *, max_items=80):
     if value is None:
         return []
     if not isinstance(value, list):
@@ -727,12 +730,20 @@ def _format_tech_chat_messages(messages):
     return "\n".join(lines)
 
 
-def _build_tech_chat_context(messages):
+def _truncate_tech_chat_memory_block(memory_block):
+    if len(memory_block) <= MAX_TECH_CHAT_MEMORY_BLOCK_LENGTH:
+        return memory_block
+
+    truncated = memory_block[:MAX_TECH_CHAT_MEMORY_BLOCK_LENGTH].rsplit("\n", 1)[0].strip()
+    return truncated or memory_block[:MAX_TECH_CHAT_MEMORY_BLOCK_LENGTH].strip()
+
+
+def _build_tech_chat_context(messages, memory_block=""):
     active_window = messages[-12:]
     older = messages[:-12]
-    memory = ""
-    if older:
-        memory = _format_tech_chat_messages(older[-16:])
+    memory = _truncate_tech_chat_memory_block(memory_block.strip()) if memory_block else ""
+    if older and not memory:
+        memory = _format_tech_chat_messages(older[-12:])
     return memory, active_window
 
 
@@ -753,6 +764,18 @@ def _normalize_tech_chat_recap(raw_result):
         if isinstance(takeaway_line, str) and takeaway_line.strip()
         else "You had a useful thread here; next time, make the concrete stakes visible a little earlier.",
     }
+
+
+def _normalize_tech_chat_memory_result(raw_result, fallback_memory):
+    result = raw_result if isinstance(raw_result, dict) else {}
+    memory_block = result.get("memoryBlock")
+    if not isinstance(memory_block, str) or not memory_block.strip():
+        memory_block = result.get("memory_block")
+
+    if isinstance(memory_block, str) and memory_block.strip():
+        return _truncate_tech_chat_memory_block(memory_block.strip())
+
+    return _truncate_tech_chat_memory_block(fallback_memory.strip())
 
 
 def _normalize_string_list(value, limit=4):
@@ -1154,7 +1177,13 @@ async def tech_chat_respond(
         "soft_turn_limit",
     ) or 16
     messages = _normalize_tech_chat_messages(data.get("messages"))
-    memory, active_window = _build_tech_chat_context(messages)
+    memory_block = _normalize_text_field(
+        data.get("memory_block"),
+        "memory_block",
+        default="",
+        max_length=MAX_TECH_CHAT_MEMORY_BLOCK_LENGTH,
+    )
+    memory, active_window = _build_tech_chat_context(messages, memory_block)
 
     phase = "open"
     if turn_count >= soft_turn_limit:
@@ -1191,6 +1220,9 @@ Rules:
 - React to what the user said before asking anything.
 - Follow useful tangents.
 - Occasionally push for precision, but never be hostile.
+- Match the user's tone and energy without becoming theatrical.
+- Volunteer a useful observation or connection when it helps the conversation move, even if the user did not ask a direct question.
+- If the active window contains multiple user turns in a row, treat that as a redirect or interruption and answer the newest thread first.
 - Keep most replies between 1 and 5 sentences.
 - If phase is wind_down, wrap the current thread instead of opening a brand-new one.
 - If phase is close, close warmly in persona voice and set should_end to true.
@@ -1223,6 +1255,71 @@ Rules:
     }
 
 
+@app.post("/tech_chat/compress")
+async def tech_chat_compress(
+    request: Request,
+    _: dict = Depends(require_tech_chat_user),
+):
+    data = await _parse_json_request(request)
+    persona_id = _normalize_text_field(
+        data.get("persona_id"),
+        "persona_id",
+        default="curious-generalist",
+        max_length=MAX_SHORT_TEXT_LENGTH,
+    )
+    persona = _get_tech_chat_persona(persona_id)
+    current_memory = _normalize_text_field(
+        data.get("memory_block"),
+        "memory_block",
+        default="",
+        max_length=MAX_TECH_CHAT_MEMORY_BLOCK_LENGTH,
+    )
+    messages = _normalize_tech_chat_messages(data.get("messages"), max_items=24)
+
+    if not messages:
+        return {"memory_block": current_memory}
+
+    prompt = f"""
+You are silently compressing memory for a casual technical conversation.
+
+Persona: {persona["name"]}, {persona["archetype"]}
+
+Existing memory block:
+{current_memory or "No existing memory yet."}
+
+New older exchanges to fold into memory:
+{_format_tech_chat_messages(messages)}
+
+Return valid JSON:
+{{
+  "memoryBlock": "[SESSION MEMORY]\\nEarlier in this conversation: <2-4 concise sentences>\\nKey topics touched: <comma-separated concepts>\\nOpen threads: <unresolved questions or topics, or none>\\n[END SESSION MEMORY]"
+}}
+
+Rules:
+- Preserve key technical claims, positions, and tradeoffs.
+- Preserve anything the user explained well or struggled to explain.
+- Preserve unresolved threads that the persona should be able to naturally reference later.
+- Keep the memory under {MAX_TECH_CHAT_MEMORY_BLOCK_LENGTH} characters.
+- Do not include raw transcript unless a specific phrase is essential.
+- Return JSON only.
+"""
+
+    response_text = await _generate_ai_text(
+        system_prompt="You compress technical conversation history into concise session memory. Always return valid JSON.",
+        user_prompt=prompt,
+        json_mode=True,
+        temperature=0.2,
+    )
+
+    try:
+        parsed = _parse_model_json_content(response_text)
+    except Exception:
+        logger.exception("Failed to parse Tech Chat memory compression response.")
+        parsed = {}
+
+    return {"memory_block": _normalize_tech_chat_memory_result(parsed, current_memory)}
+
+
 @app.post("/tech_chat/recap")
 async def tech_chat_recap(
     request: Request,
@@ -1238,7 +1335,13 @@ async def tech_chat_recap(
     persona = _get_tech_chat_persona(persona_id)
     messages = _normalize_tech_chat_messages(data.get("messages"))
     session_id = _normalize_optional_positive_int(data.get("session_id"), "session_id")
-    memory, active_window = _build_tech_chat_context(messages)
+    memory_block = _normalize_text_field(
+        data.get("memory_block"),
+        "memory_block",
+        default="",
+        max_length=MAX_TECH_CHAT_MEMORY_BLOCK_LENGTH,
+    )
+    memory, active_window = _build_tech_chat_context(messages, memory_block)
 
     prompt = f"""
 You are generating a post-session recap for a technical communication practice app.

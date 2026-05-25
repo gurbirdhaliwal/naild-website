@@ -30,6 +30,7 @@ import {
   Settings,
   Sun,
   User,
+  Volume2,
 } from 'lucide-react'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
@@ -46,9 +47,18 @@ import {
   AUREON_NAME,
   AUREON_VERSION_LABEL,
 } from '../lib/modelConfig'
-import { getTechChatPersona } from '../lib/techChatConfig'
+import {
+  createTechChatMemoryState,
+  getTechChatPersona,
+  serializeTechChatMemoryState,
+} from '../lib/techChatConfig'
+import {
+  AUREON_VOICE_OPTIONS,
+  DEFAULT_AUREON_VOICE_ID,
+  getAureonVoicePersona,
+} from '../lib/voicePersonasConfig'
 
-type SettingsTab = 'account' | 'appearance' | 'notifications'
+type SettingsTab = 'account' | 'personalization' | 'appearance' | 'notifications'
 type ThemePreference = 'system' | 'light' | 'dark'
 type SidebarPreference = 'standard' | 'compact'
 type ProfileToastType = 'success' | 'error'
@@ -221,6 +231,7 @@ export default function InterviewPage() {
     email: '',
     password: '',
     currentpassword: '',
+    aureonVoiceId: DEFAULT_AUREON_VOICE_ID,
   })
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileUpdateToast, setProfileUpdateToast] = useState<{
@@ -259,6 +270,7 @@ export default function InterviewPage() {
       email: user.email,
       password: '',
       currentpassword: '',
+      aureonVoiceId: getAureonVoicePersona(user.aureonVoiceId).id,
     }))
   }, [user])
 
@@ -827,7 +839,7 @@ export default function InterviewPage() {
       practiceMode: null,
       audience: persona.id,
       topic,
-      promptContext: persona.archetype,
+      promptContext: serializeTechChatMemoryState(createTechChatMemoryState(persona.archetype)),
       generatedPrompt: null,
     }
 
@@ -1064,6 +1076,42 @@ export default function InterviewPage() {
     setProfileFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const handleAureonVoiceSelect = (voiceId: string) => {
+    setProfileFormData((prev) => ({ ...prev, aureonVoiceId: getAureonVoicePersona(voiceId).id }))
+    setProfileUpdateToast(null)
+  }
+
+  const handlePersonalizationSubmit = async () => {
+    setProfileUpdateToast(null)
+    setProfileLoading(true)
+
+    try {
+      const selectedVoice = getAureonVoicePersona(profileFormData.aureonVoiceId)
+      const response = await fetch(`${API_BASE}/user/update`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ aureonVoiceId: selectedVoice.id }),
+      })
+
+      if (response.ok) {
+        setUser({
+          ...user,
+          aureonVoiceId: selectedVoice.id,
+        })
+        showProfileUpdateToast('success', 'Personalization updated successfully.')
+      } else {
+        showProfileUpdateToast('error', getUserFacingStatusMessage('profileUpdate', response.status))
+      }
+    } catch (error) {
+      showProfileUpdateToast('error', getUserFacingErrorMessage('profileUpdate', error))
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setProfileUpdateToast(null)
@@ -1143,6 +1191,12 @@ export default function InterviewPage() {
       label: 'Account',
       description: 'Manage your profile information and account security.',
       icon: User,
+    },
+    {
+      id: 'personalization' as const,
+      label: 'Personalization',
+      description: 'Choose how Aureon sounds during practice sessions.',
+      icon: Volume2,
     },
     {
       id: 'appearance' as const,
@@ -1708,6 +1762,62 @@ export default function InterviewPage() {
                             </button>
                           </div>
                         </div>
+                      </div>
+                    )}
+
+                    {activeSettingsTab === 'personalization' && (
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-base font-semibold text-gray-900">Personalization</h3>
+                          <p className="mt-1 text-sm text-gray-600">
+                            Set the voice Aureon uses for mock interviews and speaking drills.
+                          </p>
+                        </div>
+
+                        <div className="grid gap-3">
+                          {AUREON_VOICE_OPTIONS.map((voice) => {
+                            const selected = getAureonVoicePersona(profileFormData.aureonVoiceId).id === voice.id
+
+                            return (
+                              <button
+                                key={voice.id}
+                                type="button"
+                                onClick={() => handleAureonVoiceSelect(voice.id)}
+                                className={`flex items-center gap-3 rounded-lg border p-4 text-left transition-colors ${
+                                  selected
+                                    ? 'border-emerald-300 bg-emerald-50 text-gray-950'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                                }`}
+                              >
+                                <span
+                                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ${voice.avatarClassName}`}
+                                >
+                                  {voice.initials}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-sm font-semibold">{voice.label}</span>
+                                  <span className="mt-1 block text-sm text-gray-600">{voice.description}</span>
+                                </span>
+                                <span
+                                  className={`h-3 w-3 rounded-full border ${
+                                    selected ? 'border-emerald-600 bg-emerald-500' : 'border-gray-300 bg-white'
+                                  }`}
+                                />
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => void handlePersonalizationSubmit()}
+                          disabled={profileLoading}
+                          className={`rounded-md border border-[#26922c] bg-[#cbf5cd] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#bfeec2] ${
+                            profileLoading ? 'cursor-not-allowed opacity-75' : ''
+                          }`}
+                        >
+                          {profileLoading ? 'Saving...' : 'Save Personalization'}
+                        </button>
                       </div>
                     )}
 
