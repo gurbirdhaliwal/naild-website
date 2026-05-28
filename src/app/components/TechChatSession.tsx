@@ -651,8 +651,6 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
             videoRef={videoRef}
             onToggleCamera={() => setCameraOn((prev) => !prev)}
             ai={{
-              name: persona.name,
-              subtitle: persona.archetype,
               initials: voicePersona.initials,
               avatarClassName: voicePersona.avatarClassName,
             }}

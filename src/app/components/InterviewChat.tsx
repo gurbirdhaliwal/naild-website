@@ -957,8 +957,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
             videoRef={videoRef}
             onToggleCamera={() => setCameraOn((prev) => !prev)}
             ai={{
-              name: modelLabel,
-              subtitle: isBehavioralSession ? 'Interview coach' : 'Communication coach',
               initials: aureonVoice.initials,
               avatarClassName: aureonVoice.avatarClassName,
             }}

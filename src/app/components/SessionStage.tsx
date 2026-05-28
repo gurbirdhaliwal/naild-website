@@ -1,10 +1,8 @@
 import React from 'react'
-import { Brain, Camera, CameraOff, Mic, Volume2 } from 'lucide-react'
+import { Camera, CameraOff } from 'lucide-react'
 import type { AISessionState } from '../lib/voicePersonasConfig'
 
 interface AIPresenceProfile {
-  name: string
-  subtitle: string
   initials: string
   avatarClassName: string
 }
@@ -19,20 +17,12 @@ interface SessionStageProps {
   timerLabel?: string | null
 }
 
-const AI_STATE_COPY: Record<AISessionState, { label: string; icon: typeof Mic }> = {
-  idle: { label: 'Ready', icon: Mic },
-  listening: { label: 'Listening', icon: Mic },
-  thinking: { label: 'Thinking', icon: Brain },
-  speaking: { label: 'Speaking', icon: Volume2 },
+const AI_STATE_LABEL: Record<AISessionState, string> = {
+  idle: 'AI is ready',
+  listening: 'AI is listening',
+  thinking: 'AI is processing',
+  speaking: 'AI is speaking',
 }
-
-const getStateAccentClass = (state: AISessionState) => {
-  if (state === 'listening') return 'border-emerald-300 bg-emerald-50 text-emerald-800'
-  if (state === 'thinking') return 'border-sky-300 bg-sky-50 text-sky-800'
-  if (state === 'speaking') return 'border-teal-300 bg-teal-50 text-teal-800'
-  return 'border-gray-200 bg-white text-gray-700'
-}
-
 const SessionStage: React.FC<SessionStageProps> = ({
   cameraOn,
   videoRef,
@@ -42,8 +32,6 @@ const SessionStage: React.FC<SessionStageProps> = ({
   resolvedTheme,
   timerLabel,
 }) => {
-  const stateCopy = AI_STATE_COPY[aiState]
-  const StateIcon = stateCopy.icon
   const isDark = resolvedTheme === 'dark'
 
   return (
@@ -96,37 +84,17 @@ const SessionStage: React.FC<SessionStageProps> = ({
             ? 'border-emerald-900/50 bg-[#07120e] text-white'
             : 'border-emerald-100 bg-white text-gray-950'
         }`}
+        aria-label={AI_STATE_LABEL[aiState]}
         aria-live="polite"
       >
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-300" />
         <div className="relative flex h-full flex-col items-center justify-center px-6 text-center">
           <div className="ai-presence-ring relative flex h-32 w-32 items-center justify-center rounded-full border border-emerald-200/70">
             <div className="ai-presence-core absolute h-24 w-24 rounded-full bg-emerald-100/65" />
             <div
-              className={`relative flex h-20 w-20 items-center justify-center rounded-full text-2xl font-semibold ring-4 ${ai.avatarClassName}`}
+              className={`ai-presence-avatar relative flex h-20 w-20 items-center justify-center rounded-full text-2xl font-semibold ring-4 ${ai.avatarClassName}`}
             >
               {ai.initials}
             </div>
-          </div>
-
-          <div className="mt-5">
-            <h2 className="text-xl font-semibold">{ai.name}</h2>
-            <p className={`mt-1 text-sm ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>{ai.subtitle}</p>
-          </div>
-
-          <div
-            className={`mt-5 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium ${getStateAccentClass(aiState)}`}
-          >
-            <StateIcon size={16} />
-            {stateCopy.label}
-          </div>
-
-          <div className="ai-presence-wave mt-5 flex h-5 items-center justify-center gap-1.5">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
           </div>
         </div>
       </section>
