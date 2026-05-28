@@ -2,6 +2,21 @@ import React, { useRef, useState } from "react";
 import { LuMic } from "react-icons/lu";
 import { getUserFacingErrorMessage } from "../lib/userFacingErrors";
 
+const RECORDING_MIME_TYPES = [
+  "audio/webm;codecs=opus",
+  "audio/webm",
+  "audio/mp4",
+  "audio/mpeg",
+];
+
+const getSupportedRecordingMimeType = () => {
+  if (typeof window === "undefined" || !window.MediaRecorder?.isTypeSupported) {
+    return "";
+  }
+
+  return RECORDING_MIME_TYPES.find((mimeType) => window.MediaRecorder.isTypeSupported(mimeType)) ?? "";
+};
+
 interface CustomMicRecorderProps {
   onAudioRecorded: (audioBlob: Blob) => void | Promise<void>;
   onRecordingStart?: () => void;
@@ -51,7 +66,11 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
       audioChunks.current = [];
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new window.MediaRecorder(stream);
+      const mimeType = getSupportedRecordingMimeType();
+      const mediaRecorder = new window.MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined
+      );
       mediaRecorderRef.current = mediaRecorder;
 
       // Max duration timer
@@ -71,7 +90,8 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
         isRecordingRef.current = false;
         setRecording(false);
         setStatus("processing");
-        const audioBlob = new Blob(audioChunks.current, { type: "audio/webm" });
+        const recordingType = mediaRecorder.mimeType || mimeType || "audio/webm";
+        const audioBlob = new Blob(audioChunks.current, { type: recordingType });
 
         try {
           await Promise.resolve(onAudioRecorded(audioBlob));

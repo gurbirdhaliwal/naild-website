@@ -19,6 +19,7 @@ import {
 import CustomMicRecorder from './CustomMicRecorder'
 import { AI_BASE } from '../services/api'
 import { getAuthHeaders } from '../services/authToken'
+import { getAudioUploadFilename } from '../services/audioUpload'
 import { getUserFacingErrorMessage } from '../lib/userFacingErrors'
 
 export type LibraryTopicId =
@@ -809,7 +810,7 @@ const PracticeDrillPanel: React.FC<{ topic: LibraryTopic }> = ({ topic }) => {
 
     try {
       const formData = new FormData()
-      formData.append('audio', audioBlob, 'library-practice.webm')
+      formData.append('audio', audioBlob, getAudioUploadFilename(audioBlob, 'library-practice'))
 
       const transcriptionResponse = await fetch(`${AI_BASE}/transcription`, {
         method: 'POST',

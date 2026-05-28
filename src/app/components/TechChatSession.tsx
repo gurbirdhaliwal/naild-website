@@ -10,6 +10,7 @@ import CustomMicRecorder from './CustomMicRecorder'
 import SessionStage from './SessionStage'
 import { AI_BASE } from '../services/api'
 import { getAuthHeaders } from '../services/authToken'
+import { getAudioUploadFilename } from '../services/audioUpload'
 import { interviewService } from '../services/interviewService'
 import { Interview, Message, TechChatRecap } from '../types/Interview'
 import {
@@ -234,7 +235,7 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
 
   const transcribeAudio = async (audioBlob: Blob) => {
     const formData = new FormData()
-    formData.append('audio', audioBlob, 'recording.webm')
+    formData.append('audio', audioBlob, getAudioUploadFilename(audioBlob, 'recording'))
 
     const response = await fetch(`${AI_BASE}/transcription`, {
       method: 'POST',

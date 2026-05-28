@@ -1,6 +1,6 @@
 substitutions:
   _REGION: us-central1
-  _ARTIFACT_REGISTRY_REPO: knappi
+  _ARTIFACT_REGISTRY_REPO: naild-repo
   _WEB_SERVICE: knappi-web
   _AI_SERVICE: knappi-ai
   _WEB_ORIGIN: https://knappi.ca
@@ -10,6 +10,7 @@ substitutions:
   _SPRING_API_BASE: https://api.knappi.ca/api/v1
   _VERTEX_AI_LOCATION: us-central1
   _GEMINI_MODEL: gemini-2.5-flash
+  _WHISPER_COMPUTE_TYPE: int8
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -62,8 +63,10 @@ steps:
       - --platform
       - managed
       - --allow-unauthenticated
+      - --memory
+      - 1Gi
       - --set-env-vars
-      - APP_ENV=production,AI_PROVIDER=vertex_ai,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,VERTEX_AI_LOCATION=${_VERTEX_AI_LOCATION},GEMINI_MODEL=${_GEMINI_MODEL},SPRING_API_BASE=${_SPRING_API_BASE},CORS_ALLOW_ORIGINS=${_WEB_ORIGIN}
+      - APP_ENV=production,AI_PROVIDER=vertex_ai,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,VERTEX_AI_LOCATION=${_VERTEX_AI_LOCATION},GEMINI_MODEL=${_GEMINI_MODEL},SPRING_API_BASE=${_SPRING_API_BASE},CORS_ALLOW_ORIGINS=${_WEB_ORIGIN},WHISPER_COMPUTE_TYPE=${_WHISPER_COMPUTE_TYPE}
 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: gcloud

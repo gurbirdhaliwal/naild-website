@@ -62,11 +62,16 @@ class VoiceAssistant:
     def __init__(self):
         self.sample_rate = 16000
         self.model_size = _get_env("WHISPER_MODEL_SIZE", "tiny")
+        self.compute_type = _get_env("WHISPER_COMPUTE_TYPE", "int8")
         self._whisper_model = None
 
     def get_whisper_model(self):
         if self._whisper_model is None:
-            self._whisper_model = WhisperModel(self.model_size, device="auto")
+            self._whisper_model = WhisperModel(
+                self.model_size,
+                device="auto",
+                compute_type=self.compute_type,
+            )
         return self._whisper_model
 
 
@@ -139,6 +144,17 @@ ALLOWED_AUDIO_CONTENT_TYPES = {
     "audio/flac",
 }
 ALLOWED_AUDIO_EXTENSIONS = {".webm", ".wav", ".mp3", ".m4a", ".mp4", ".ogg", ".flac"}
+AUDIO_EXTENSION_BY_CONTENT_TYPE = {
+    "audio/webm": ".webm",
+    "audio/wav": ".wav",
+    "audio/x-wav": ".wav",
+    "audio/mpeg": ".mp3",
+    "audio/mp3": ".mp3",
+    "audio/mp4": ".mp4",
+    "audio/x-m4a": ".m4a",
+    "audio/ogg": ".ogg",
+    "audio/flac": ".flac",
+}
 logger = logging.getLogger(__name__)
 
 ai_client = build_ai_client(
@@ -157,6 +173,17 @@ class RequestBodyTooLargeError(Exception):
     def __init__(self, limit_bytes):
         super().__init__(f"Request body exceeds the {limit_bytes} byte limit.")
         self.limit_bytes = limit_bytes
+
+
+def _cors_headers_for_origin(origin):
+    if origin not in ALLOWED_CORS_ORIGINS:
+        return []
+
+    return [
+        (b"access-control-allow-origin", origin.encode("latin-1")),
+        (b"access-control-allow-credentials", b"true"),
+        (b"vary", b"Origin"),
+    ]
 
 
 class MaxBodySizeMiddleware:
@@ -189,6 +216,7 @@ class MaxBodySizeMiddleware:
                 if int(content_length) > limit_bytes:
                     await self._send_json_error(
                         send,
+                        headers,
                         status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                         f"Request body exceeds the {limit_bytes} byte limit.",
                     )
@@ -196,6 +224,7 @@ class MaxBodySizeMiddleware:
             except ValueError:
                 await self._send_json_error(
                     send,
+                    headers,
                     status.HTTP_400_BAD_REQUEST,
                     "Invalid Content-Length header.",
                 )
@@ -217,20 +246,23 @@ class MaxBodySizeMiddleware:
         except RequestBodyTooLargeError as exc:
             await self._send_json_error(
                 send,
+                headers,
                 status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 f"Request body exceeds the {exc.limit_bytes} byte limit.",
             )
 
-    async def _send_json_error(self, send: Send, status_code: int, detail: str):
+    async def _send_json_error(self, send: Send, request_headers: dict, status_code: int, detail: str):
         payload = json.dumps({"detail": detail}).encode("utf-8")
+        response_headers = [
+            (b"content-type", b"application/json"),
+            (b"content-length", str(len(payload)).encode("ascii")),
+            *_cors_headers_for_origin(request_headers.get("origin", "")),
+        ]
         await send(
             {
                 "type": "http.response.start",
                 "status": status_code,
-                "headers": [
-                    (b"content-type", b"application/json"),
-                    (b"content-length", str(len(payload)).encode("ascii")),
-                ],
+                "headers": response_headers,
             }
         )
         await send({"type": "http.response.body", "body": payload})
@@ -1017,6 +1049,7 @@ def readyz():
         "ai_provider": AI_PROVIDER,
         "gemini_model": GEMINI_MODEL if AI_PROVIDER == "vertex_ai" else None,
         "whisper_model": assistant.model_size,
+        "whisper_compute_type": assistant.compute_type,
     }
 
 
@@ -1031,6 +1064,11 @@ async def transcription(
     try:
         content_type = (audio.content_type or "").split(";")[0].strip().lower()
         if content_type not in ALLOWED_AUDIO_CONTENT_TYPES:
+            logger.warning(
+                "Unsupported transcription upload content type. content_type=%s filename=%s",
+                audio.content_type,
+                audio.filename,
+            )
             raise HTTPException(
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 detail="Unsupported audio type.",
@@ -1038,13 +1076,19 @@ async def transcription(
 
         file_extension = Path(audio.filename or "").suffix.lower()
         if file_extension and file_extension not in ALLOWED_AUDIO_EXTENSIONS:
+            logger.warning(
+                "Unsupported transcription upload extension. content_type=%s filename=%s",
+                audio.content_type,
+                audio.filename,
+            )
             raise HTTPException(
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 detail="Unsupported audio file extension.",
             )
+        temp_suffix = AUDIO_EXTENSION_BY_CONTENT_TYPE.get(content_type, file_extension or ".webm")
 
         total_size = 0
-        with tempfile.NamedTemporaryFile(suffix=file_extension or ".webm", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=temp_suffix, delete=False) as tmp:
             tmp_path = tmp.name
             while True:
                 chunk = await audio.read(AUDIO_UPLOAD_CHUNK_SIZE_BYTES)
@@ -1068,7 +1112,15 @@ async def transcription(
             transcription = await _run_ai_call(partial(_transcribe_audio_file, tmp_path))
         except HTTPException:
             raise
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "Unable to decode transcription upload. content_type=%s filename=%s temp_suffix=%s size=%s error=%s",
+                audio.content_type,
+                audio.filename,
+                temp_suffix,
+                total_size,
+                exc,
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Unable to decode uploaded audio. Ensure the file is valid.",

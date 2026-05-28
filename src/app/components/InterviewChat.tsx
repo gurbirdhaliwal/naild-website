@@ -21,6 +21,7 @@ import SessionStage from './SessionStage'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
 import { getAuthHeaders } from '../services/authToken'
+import { getAudioUploadFilename } from '../services/audioUpload'
 import { confirmSessionExpired, notifySessionExpired } from '../services/authSession'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -539,7 +540,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
   const transcribeAudio = async (audioBlob: Blob) => {
     const formData = new FormData()
-    formData.append('audio', audioBlob, 'recording.webm')
+    formData.append('audio', audioBlob, getAudioUploadFilename(audioBlob, 'recording'))
 
     const response = await fetch(`${AI_BASE}/transcription`, {
       method: 'POST',
