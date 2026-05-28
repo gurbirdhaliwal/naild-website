@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { LuMic } from "react-icons/lu";
 import { getUserFacingErrorMessage } from "../lib/userFacingErrors";
+import { prepareVoicePersonaPlayback } from "../services/voiceService";
 
 const RECORDING_MIME_TYPES = [
   "audio/webm;codecs=opus",
@@ -61,6 +62,7 @@ const CustomMicRecorder: React.FC<CustomMicRecorderProps> = ({
     if (disabled) return;
 
     try {
+      void prepareVoicePersonaPlayback();
       setRecording(true);
       isRecordingRef.current = true;
       audioChunks.current = [];
