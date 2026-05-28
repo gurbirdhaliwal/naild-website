@@ -20,6 +20,8 @@ from ai_client import AIClientError, ChatMessage, build_ai_client
 
 APP_ENV = os.getenv("APP_ENV", "production" if os.getenv("K_SERVICE") else "development").strip().lower()
 IS_PRODUCTION = APP_ENV == "production"
+PRODUCTION_CORS_ORIGINS = ["https://knappi.ca"]
+DEVELOPMENT_CORS_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 
 def _get_env(name, default=None, *, required_in_production=False):
@@ -36,13 +38,16 @@ def _get_env(name, default=None, *, required_in_production=False):
 
 
 def _load_cors_origins():
+    default_origins = PRODUCTION_CORS_ORIGINS if IS_PRODUCTION else DEVELOPMENT_CORS_ORIGINS
     raw_origins = os.getenv("CORS_ALLOW_ORIGINS")
     if not raw_origins:
-        if IS_PRODUCTION:
-            raise RuntimeError("CORS_ALLOW_ORIGINS must be set when APP_ENV=production.")
-        return ["http://localhost:3000", "http://127.0.0.1:3000"]
+        return [*default_origins]
 
-    origins = [origin.strip().rstrip("/") for origin in raw_origins.split(",") if origin.strip()]
+    origins = [*default_origins]
+    for origin in raw_origins.split(","):
+        origin = origin.strip().rstrip("/")
+        if origin and origin not in origins:
+            origins.append(origin)
     if "*" in origins:
         raise ValueError("CORS_ALLOW_ORIGINS cannot include '*' when allow_credentials=True.")
     return origins
