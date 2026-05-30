@@ -406,7 +406,6 @@ export default function InterviewPage() {
     setCurrentInterview(null)
     setActiveLandingView('home')
     setCreateSessionModalOpen(false)
-    setModelMenuOpen(false)
     setWorkspaceTutorialStepIndex(0)
     setWorkspaceTutorialOpen(true)
   }, [])
