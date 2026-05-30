@@ -1,94 +1,17 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { FaLinkedinIn } from 'react-icons/fa6';
 import { useAuth } from './context/AuthContext';
-import { AUREON_NAME } from './lib/modelConfig';
 import {
   clearOAuthHandoffRedirect,
   getOAuthHandoffRedirect,
 } from './services/authSession';
 
-const tabs = [
-  {
-    id: 'feedback',
-    label: 'Feedback',
-    title: 'Get feedback that improves how you explain technical ideas.',
-    description:
-      'Knappi scores clarity, correctness, depth, and audience fit so every drill ends with specific direction for the next retry.',
-    previewLabel: `${AUREON_NAME} Feedback`,
-    previewTitle: 'Explain why you chose retrieval-augmented generation over fine-tuning.',
-    previewDetail: 'Audience: Non-technical stakeholder',
-    bullets: ['Clarity: 82', 'Correctness: 79', 'Depth: 74', 'Audience fit: 88'],
-  },
-  {
-    id: 'scores',
-    label: 'Scores',
-    title: 'Track communication as a skill, not just a one-off practice session.',
-    description:
-      'Watch your strongest and weakest communication instincts over time instead of treating each drill like an isolated exercise.',
-    previewLabel: 'Progress Snapshot',
-    previewTitle: 'Weekly practice target: 4 drills',
-    previewDetail: '2-week trend: +11 clarity, +8 depth',
-    bullets: ['4 drills completed', '3 retries', 'Best audience: PM', 'Needs work: tradeoffs'],
-  },
-  {
-    id: 'personas',
-    label: 'Audience',
-    title: 'Practice the same idea for different listeners.',
-    description:
-      'A product manager, recruiter, and senior engineer should not hear the same explanation. Knappi changes the drill and grading based on audience.',
-    previewLabel: 'Audience Variation',
-    previewTitle: 'Precision vs recall',
-    previewDetail: 'Compare how you explain it to a PM vs a peer engineer',
-    bullets: ['Product manager', 'Peer engineer', 'Senior engineer', 'Recruiter'],
-  },
-  {
-    id: 'replay',
-    label: 'Replay',
-    title: 'Retry the same drill until the explanation actually lands.',
-    description:
-      'Use the transcript, missing points, and improved outline to tighten the answer instead of guessing what to change.',
-    previewLabel: 'Retry Loop',
-    previewTitle: 'Redis vs database caching for a high-read service',
-    previewDetail: 'Try again with sharper tradeoff framing',
-    bullets: ['Transcript saved', 'Missing point highlighted', 'Improved outline suggested', 'Retry advice generated'],
-  },
-] as const;
-
-type FeaturePalette = {
-  shell: string;
-  pane: string;
-  paneText: string;
-  card: string;
-  badge: string;
-  title: string;
-  detail: string;
-  bullet: string;
-};
-
-const feedbackFeaturePalette: FeaturePalette = {
-  shell: 'bg-[linear-gradient(135deg,_#d1fae5_0%,_#86efac_48%,_#10b981_100%)]',
-  pane: 'border-r border-emerald-200/80 bg-[linear-gradient(180deg,_rgba(236,253,245,0.96)_0%,_rgba(209,250,229,0.92)_100%)]',
-  paneText: 'text-emerald-950',
-  card: 'border border-emerald-200/80 bg-[linear-gradient(180deg,_rgba(255,255,255,0.97)_0%,_rgba(236,253,245,0.98)_100%)]',
-  badge: 'text-emerald-700',
-  title: 'text-emerald-950',
-  detail: 'text-emerald-900/75',
-  bullet: 'border border-emerald-100 bg-white/75 text-emerald-950',
-};
-
-const featurePalettes: Record<(typeof tabs)[number]['id'], FeaturePalette> = {
-  feedback: feedbackFeaturePalette,
-  scores: feedbackFeaturePalette,
-  personas: feedbackFeaturePalette,
-  replay: feedbackFeaturePalette,
-};
-
-const heroHeadline = 'Explain complex\nsoftware ideas clearly.';
+const heroHeadline = 'Tech talk, made clear.';
 const universityLogos = [
   {
     name: 'Wilfrid Laurier University',
@@ -181,458 +104,54 @@ const founderProfiles = [
   },
   {
     id: 'cofounder-02',
-    name: 'Assvin Eswarathas',
+    name: 'Asvin Eswarathas',
     imageSrc: '/AssvinEswarathas.png',
-    imageAlt: 'Portrait of Assvin Eswarathas',
+    imageAlt: 'Portrait of Asvin Eswarathas',
     imagePosition: 'center 12%',
-    linkedinUrl: 'https://www.linkedin.com/in/assvin-eswarathas-739b6a238/',
+    linkedinUrl: 'https://www.linkedin.com/in/asvin-eswarathas-739b6a238/',
   },
 ] as const;
 
-// ─── Sticky Scroll Features Section ───────────────────────────────────────────
-
-function StickyFeaturesSection({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
-  const [scrollState, setScrollState] = useState({
-    activeIndex: 0,
-    backdropOpacity: 0,
-    sectionProgress: 0,
-    surfaceProgress: 0,
-  });
-  const sectionRef = useRef<HTMLDivElement | null>(null);
-  const activeFeature = tabs[scrollState.activeIndex];
-  const activePalette = featurePalettes[activeFeature.id];
-  const hasDarkBackdrop =
-    scrollState.backdropOpacity >= 0.55 || scrollState.activeIndex > 0;
-  const surfaceScale = prefersReducedMotion
-    ? 1
-    : 0.9 + scrollState.surfaceProgress * 0.1;
-  const surfaceY = prefersReducedMotion
-    ? 0
-    : (1 - scrollState.surfaceProgress) * 112;
-  const surfaceRadius = prefersReducedMotion
-    ? 0
-    : (1 - scrollState.surfaceProgress) * 56;
-  const glowProgress = prefersReducedMotion
-    ? 1
-    : Math.min(1, Math.max(0, (scrollState.sectionProgress - 0.08) / 0.84));
-  const glowOpacity =
-    scrollState.backdropOpacity *
-    (prefersReducedMotion ? 0.78 : 0.18 + glowProgress * 0.92);
-  const glowHaloOpacity = prefersReducedMotion
-    ? 0.52
-    : 0.14 + glowProgress * 0.52;
-  const glowCoreOpacity = prefersReducedMotion
-    ? 0.42
-    : 0.1 + glowProgress * 0.48;
-  const glowHotspotOpacity = prefersReducedMotion
-    ? 0.32
-    : 0.06 + glowProgress * 0.42;
-  const glowHaloScale = prefersReducedMotion
-    ? 2.35
-    : 0.9 + glowProgress * 2.1;
-  const glowCoreScale = prefersReducedMotion
-    ? 1.94
-    : 0.72 + glowProgress * 1.55;
-  const glowHotspotScale = prefersReducedMotion
-    ? 1.36
-    : 0.58 + glowProgress * 1.02;
-
-  useEffect(() => {
-    let frameId: number | null = null;
-
-    const updateScrollState = () => {
-      const section = sectionRef.current;
-
-      if (!section) {
-        return;
-      }
-
-      const sectionRect = section.getBoundingClientRect();
-      const viewportHeight = Math.max(window.innerHeight, 1);
-      const totalScrollable = Math.max(
-        sectionRect.height - viewportHeight,
-        1
-      );
-      const sectionProgress = Math.min(
-        1,
-        Math.max(0, -sectionRect.top / totalScrollable)
-      );
-      const surfaceProgress = prefersReducedMotion
-        ? 1
-        : Math.min(
-            1,
-            Math.max(
-              0,
-              (viewportHeight - sectionRect.top) / (viewportHeight * 0.9)
-            )
-          );
-      const stageProgress = sectionProgress * tabs.length;
-      const nextIndex = Math.min(
-        tabs.length - 1,
-        Math.max(0, Math.floor(stageProgress))
-      );
-      const firstStageProgress = Math.min(1, Math.max(0, stageProgress));
-      const fadeStart = 0.02;
-      const fadeEnd = 0.1;
-      const nextOpacity = prefersReducedMotion
-        ? nextIndex > 0
-          ? 1
-          : 0
-        : firstStageProgress <= fadeStart
-        ? 0
-        : firstStageProgress >= fadeEnd
-        ? 1
-        : (firstStageProgress - fadeStart) / (fadeEnd - fadeStart);
-
-      setScrollState((currentState) => {
-        const indexChanged = currentState.activeIndex !== nextIndex;
-        const opacityChanged =
-          Math.abs(currentState.backdropOpacity - nextOpacity) >= 0.01;
-        const progressChanged =
-          Math.abs(currentState.sectionProgress - sectionProgress) >= 0.01;
-        const surfaceChanged =
-          Math.abs(currentState.surfaceProgress - surfaceProgress) >= 0.01;
-
-        if (!indexChanged && !opacityChanged && !progressChanged && !surfaceChanged) {
-          return currentState;
-        }
-
-        return {
-          activeIndex: nextIndex,
-          backdropOpacity: opacityChanged
-            ? nextOpacity
-            : currentState.backdropOpacity,
-          sectionProgress: progressChanged
-            ? sectionProgress
-            : currentState.sectionProgress,
-          surfaceProgress: surfaceChanged
-            ? surfaceProgress
-            : currentState.surfaceProgress,
-        };
-      });
-
-      frameId = null;
-    };
-
-    const handleViewportChange = () => {
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
-      }
-
-      frameId = window.requestAnimationFrame(updateScrollState);
-    };
-
-    handleViewportChange();
-    window.addEventListener('scroll', handleViewportChange, { passive: true });
-    document.addEventListener('scroll', handleViewportChange, {
-      capture: true,
-      passive: true,
-    });
-    window.addEventListener('resize', handleViewportChange);
-
-    return () => {
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
-      }
-
-      window.removeEventListener('scroll', handleViewportChange);
-      document.removeEventListener('scroll', handleViewportChange, true);
-      window.removeEventListener('resize', handleViewportChange);
-    };
-  }, [prefersReducedMotion]);
-
-  return (
-    <section
-      ref={sectionRef}
-      className="relative z-20 mt-24 bg-white md:mt-32"
-      style={{ height: `${(tabs.length + 1) * 100}vh` }}
-    >
-      {/* Sticky container — locks in place while section scrolls past */}
-      <div className="sticky top-0 z-20 h-screen overflow-hidden bg-white px-5 py-4 md:py-6">
-        <motion.div
-          className="pointer-events-none absolute inset-0 bg-black"
-          initial={false}
-          animate={{ opacity: scrollState.backdropOpacity }}
-          transition={{
-            duration: prefersReducedMotion ? 0 : 0.75,
-            ease: [0.22, 1, 0.36, 1],
-          }}
-        />
-        <motion.div
-          className="pointer-events-none absolute inset-0 overflow-hidden"
-          initial={false}
-          animate={{ opacity: glowOpacity }}
-          transition={{
-            duration: prefersReducedMotion ? 0 : 0.75,
-            ease: [0.22, 1, 0.36, 1],
-          }}
-        >
-          <div
-            className="absolute left-1/2 top-[46%] h-[28rem] w-[28rem] -translate-x-1/2 -translate-y-1/2 md:h-[36rem] md:w-[36rem]"
-          >
-            <div
-              className="h-full w-full rounded-full blur-[132px] md:blur-[156px]"
-              style={{
-                opacity: glowHaloOpacity,
-                transform: `scale(${glowHaloScale})`,
-                background:
-                  'radial-gradient(circle, rgba(209,250,229,0.34) 0%, rgba(167,243,208,0.28) 18%, rgba(52,211,153,0.18) 36%, rgba(16,185,129,0.08) 58%, rgba(16,185,129,0) 76%)',
-              }}
-            />
-          </div>
-          <div
-            className="absolute left-1/2 top-[46%] h-[22rem] w-[22rem] -translate-x-1/2 -translate-y-1/2 md:h-[28rem] md:w-[28rem]"
-          >
-            <div
-              className="h-full w-full rounded-full blur-[68px] md:blur-[76px]"
-              style={{
-                opacity: glowCoreOpacity,
-                transform: `scale(${glowCoreScale})`,
-                background:
-                  'radial-gradient(circle, rgba(255,255,255,0.46) 0%, rgba(209,250,229,0.34) 18%, rgba(110,231,183,0.22) 38%, rgba(16,185,129,0.1) 60%, rgba(16,185,129,0) 80%)',
-              }}
-            />
-          </div>
-          <div
-            className="absolute left-[52%] top-[45%] h-[10rem] w-[10rem] -translate-x-1/2 -translate-y-1/2 md:h-[12rem] md:w-[12rem]"
-          >
-            <div
-              className="h-full w-full rounded-full blur-[28px] md:blur-[32px]"
-              style={{
-                opacity: glowHotspotOpacity,
-                transform: `scale(${glowHotspotScale})`,
-                background:
-                  'radial-gradient(circle, rgba(255,255,255,0.62) 0%, rgba(236,253,245,0.4) 24%, rgba(110,231,183,0.2) 52%, rgba(16,185,129,0) 76%)',
-              }}
-            />
-          </div>
-        </motion.div>
-        <div className="pointer-events-none absolute left-4 top-1/2 z-20 hidden -translate-y-1/2 md:flex md:flex-col md:items-center">
-          <div
-            className={`relative h-44 w-px overflow-hidden rounded-full transition-colors duration-700 ${
-              hasDarkBackdrop ? 'bg-emerald-100/10' : 'bg-emerald-200/45'
-            }`}
-          >
-            <motion.div
-              className="absolute inset-x-0 bottom-0 rounded-full bg-emerald-400"
-              initial={false}
-              animate={{ height: `${Math.max(scrollState.sectionProgress * 100, 6)}%` }}
-              transition={{
-                duration: prefersReducedMotion ? 0 : 0.18,
-                ease: 'linear',
-              }}
-            />
-          </div>
-        </div>
-        <div
-          className="relative h-[calc(100vh-2rem)] overflow-hidden will-change-transform md:h-[calc(100vh-3rem)]"
-          style={{
-            transform: `translate3d(0, ${surfaceY}px, 0) scale(${surfaceScale})`,
-            transformOrigin: 'center top',
-            borderRadius: `${surfaceRadius}px`,
-          }}
-        >
-        <div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col justify-center py-20">
-
-          {/* Section header */}
-          <div className="mb-12 text-center">
-            <h2
-              className={`mb-3 text-5xl font-normal transition-colors duration-700 ${
-                hasDarkBackdrop ? 'text-emerald-50' : 'text-black'
-              }`}
-            >
-              Train the communication skills strong engineers use every week.
-            </h2>
-            <p
-              className={`text-xl font-normal transition-colors duration-700 ${
-                hasDarkBackdrop ? 'text-emerald-100/75' : 'text-emerald-900/55'
-              }`}
-            >
-              Pick your field, audience, and scenario. Knappi generates the drill,
-              <br />
-              listens to your answer, and tells you how to tighten it.
-            </p>
-          </div>
-
-          {/* Main content — step indicators + animated card */}
-          <div className="flex items-start gap-12">
-
-            {/* Left: vertical step list */}
-            <div className="flex w-64 shrink-0 flex-col gap-1">
-              {tabs.map((tab, i) => (
-                <div
-                  key={tab.id}
-                  className="flex items-start gap-4 rounded-2xl p-4 text-left"
-                >
-                  {/* Progress bar + number */}
-                  <div className="flex flex-col items-center gap-1 pt-1">
-                    <div
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all duration-300 ${
-                        i === scrollState.activeIndex
-                          ? 'bg-emerald-500 text-white'
-                          : i < scrollState.activeIndex
-                          ? hasDarkBackdrop
-                            ? 'bg-emerald-950 text-emerald-300'
-                            : 'bg-emerald-100 text-emerald-700'
-                          : hasDarkBackdrop
-                          ? 'bg-emerald-950/70 text-emerald-100/45'
-                          : 'bg-emerald-50 text-emerald-300'
-                      }`}
-                    >
-                      {i < scrollState.activeIndex ? '✓' : i + 1}
-                    </div>
-                    {i < tabs.length - 1 && (
-                      <div
-                        className={`relative h-10 w-0.5 overflow-hidden rounded-full transition-colors duration-700 ${
-                          hasDarkBackdrop ? 'bg-emerald-950/70' : 'bg-emerald-100'
-                        }`}
-                      >
-                        <motion.div
-                          className="absolute inset-x-0 top-0 rounded-full bg-emerald-400"
-                          animate={{ height: i < scrollState.activeIndex ? '100%' : '0%' }}
-                          transition={{ duration: 0.4, ease: 'easeOut' }}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <div
-                      className={`text-sm font-semibold uppercase tracking-widest transition-colors duration-300 ${
-                        i === scrollState.activeIndex
-                          ? hasDarkBackdrop
-                            ? 'text-emerald-300'
-                            : 'text-emerald-700'
-                          : hasDarkBackdrop
-                          ? 'text-emerald-100/40'
-                          : 'text-emerald-400'
-                      }`}
-                    >
-                      {tab.label}
-                    </div>
-                    <div
-                      className={`mt-0.5 text-sm leading-snug transition-all duration-300 ${
-                        i === scrollState.activeIndex
-                          ? hasDarkBackdrop
-                            ? 'max-h-20 text-emerald-50/90 opacity-100'
-                            : 'max-h-20 text-emerald-950/80 opacity-100'
-                          : 'max-h-0 overflow-hidden opacity-0'
-                      }`}
-                    >
-                      {tab.title}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Right: animated preview card */}
-            <div className="relative flex-1">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={activeFeature.id}
-                  initial={
-                    prefersReducedMotion
-                      ? { opacity: 0 }
-                      : { opacity: 0, y: 32, scale: 0.97 }
-                  }
-                  animate={
-                    prefersReducedMotion
-                      ? { opacity: 1 }
-                      : { opacity: 1, y: 0, scale: 1 }
-                  }
-                  exit={
-                    prefersReducedMotion
-                      ? { opacity: 0 }
-                      : { opacity: 0, y: -32, scale: 0.97 }
-                  }
-                  transition={{
-                    duration: prefersReducedMotion ? 0.15 : 0.42,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                  className={`flex aspect-video overflow-hidden rounded-3xl border border-white/25 shadow-[0_28px_90px_-32px_rgba(5,150,105,0.55)] ${activePalette.shell}`}
-                >
-                  {/* Left pane: label + description */}
-                  <motion.div
-                    initial={prefersReducedMotion ? undefined : { x: -20, opacity: 0 }}
-                    animate={prefersReducedMotion ? undefined : { x: 0, opacity: 1 }}
-                    transition={{ duration: 0.32, delay: 0.08 }}
-                    className={`flex w-2/5 items-center justify-center rounded-l-3xl ${activePalette.pane}`}
-                  >
-                    <div className={`px-8 text-center ${activePalette.paneText}`}>
-                      <div className="mb-2 text-lg font-medium">
-                        {activeFeature.previewLabel}
-                      </div>
-                      <div className="text-sm leading-6 opacity-80">
-                        {activeFeature.description}
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  {/* Right pane: detail card */}
-                  <motion.div
-                    initial={prefersReducedMotion ? undefined : { x: 20, opacity: 0 }}
-                    animate={prefersReducedMotion ? undefined : { x: 0, opacity: 1 }}
-                    transition={{ duration: 0.32, delay: 0.12 }}
-                    className="flex w-3/5 items-center justify-center px-8"
-                  >
-                    <div className={`w-full max-w-sm rounded-3xl p-6 text-left shadow-lg ${activePalette.card}`}>
-                      <div className={`text-xs font-medium uppercase tracking-[0.18em] ${activePalette.badge}`}>
-                        {activeFeature.label}
-                      </div>
-                      <div className={`mt-3 text-lg font-medium ${activePalette.title}`}>
-                        {activeFeature.previewTitle}
-                      </div>
-                      <div className={`mt-2 text-sm ${activePalette.detail}`}>
-                        {activeFeature.previewDetail}
-                      </div>
-                      <div className="mt-5 grid gap-2">
-                        {activeFeature.bullets.map((bullet, index) => (
-                          <motion.div
-                            key={bullet}
-                            initial={
-                              prefersReducedMotion
-                                ? undefined
-                                : { opacity: 0, y: 12 }
-                            }
-                            animate={
-                              prefersReducedMotion
-                                ? undefined
-                                : { opacity: 1, y: 0 }
-                            }
-                            transition={{
-                              duration: 0.26,
-                              delay: 0.2 + index * 0.07,
-                            }}
-                            className={`rounded-2xl px-4 py-3 text-sm ${activePalette.bullet}`}
-                          >
-                            {bullet}
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                </motion.div>
-              </AnimatePresence>
-
-            </div>
-          </div>
-        </div>
-        </div>
-      </div>
-    </section>
-  );
-}
+const howItWorksSteps = [
+  {
+    id: 'scenario',
+    label: 'Scenario',
+    title: 'Pick your Scenario.',
+    description:
+      'Choose the right session for you, ranging from different types of technical communication scenarios.',
+    videoLabel: 'Scenario preview',
+  },
+  {
+    id: 'customize',
+    label: 'Customize',
+    title: 'Shape your session.',
+    description:
+      'Set the role, audience, topic, and goal so the session matches the pressure you actually face.',
+    videoLabel: 'Customization preview',
+  },
+  {
+    id: 'practice',
+    label: 'Practice',
+    title: 'Explain it out loud.',
+    description:
+      'Speak through your answer naturally while Knappi tracks clarity, structure, precision, and audience fit.',
+    videoLabel: 'Practice preview',
+  },
+  {
+    id: 'grading',
+    label: 'Grading',
+    title: 'Get feedback you can act on.',
+    description:
+      'Review what landed, what was missing, and how to tighten the explanation before the next attempt.',
+    videoLabel: 'Grading preview',
+  },
+] as const;
 
 function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
   const [transitionState, setTransitionState] = useState({
-    backdropOpacity: 0,
     surfaceProgress: 0,
   });
   const sectionRef = useRef<HTMLDivElement | null>(null);
-  const surfaceContentOpacity = prefersReducedMotion
-    ? 1
-    : Math.min(1, Math.max(0, (transitionState.surfaceProgress - 0.28) / 0.22));
   const surfaceScale = prefersReducedMotion
     ? 1
     : 0.9 + transitionState.surfaceProgress * 0.1;
@@ -642,7 +161,7 @@ function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boo
   const surfaceRadius = prefersReducedMotion
     ? 0
     : (1 - transitionState.surfaceProgress) * 56;
-  const cardsVisible = prefersReducedMotion || transitionState.surfaceProgress >= 0.45;
+  const cardsVisible = prefersReducedMotion || transitionState.surfaceProgress >= 0.18;
 
   useEffect(() => {
     let frameId: number | null = null;
@@ -663,25 +182,17 @@ function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boo
       );
       const surfaceProgress = prefersReducedMotion
         ? 1
-        : Math.min(1, Math.max(0, (sectionProgress - 0.2) / 0.58));
-      const backdropOpacity = prefersReducedMotion
-        ? 1
-        : Math.min(1, Math.max(0, sectionProgress / 0.42));
+        : Math.min(1, Math.max(0, (sectionProgress - 0.05) / 0.36));
 
       setTransitionState((currentState) => {
-        const opacityChanged =
-          Math.abs(currentState.backdropOpacity - backdropOpacity) >= 0.01;
         const surfaceChanged =
           Math.abs(currentState.surfaceProgress - surfaceProgress) >= 0.01;
 
-        if (!opacityChanged && !surfaceChanged) {
+        if (!surfaceChanged) {
           return currentState;
         }
 
         return {
-          backdropOpacity: opacityChanged
-            ? backdropOpacity
-            : currentState.backdropOpacity,
           surfaceProgress: surfaceChanged
             ? surfaceProgress
             : currentState.surfaceProgress,
@@ -721,19 +232,10 @@ function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boo
   return (
     <section
       ref={sectionRef}
-      className="relative z-20 -mt-16 bg-black md:-mt-24"
-      style={{ height: '200vh' }}
+      className="relative z-20 bg-white"
+      style={{ height: '145vh' }}
     >
-      <div className="sticky top-0 h-screen overflow-hidden bg-black px-5 py-4 md:py-6">
-        <motion.div
-          className="pointer-events-none absolute inset-0 bg-white"
-          initial={false}
-          animate={{ opacity: transitionState.backdropOpacity }}
-          transition={{
-            duration: prefersReducedMotion ? 0 : 0.75,
-            ease: [0.22, 1, 0.36, 1],
-          }}
-        />
+      <div className="sticky top-0 h-screen overflow-hidden bg-white px-5 py-4 md:py-6">
         <div
           className="relative h-[calc(100vh-2rem)] overflow-hidden will-change-transform md:h-[calc(100vh-3rem)]"
           style={{
@@ -742,18 +244,30 @@ function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boo
             borderRadius: `${surfaceRadius}px`,
           }}
         >
-          <div
-            className="mx-auto flex h-full max-w-6xl flex-col justify-center py-24"
-            style={{ opacity: surfaceContentOpacity }}
-          >
-            <h2 className="mb-4 text-5xl font-normal text-black">
-              Build the habit before the high-stakes conversation.
-            </h2>
-            <p className="mb-20 text-xl font-normal text-gray-500">
-              Whether you are preparing for interviews, design reviews, or stakeholder updates,
-              <br />
-              Knappi gives you a repeatable way to practice out loud.
-            </p>
+          <div className="mx-auto flex h-full max-w-6xl flex-col justify-center py-24">
+            <motion.div
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 18 }}
+              animate={
+                prefersReducedMotion
+                  ? { opacity: 1, y: 0 }
+                  : cardsVisible
+                  ? { opacity: 1, y: 0 }
+                  : { opacity: 0, y: 18 }
+              }
+              transition={{
+                duration: prefersReducedMotion ? 0 : 0.45,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              <h2 className="mb-4 text-5xl font-normal text-black">
+                Build the habit before the high-stakes conversation.
+              </h2>
+              <p className="mb-10 text-xl font-normal text-gray-500">
+                Whether you are preparing for interviews, design reviews, or stakeholder updates,
+                <br />
+                Knappi gives you a repeatable way to practice out loud.
+              </p>
+            </motion.div>
 
             <div className="flex justify-center">
               <div className="grid w-full max-w-4xl grid-cols-1 gap-8 md:grid-cols-3">
@@ -880,57 +394,21 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
   return (
     <section
       ref={sectionRef}
-      className="relative z-20 -mt-16 overflow-hidden bg-[linear-gradient(to_bottom,_#010302_0%,_#03110a_18%,_#05140c_42%,_#020604_82%,_#000000_100%)] px-5 pb-40 pt-44 md:-mt-20 md:pb-48 md:pt-52"
+      className="relative z-20 bg-white pb-8 pt-20 md:pb-10 md:pt-24"
     >
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-[-2rem] h-[24rem] w-[24rem] -translate-x-1/2 -translate-y-1/2 md:top-[-3.5rem] md:h-[32rem] md:w-[32rem]">
-          <div
-            className="h-full w-full rounded-full blur-[132px] md:blur-[156px]"
-            style={{
-              opacity: 0.34,
-              transform: 'scale(2.2)',
-              background:
-                'radial-gradient(circle, rgba(209,250,229,0.34) 0%, rgba(167,243,208,0.28) 18%, rgba(52,211,153,0.18) 36%, rgba(16,185,129,0.08) 58%, rgba(16,185,129,0) 76%)',
-            }}
-          />
-        </div>
-        <div className="absolute left-1/2 top-[-1rem] h-[20rem] w-[20rem] -translate-x-1/2 -translate-y-1/2 md:top-[-2.5rem] md:h-[26rem] md:w-[26rem]">
-          <div
-            className="h-full w-full rounded-full blur-[68px] md:blur-[76px]"
-            style={{
-              opacity: 0.28,
-              transform: 'scale(1.9)',
-              background:
-                'radial-gradient(circle, rgba(255,255,255,0.46) 0%, rgba(209,250,229,0.34) 18%, rgba(110,231,183,0.22) 38%, rgba(16,185,129,0.1) 60%, rgba(16,185,129,0) 80%)',
-            }}
-          />
-        </div>
-        <div className="absolute left-[52%] top-[0rem] h-[9rem] w-[9rem] -translate-x-1/2 -translate-y-1/2 md:top-[-1rem] md:h-[11rem] md:w-[11rem]">
-          <div
-            className="h-full w-full rounded-full blur-[28px] md:blur-[32px]"
-            style={{
-              opacity: 0.18,
-              transform: 'scale(1.28)',
-              background:
-                'radial-gradient(circle, rgba(255,255,255,0.62) 0%, rgba(236,253,245,0.4) 24%, rgba(110,231,183,0.2) 52%, rgba(16,185,129,0) 76%)',
-            }}
-          />
-        </div>
-        <div className="absolute inset-x-0 top-0 h-32 bg-[linear-gradient(to_bottom,_rgba(2,6,4,0)_0%,_rgba(2,6,4,0.55)_55%,_rgba(2,6,4,0)_100%)] md:h-40" />
-      </div>
-      <div className="relative z-10 mx-auto max-w-6xl">
+      <div className="relative z-10 mx-auto w-full rounded-[6rem] bg-emerald-50 px-5 py-20 md:px-10 md:py-24">
         <div className="mb-14 text-center">
-          <div className="mb-4 text-sm font-medium uppercase tracking-[0.24em] text-emerald-300/70">
+          <div className="mb-4 text-sm font-medium uppercase tracking-[0.24em] text-emerald-700">
             The Team Behind Knappi
           </div>
           <h2
             aria-label={foundersHeading}
-            className="min-h-[3.5rem] text-5xl font-normal text-white md:min-h-[4.5rem] md:text-6xl"
+            className="min-h-[3.5rem] text-5xl font-normal text-black md:min-h-[4.5rem] md:text-6xl"
           >
             <span aria-hidden="true">
               {typedHeading}
               {!prefersReducedMotion && hasEnteredView && typedHeading.length < foundersHeading.length ? (
-                <span className="ml-1 inline-block h-[0.85em] w-[2px] translate-y-1 animate-pulse bg-white align-middle" />
+                <span className="ml-1 inline-block h-[0.85em] w-[2px] translate-y-1 animate-pulse bg-black align-middle" />
               ) : null}
             </span>
           </h2>
@@ -958,7 +436,7 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
               }}
               className="mx-auto w-full max-w-[25.5rem]"
             >
-              <div className="relative aspect-[4/4.8] overflow-hidden rounded-[1.75rem] border border-white/15 bg-black/25">
+              <div className="relative aspect-[4/4.8] overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-emerald-100">
                 <Image
                   src={founder.imageSrc}
                   alt={founder.imageAlt}
@@ -967,8 +445,8 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
                   className="object-cover"
                   style={{ objectPosition: founder.imagePosition }}
                 />
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,_rgba(2,6,23,0.08)_0%,_rgba(2,6,23,0)_40%,_rgba(2,6,23,0.58)_100%)]" />
-                <div className="absolute bottom-4 left-4 rounded-full border border-white/15 bg-black/45 px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-emerald-100 backdrop-blur-sm">
+                <div className="absolute inset-0 bg-emerald-950/5" />
+                <div className="absolute bottom-4 left-4 rounded-full border border-emerald-200 bg-emerald-50/85 px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-emerald-950 backdrop-blur-sm">
                   {founder.name}
                 </div>
                 <a
@@ -976,7 +454,7 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
                   target="_blank"
                   rel="noreferrer"
                   aria-label={`${founder.name} LinkedIn profile`}
-                  className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-full border border-emerald-400/20 bg-black/45 text-emerald-200 backdrop-blur-sm transition-colors duration-200 hover:bg-emerald-500 hover:text-white"
+                  className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50/85 text-emerald-800 backdrop-blur-sm transition-colors duration-200 hover:bg-emerald-600 hover:text-white"
                 >
                   <FaLinkedinIn className="h-4 w-4" />
                 </a>
@@ -985,7 +463,6 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
           ))}
         </div>
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-black md:h-52" />
     </section>
   );
 }
@@ -996,10 +473,15 @@ const KnappiLanding = () => {
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const [isRedirectingToInterview, setIsRedirectingToInterview] = useState(false);
   const [typedHeroHeadline, setTypedHeroHeadline] = useState('');
+  const [activeHowItWorksStepId, setActiveHowItWorksStepId] =
+    useState<(typeof howItWorksSteps)[number]['id']>('scenario');
 
   const prefersReducedMotion = useReducedMotion();
   const router = useRouter();
   const { user, loading } = useAuth();
+  const activeHowItWorksStep =
+    howItWorksSteps.find((step) => step.id === activeHowItWorksStepId) ??
+    howItWorksSteps[0];
 
   React.useEffect(() => {
     if (loading || !user) return;
@@ -1053,11 +535,11 @@ const KnappiLanding = () => {
   return (
     <div className="font-['Space_Grotesk'] text-center">
       {/* ── Hero ── */}
-      <section className="bg-white px-5 pt-24">
-        <div className="mx-auto max-w-6xl">
+      <section className="bg-white pt-16">
+        <div className="mx-auto max-w-6xl px-5">
           <h1
             aria-label={heroHeadline.replace('\n', ' ')}
-            className="relative my-30 mb-10 text-6xl font-regular leading-tight text-black md:text-7xl"
+            className="relative mb-5 mt-20 text-7xl font-regular leading-none text-black sm:text-8xl md:text-[6rem]"
           >
             <span aria-hidden="true" className="invisible whitespace-pre-line">
               {heroHeadline}
@@ -1069,7 +551,13 @@ const KnappiLanding = () => {
               ) : null}
             </span>
           </h1>
-          <div className="mt-10">
+          <p className="mx-auto max-w-3xl text-xl font-regular leading-relaxed md:text-xl">
+            Practice technical communication with
+          </p>
+          <p className="mx-auto max-w-3xl text-xl font-regular leading-relaxed md:text-xl">
+            an AI that actually pushes back
+          </p>
+          <div className="mt-5">
             <button
               onClick={handleGetStarted}
               className="button-gradient rounded-xl px-8 py-3 text-lg font-medium outline outline-green-500 outline-offset-2"
@@ -1078,12 +566,27 @@ const KnappiLanding = () => {
             </button>
           </div>
         </div>
+        <div className="relative aspect-[1881/560] w-full overflow-hidden">
+          <Image
+            src="/knappiherosectionpicture.png"
+            alt="Knappi technical communication practice interface"
+            width={1881}
+            height={836}
+            priority
+            quality={100}
+            sizes="100vw"
+            className="absolute left-1/2 top-1/2 h-auto w-full -translate-x-1/2 -translate-y-1/2 object-contain"
+          />
+        </div>
       </section>
 
       {/* ── Demo video + universities ── */}
-      <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e0fdee_30%,_#b2f5cb_60%,_#ffffff_100%)] px-5 py-24">
-        <div className="mx-auto max-w-6xl">
-          <div className="relative mx-auto mb-16 flex aspect-video max-w-4xl items-center justify-center overflow-hidden rounded-3xl bg-gray-400 shadow-2xl">
+      <section className="bg-white pb-24 pt-8">
+        <div className="mx-auto w-full rounded-[6rem] bg-emerald-50 px-5 py-10 md:px-10 md:py-12 md:mt-20">
+          <h2 className="mx-auto mb-8 mt-2 text-4xl font-normal leading-tight text-black md:mt-4 md:text-5xl">
+            Better communication starts with speaking more.
+          </h2>
+          <div className="relative mx-auto mb-16 flex aspect-video max-w-4xl items-center justify-center overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-gray-300">
             <button
               onClick={() => setIsVideoMuted(!isVideoMuted)}
               className="absolute left-5 top-5 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 transition-all duration-200 hover:bg-white"
@@ -1091,7 +594,7 @@ const KnappiLanding = () => {
             >
               {isVideoMuted ? '🔇' : '🔊'}
             </button>
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-300 to-gray-500 text-lg text-white/70">
+            <div className="flex h-full w-full items-center justify-center bg-slate-300 text-lg text-slate-600">
               Technical Communication Demo Placeholder
             </div>
           </div>
@@ -1132,8 +635,70 @@ const KnappiLanding = () => {
         </div>
       </section>
 
-      {/* ── Sticky scroll features ── */}
-      <StickyFeaturesSection prefersReducedMotion={prefersReducedMotion} />
+      {/* ── How it works ── */}
+      <section className="bg-white px-5 pb-12 pt-4 md:pb-16 md:pt-6">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="mb-14 text-5xl font-normal leading-tight text-black md:mb-16 md:text-[5.5rem]">
+            Practice until it <span className="text-emerald-600">clicks</span>
+          </h2>
+
+          <div className="grid gap-8 text-left lg:grid-cols-[12rem_1fr] lg:gap-10">
+            <div className="self-start border-y border-black/10">
+              {howItWorksSteps.map((step) => {
+                const isActive = step.id === activeHowItWorksStep.id;
+
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => setActiveHowItWorksStepId(step.id)}
+                    className={`group flex w-full items-center justify-between border-b border-black/10 py-3 text-left text-lg font-normal transition-colors last:border-b-0 ${
+                      isActive ? 'text-black' : 'text-gray-500 hover:text-black'
+                    }`}
+                    aria-pressed={isActive}
+                  >
+                    <span className="relative inline-block pb-1">
+                      {step.label}
+                      <span
+                        aria-hidden="true"
+                        className={`absolute inset-x-0 bottom-0 h-px origin-left bg-current transition-transform duration-300 ease-out ${
+                          isActive ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
+                        }`}
+                      />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,0.75fr)_1px_minmax(0,1.45fr)] lg:items-center">
+              <div className="flex h-full flex-col">
+                <div>
+                  <h3 className="max-w-2xl text-3xl font-normal leading-tight text-black md:text-4xl">
+                    {activeHowItWorksStep.title}
+                  </h3>
+                  <p className="mt-4 max-w-2xl text-base leading-7 text-gray-600 md:text-lg">
+                    {activeHowItWorksStep.description}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGetStarted}
+                  className="mt-8 inline-flex w-fit items-center rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-2.5 text-sm font-medium text-emerald-800 transition-colors duration-200 hover:border-emerald-300 hover:bg-emerald-100 lg:mt-auto"
+                >
+                  Try Knappi for Free
+                </button>
+              </div>
+
+              <div className="hidden h-full min-h-64 w-px bg-black/10 lg:block" />
+
+              <div className="flex aspect-[16/10] w-full items-center justify-center rounded-[2.5rem] border border-emerald-100 bg-emerald-50 text-base font-medium text-emerald-900/70">
+                {activeHowItWorksStep.videoLabel}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ── Founders showcase ── */}
       <FoundersShowcaseSection prefersReducedMotion={prefersReducedMotion} />
@@ -1149,7 +714,7 @@ const KnappiLanding = () => {
           </h3>
           <button
             onClick={handleGetStarted}
-            className="rounded-full bg-white px-8 py-3 font-medium text-green-700 shadow-[0_20px_45px_-28px_rgba(21,128,61,0.55)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/92"
+            className="rounded-full bg-white px-8 py-3 font-medium text-green-700 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/90"
           >
             Start Practicing
           </button>

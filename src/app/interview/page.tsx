@@ -21,7 +21,6 @@ import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Bell,
-  ChevronDown,
   ChevronUp,
   LogOut,
   Monitor,
@@ -42,11 +41,7 @@ import {
   normalizeGeneratedPrompt,
 } from '../lib/practiceConfig'
 import { getUserFacingErrorMessage, getUserFacingStatusMessage } from '../lib/userFacingErrors'
-import {
-  AUREON_MODEL_OPTIONS,
-  AUREON_NAME,
-  AUREON_VERSION_LABEL,
-} from '../lib/modelConfig'
+import { AUREON_NAME } from '../lib/modelConfig'
 import {
   createTechChatMemoryState,
   getTechChatPersona,
@@ -244,11 +239,9 @@ export default function InterviewPage() {
   } | null>(null)
   const [showAccountEditor, setShowAccountEditor] = useState(false)
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false)
-  const [modelMenuOpen, setModelMenuOpen] = useState(false)
   const [workspaceTutorialOpen, setWorkspaceTutorialOpen] = useState(false)
   const [workspaceTutorialStepIndex, setWorkspaceTutorialStepIndex] = useState(0)
   const messagePersistQueueRef = useRef<Map<string, Promise<void>>>(new Map())
-  const modelMenuRef = useRef<HTMLDivElement | null>(null)
   const prefersReducedMotion = useReducedMotion()
   const workspaceTutorialStorageKey = user?.email
     ? getWorkspaceTutorialStorageKey(user.email)
@@ -530,42 +523,11 @@ export default function InterviewPage() {
     setCurrentInterview(null)
     setActiveLandingView('home')
     setActiveModal(null)
-    setModelMenuOpen(false)
 
     const activeTutorialStep = WORKSPACE_TUTORIAL_STEPS[workspaceTutorialStepIndex]
     const shouldOpenCreateSessionModal = activeTutorialStep?.id === 'session-type-modal'
     setCreateSessionModalOpen(shouldOpenCreateSessionModal)
   }, [workspaceTutorialOpen, workspaceTutorialStepIndex])
-
-  useEffect(() => {
-    if (!modelMenuOpen) return
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!modelMenuRef.current?.contains(event.target as Node)) {
-        setModelMenuOpen(false)
-      }
-    }
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setModelMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleEscape)
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [modelMenuOpen])
-
-  useEffect(() => {
-    if (activeLandingView !== 'home' || createSessionModalOpen || currentInterview) {
-      setModelMenuOpen(false)
-    }
-  }, [activeLandingView, createSessionModalOpen, currentInterview])
 
   useEffect(() => {
     if (activeLandingView !== 'home') return
@@ -1271,73 +1233,6 @@ export default function InterviewPage() {
             className="pointer-events-none absolute inset-0"
             style={WORKSPACE_HOME_HERO_OVERLAY_STYLES[resolvedTheme]}
           />
-          <div
-            className="absolute left-6 top-3 z-10 lg:left-10 lg:top-4"
-            ref={modelMenuRef}
-          >
-            <div className="relative flex justify-start">
-              <button
-                type="button"
-                onClick={() => setModelMenuOpen((prev) => !prev)}
-                className="inline-flex items-center gap-2 text-base font-medium text-gray-500 transition-colors hover:text-gray-900"
-                aria-haspopup="menu"
-                aria-expanded={modelMenuOpen}
-              >
-                <span>{AUREON_VERSION_LABEL}</span>
-                <ChevronDown
-                  size={17}
-                  className={`transition-transform ${modelMenuOpen ? 'rotate-180' : ''}`}
-                />
-              </button>
-
-              {modelMenuOpen ? (
-                <div className="absolute left-0 top-full z-20 mt-3 w-72 overflow-hidden rounded-[24px] border border-gray-200 bg-white p-2 text-left shadow-[0_24px_70px_-28px_rgba(15,23,42,0.28)]">
-                  <div className="px-3 pb-2 pt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
-                    Model lineup
-                  </div>
-
-                  <div className="space-y-1">
-                    {AUREON_MODEL_OPTIONS.map((option) => {
-                      const isCurrent = option.id === AUREON_MODEL_OPTIONS[0].id
-
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setModelMenuOpen(false)}
-                          disabled={!option.available}
-                          className={`flex w-full items-start justify-between gap-3 rounded-[18px] px-3 py-3 text-left transition-colors ${
-                            isCurrent
-                              ? 'bg-emerald-50 text-emerald-950'
-                              : 'text-gray-600'
-                          } ${
-                            option.available ? 'hover:bg-gray-50' : 'cursor-not-allowed opacity-70'
-                          }`}
-                        >
-                          <div>
-                            <div className="text-sm font-semibold">{option.label}</div>
-                            <div className="mt-1 text-xs leading-5 text-gray-500">
-                              {option.description}
-                            </div>
-                          </div>
-                          <span
-                            className={`rounded-full px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${
-                              isCurrent
-                                ? 'bg-white text-emerald-700'
-                                : 'bg-gray-100 text-gray-500'
-                            }`}
-                          >
-                            {isCurrent ? 'Current' : 'Soon'}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-
           <div className="relative z-[1] mx-auto flex h-full w-full max-w-5xl flex-col justify-center gap-6 px-6 py-8 lg:-translate-x-12 lg:-translate-y-8 lg:px-10">
             <section className="w-full px-4 pt-8 pb-2 sm:pt-12">
               <div className="mt-6 flex flex-col items-center justify-center text-center">
