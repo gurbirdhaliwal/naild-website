@@ -108,6 +108,7 @@ MAX_TOPIC_LENGTH = int(_get_env("MAX_TOPIC_LENGTH", "160"))
 MAX_SHORT_TEXT_LENGTH = int(_get_env("MAX_SHORT_TEXT_LENGTH", "500"))
 MAX_ADDITIONAL_CONTEXT_LENGTH = int(_get_env("MAX_ADDITIONAL_CONTEXT_LENGTH", "1000"))
 MAX_TRANSCRIPT_LENGTH = int(_get_env("MAX_TRANSCRIPT_LENGTH", "12000"))
+MAX_FOLLOW_UPS_PER_PROMPT = int(_get_env("MAX_FOLLOW_UPS_PER_PROMPT", "2"))
 MAX_TECH_CHAT_MEMORY_BLOCK_LENGTH = int(
     _get_env("MAX_TECH_CHAT_MEMORY_BLOCK_LENGTH", "2400")
 )
@@ -412,6 +413,47 @@ def _normalize_optional_positive_int(value, field_name):
             detail=f"{field_name} must be a positive integer.",
         )
     return normalized
+
+
+def _normalize_non_negative_int(value, field_name, *, default=0, maximum=10):
+    if value in (None, ""):
+        return default
+    try:
+        normalized = int(value)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field_name} must be a non-negative integer.",
+        )
+
+    if normalized < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field_name} must be a non-negative integer.",
+        )
+    return min(normalized, maximum)
+
+
+def _candidate_declined_to_answer(answer):
+    normalized = " ".join((answer or "").lower().replace(".", " ").replace(",", " ").split())
+    if not normalized:
+        return False
+    decline_phrases = {
+        "i don't know",
+        "i dont know",
+        "i do not know",
+        "don't know",
+        "dont know",
+        "do not know",
+        "not sure",
+        "i'm not sure",
+        "im not sure",
+        "no idea",
+        "i have no idea",
+        "i can't answer",
+        "i cant answer",
+    }
+    return normalized in decline_phrases or normalized.startswith("i don't know ") or normalized.startswith("i dont know ")
 
 
 def _get_request_subject(request: Request, authenticated_user):
@@ -1582,15 +1624,43 @@ async def evaluate_drill(
         default="",
         max_length=MAX_TRANSCRIPT_LENGTH,
     )
+    answer_history = _normalize_string_list_field(
+        data.get("answer_history"),
+        "answer_history",
+        max_items=MAX_FOLLOW_UPS_PER_PROMPT + 1,
+        max_item_length=MAX_TRANSCRIPT_LENGTH,
+    )
+    follow_up_count = _normalize_non_negative_int(
+        data.get("follow_up_count"),
+        "follow_up_count",
+        default=max(0, len(answer_history) - 1),
+        maximum=MAX_FOLLOW_UPS_PER_PROMPT,
+    )
+    max_follow_ups = _normalize_non_negative_int(
+        data.get("max_follow_ups"),
+        "max_follow_ups",
+        default=MAX_FOLLOW_UPS_PER_PROMPT,
+        maximum=MAX_FOLLOW_UPS_PER_PROMPT,
+    )
     session_id = _normalize_optional_positive_int(data.get("session_id"), "session_id")
 
     if not isinstance(transcript, str) or not transcript.strip():
         return {"error": "A transcript is required to evaluate the drill."}
 
+    if not answer_history:
+        answer_history = [transcript]
+
+    combined_answer = "\n\nFollow-up expansion: ".join(
+        answer for answer in answer_history if isinstance(answer, str) and answer.strip()
+    )
+    can_push_back = follow_up_count < max_follow_ups and not _candidate_declined_to_answer(transcript)
+
     evaluation_prompt = f"""
 You are an expert technical communication coach for developers.
 
-You are evaluating a spoken answer. Score it on:
+You are evaluating a spoken answer. If the combined answer is too vague, incomplete, unclear, or unsupported, push back once by asking for a specific expansion before scoring it.
+
+First decide whether the combined answer is sufficient to score. Score the combined answer on:
 - clarity
 - correctness
 - depth
@@ -1605,11 +1675,21 @@ Drill context:
 - prompt: {generated_prompt.get("prompt")}
 - what the answer should cover: {generated_prompt.get("what_to_cover")}
 - extra context: {additional_context or "none"}
+- follow-ups already asked for this prompt: {follow_up_count}
+- follow-up limit for this prompt: {max_follow_ups}
 
-Transcript:
+Current answer attempt:
 {transcript}
 
-Return valid JSON with exactly these keys:
+Combined answer so far:
+{combined_answer}
+
+If the answer is unclear or too thin and follow-ups remain, return valid JSON with exactly these keys:
+- needs_followup: true
+- acknowledgement: a short, direct sentence naming what is missing
+- follow_up_question: one specific interviewer-style question asking the candidate to expand the missing detail
+
+Otherwise return valid JSON with exactly these keys:
 - overall_score (number 0-100)
 - categories (array of 4 objects with keys: key, score, feedback)
 - strengths (array of 2-4 strings)
@@ -1619,6 +1699,9 @@ Return valid JSON with exactly these keys:
 - feedback (string)
 
 Rules:
+- needs_followup must be false or omitted when the candidate says they do not know, when the follow-up limit has been reached, or when the combined answer is scoreable
+- ask at most one follow-up question
+- a follow-up should request concrete evidence, reasoning, tradeoffs, impact, or audience-specific framing
 - categories must contain exactly these keys in this order: clarity, correctness, depth, audience_fit
 - be strict but fair
 - reward explanations that lead with the point, stay technically accurate, and match the audience
@@ -1636,6 +1719,27 @@ Rules:
 
         try:
             result = _parse_model_json_content(response)
+            if (
+                can_push_back
+                and isinstance(result, dict)
+                and result.get("needs_followup") is True
+                and isinstance(result.get("follow_up_question"), str)
+                and result.get("follow_up_question").strip()
+            ):
+                return {
+                    "needs_followup": True,
+                    "acknowledgement": _normalize_text_field(
+                        result.get("acknowledgement"),
+                        "acknowledgement",
+                        default="I need a little more detail before I can score that fairly.",
+                        max_length=MAX_SHORT_TEXT_LENGTH,
+                    ),
+                    "follow_up_question": _normalize_text_field(
+                        result.get("follow_up_question"),
+                        "follow_up_question",
+                        max_length=MAX_SHORT_TEXT_LENGTH,
+                    ),
+                }
             result = _normalize_communication_grading_result(result)
             await _persist_grading_result(session_id, result, request)
             return result
@@ -1741,6 +1845,24 @@ async def interview_ack(
         default="",
         max_length=MAX_TRANSCRIPT_LENGTH,
     )
+    answer_history = _normalize_string_list_field(
+        data.get("answer_history"),
+        "answer_history",
+        max_items=MAX_FOLLOW_UPS_PER_PROMPT + 1,
+        max_item_length=MAX_TRANSCRIPT_LENGTH,
+    )
+    follow_up_count = _normalize_non_negative_int(
+        data.get("follow_up_count"),
+        "follow_up_count",
+        default=max(0, len(answer_history) - 1),
+        maximum=MAX_FOLLOW_UPS_PER_PROMPT,
+    )
+    max_follow_ups = _normalize_non_negative_int(
+        data.get("max_follow_ups"),
+        "max_follow_ups",
+        default=MAX_FOLLOW_UPS_PER_PROMPT,
+        maximum=MAX_FOLLOW_UPS_PER_PROMPT,
+    )
     previous_qa = data.get("previous_qa", [])
     if not isinstance(previous_qa, list):
         raise HTTPException(
@@ -1785,6 +1907,12 @@ async def interview_ack(
         max_length=MAX_SHORT_TEXT_LENGTH,
     )
     is_last_question = bool(data.get("is_last_question", False))
+    if not answer_history:
+        answer_history = [user_answer]
+    combined_answer = "\n\nFollow-up expansion: ".join(
+        answer for answer in answer_history if isinstance(answer, str) and answer.strip()
+    )
+    can_push_back = follow_up_count < max_follow_ups and not _candidate_declined_to_answer(user_answer)
     
     # Build context from previous Q&A
     context = ""
@@ -1796,22 +1924,38 @@ async def interview_ack(
         prompt = f"""You are an expert behavioral interviewer. The candidate just answered the final question.
 
         Current question: {current_question}
-        Candidate's answer: {user_answer}
+        Candidate's latest answer attempt: {user_answer}
+        Candidate's combined answer so far: {combined_answer}
+        Follow-ups already asked for this question: {follow_up_count}
+        Follow-up limit for this question: {max_follow_ups}
         {context}
 
-        Generate a brief, warm, professional acknowledgement of their answer (1-2 sentences) and a friendly goodbye message (1 sentence). Return as JSON:
-                {{"acknowledgement": "your acknowledgement here", "goodbye": "your goodbye message here"}}"""
+        If the combined answer is unclear, too vague, or missing the candidate's specific action/result, and follow-ups remain, push back before ending.
+        If the candidate says they do not know, the follow-up limit is reached, or the combined answer is sufficient, end the interview.
+
+        Return one of these JSON shapes:
+        {{"needs_followup": true, "acknowledgement": "briefly name what is missing", "follow_up_question": "one specific expansion question"}}
+        or
+        {{"acknowledgement": "your acknowledgement here", "goodbye": "your goodbye message here"}}"""
     else:
         # Generate acknowledgement and provide next question
         prompt = f"""You are an expert behavioral interviewer that is very thorough. The candidate just answered a question.
 
         Current question: {current_question}
-        Candidate's answer: {user_answer}
+        Candidate's latest answer attempt: {user_answer}
+        Candidate's combined answer so far: {combined_answer}
+        Follow-ups already asked for this question: {follow_up_count}
+        Follow-up limit for this question: {max_follow_ups}
         {context}
         Next question: {next_question}
 
-        Generate a brief, professional acknowledgement of their answer (1-2 sentences) that references specific details from their response when possible. Return as JSON:
-                {{"acknowledgement": "your acknowledgement here", "next_question": "{next_question}"}}"""
+        If the combined answer is unclear, too vague, or missing the candidate's specific action/result, and follow-ups remain, push back before moving on.
+        If the candidate says they do not know, the follow-up limit is reached, or the combined answer is sufficient, move to the next question.
+
+        Return one of these JSON shapes:
+        {{"needs_followup": true, "acknowledgement": "briefly name what is missing", "follow_up_question": "one specific expansion question"}}
+        or
+        {{"acknowledgement": "your acknowledgement here", "next_question": "{next_question}"}}"""
             
     response_text = await _generate_ai_text(
         system_prompt="You are a helpful AI that generates interview responses. Always return valid JSON.",
@@ -1821,7 +1965,51 @@ async def interview_ack(
     
     try:
         result = _parse_model_json_content(response_text)
-        return result
+        if (
+            can_push_back
+            and isinstance(result, dict)
+            and result.get("needs_followup") is True
+            and isinstance(result.get("follow_up_question"), str)
+            and result.get("follow_up_question").strip()
+        ):
+            return {
+                "needs_followup": True,
+                "acknowledgement": _normalize_text_field(
+                    result.get("acknowledgement"),
+                    "acknowledgement",
+                    default="I need a little more detail before we move on.",
+                    max_length=MAX_SHORT_TEXT_LENGTH,
+                ),
+                "follow_up_question": _normalize_text_field(
+                    result.get("follow_up_question"),
+                    "follow_up_question",
+                    max_length=MAX_SHORT_TEXT_LENGTH,
+                ),
+            }
+        if is_last_question:
+            return {
+                "acknowledgement": _normalize_text_field(
+                    result.get("acknowledgement") if isinstance(result, dict) else None,
+                    "acknowledgement",
+                    default="Thank you for your answer.",
+                    max_length=MAX_SHORT_TEXT_LENGTH,
+                ),
+                "goodbye": _normalize_text_field(
+                    result.get("goodbye") if isinstance(result, dict) else None,
+                    "goodbye",
+                    default="Thank you for participating in this interview. Good luck with your job search!",
+                    max_length=MAX_SHORT_TEXT_LENGTH,
+                ),
+            }
+        return {
+            "acknowledgement": _normalize_text_field(
+                result.get("acknowledgement") if isinstance(result, dict) else None,
+                "acknowledgement",
+                default="Thank you for your answer.",
+                max_length=MAX_SHORT_TEXT_LENGTH,
+            ),
+            "next_question": next_question,
+        }
     except Exception:
         # Fallback if JSON parsing fails
         if is_last_question:

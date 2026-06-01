@@ -42,6 +42,7 @@ interface InterviewChatProps {
 }
 
 const EXPECTED_QUESTION_COUNT = 5
+const MAX_FOLLOW_UPS_PER_PROMPT = 2
 const MAX_TRANSCRIPT_PREVIEW_LENGTH = 220
 const SESSION_STAGE_BACKGROUND_STYLES: Record<'light' | 'dark', React.CSSProperties> = {
   light: {
@@ -90,15 +91,61 @@ const extractCandidateAnswers = (messages: Message[], questions: string[]): stri
     const qIdx = messages.findIndex((message) => message.role === 'interviewer' && message.content === question)
     if (qIdx === -1) return ''
 
+    const answerSegments: string[] = []
     for (let index = qIdx + 1; index < messages.length; index += 1) {
       const message = messages[index]
-      if (message.role === 'candidate') return message.content ?? ''
+      if (message.role === 'candidate' && message.content?.trim()) {
+        answerSegments.push(message.content.trim())
+      }
       if (message.role === 'interviewer' && questionSet.has(message.content)) break
     }
 
-    return ''
+    return answerSegments.join('\n\nFollow-up expansion: ')
   })
 }
+
+const extractCandidateAnswerSegments = (
+  messages: Message[],
+  currentQuestion: string,
+  canonicalQuestions: string[]
+): string[] => {
+  const questionSet = new Set(canonicalQuestions)
+  const qIdx = messages.findIndex(
+    (message) => message.role === 'interviewer' && message.content === currentQuestion
+  )
+  if (qIdx === -1) return []
+
+  const segments: string[] = []
+  for (let index = qIdx + 1; index < messages.length; index += 1) {
+    const message = messages[index]
+    if (message.role === 'interviewer' && questionSet.has(message.content)) break
+    if (message.role === 'candidate' && message.content?.trim()) {
+      segments.push(message.content.trim())
+    }
+  }
+
+  return segments
+}
+
+const extractDrillAnswerSegments = (messages: Message[]): string[] =>
+  messages
+    .filter((message) => message.role === 'candidate' && message.content?.trim())
+    .map((message) => message.content.trim())
+
+interface FollowUpResult {
+  needs_followup: true
+  acknowledgement?: string
+  follow_up_question: string
+}
+
+const isFollowUpResult = (value: unknown): value is FollowUpResult =>
+  Boolean(
+    value &&
+      typeof value === 'object' &&
+      (value as FollowUpResult).needs_followup === true &&
+      typeof (value as FollowUpResult).follow_up_question === 'string' &&
+      (value as FollowUpResult).follow_up_question?.trim()
+  )
 
 interface BehavioralScoreCandidate {
   question?: string
@@ -604,6 +651,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       const thinkingMessage = buildThinkingMessage()
       const currentMessages = [...interview.messages, userMessage, thinkingMessage]
       onUpdateInterview({ ...interview, messages: currentMessages })
+      const answerHistory = [...extractDrillAnswerSegments(interview.messages), transcript]
 
       const evaluationResponse = await fetch(`${AI_BASE}/evaluate_drill`, {
         method: 'POST',
@@ -617,6 +665,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
           additional_context: interview.promptContext,
           generated_prompt: interview.generatedPrompt ?? promptDetails,
           transcript,
+          answer_history: answerHistory,
+          follow_up_count: Math.max(0, answerHistory.length - 1),
+          max_follow_ups: MAX_FOLLOW_UPS_PER_PROMPT,
           session_id: Number.isNaN(Number(interview.id)) ? null : Number(interview.id),
         }),
       })
@@ -625,12 +676,33 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         throw new Error(`Failed to evaluate this answer (${evaluationResponse.status})`)
       }
 
-      const evaluationData = normalizeCommunicationGradingResult(await evaluationResponse.json())
+      const rawEvaluationData = await evaluationResponse.json()
+      const messagesWithoutThinking = currentMessages.filter((message) => message.id !== thinkingMessage.id)
+      if (isFollowUpResult(rawEvaluationData)) {
+        const acknowledgement = rawEvaluationData.acknowledgement?.trim()
+        const followUp = rawEvaluationData.follow_up_question.trim()
+        const promptText = acknowledgement ? `${acknowledgement} ${followUp}` : followUp
+        const followUpMessage: Message = {
+          id: `${Date.now()}-followup`,
+          role: 'interviewer',
+          content: promptText,
+          timestamp: new Date(),
+          transcription: `[${modelLabel}]: ${promptText}`,
+          isThinking: false,
+        }
+
+        const updatedMessages = [...messagesWithoutThinking, followUpMessage]
+        onUpdateInterview({ ...interview, messages: updatedMessages })
+        await persistMessages(updatedMessages)
+        await speakAsAureon(followUpMessage.content)
+        return
+      }
+
+      const evaluationData = normalizeCommunicationGradingResult(rawEvaluationData)
       if (isGradingErrorResult(evaluationData)) {
         throw new Error(evaluationData.error)
       }
 
-      const messagesWithoutThinking = currentMessages.filter((message) => message.id !== thinkingMessage.id)
       const strongestPoint = evaluationData.strengths[0] ?? 'The explanation had a clear foundation.'
       const missingPoint =
         evaluationData.missing_points[0] ?? 'Make the structure even easier to follow on the next pass.'
@@ -699,6 +771,10 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       const currentQuestion = questions[currentQuestionIndex]
       const isLastQuestion = currentQuestionIndex >= questions.length - 1
       const nextQuestion = isLastQuestion ? '' : questions[currentQuestionIndex + 1]
+      const answerHistory = [
+        ...extractCandidateAnswerSegments(interview.messages, currentQuestion, questions),
+        transcript,
+      ]
 
       const previousQA = []
       const priorAnswers = extractCandidateAnswers(interview.messages, questions)
@@ -719,6 +795,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         body: JSON.stringify({
           current_question: currentQuestion,
           user_answer: transcript,
+          answer_history: answerHistory,
+          follow_up_count: Math.max(0, answerHistory.length - 1),
+          max_follow_ups: MAX_FOLLOW_UPS_PER_PROMPT,
           previous_qa: previousQA,
           next_question: nextQuestion,
           is_last_question: isLastQuestion,
@@ -731,6 +810,26 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
       const ackResult = await ackResponse.json()
       const messagesWithoutThinking = currentMessages.filter((message) => message.id !== thinkingMessage.id)
+
+      if (isFollowUpResult(ackResult)) {
+        const acknowledgement = ackResult.acknowledgement?.trim()
+        const followUp = ackResult.follow_up_question.trim()
+        const promptText = acknowledgement ? `${acknowledgement} ${followUp}` : followUp
+        const followUpMessage: Message = {
+          id: `${Date.now()}-followup`,
+          role: 'interviewer',
+          content: promptText,
+          timestamp: new Date(),
+          transcription: `[${modelLabel}]: ${promptText}`,
+          isThinking: false,
+        }
+
+        const updatedMessages = [...messagesWithoutThinking, followUpMessage]
+        onUpdateInterview({ ...interview, messages: updatedMessages })
+        await persistMessages(updatedMessages)
+        await speakAsAureon(followUpMessage.content)
+        return
+      }
 
       const acknowledgementMessage: Message = {
         id: `${Date.now()}-ack`,
