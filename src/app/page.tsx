@@ -112,6 +112,43 @@ const founderProfiles = [
   },
 ] as const;
 
+const companyFooterLinks = [
+  {
+    label: 'Contact Us',
+    href: 'mailto:support@knappi.ca',
+  },
+  {
+    label: 'Careers',
+    href: '#',
+  },
+  {
+    label: 'Ethos',
+    href: '#',
+  },
+  {
+    label: 'Help',
+    href: '#',
+  },
+] as const;
+const legalFooterLinks = [
+  {
+    label: 'Terms of Service',
+    href: '/terms',
+  },
+  {
+    label: 'Privacy Policy',
+    href: '/privacy',
+  },
+  {
+    label: 'Cookie Notice',
+    href: '/cookies',
+  },
+  {
+    label: 'AI Disclaimer',
+    href: '/ai-disclaimer',
+  },
+] as const;
+
 const howItWorksSteps = [
   {
     id: 'scenario',
@@ -741,25 +778,25 @@ const KnappiLanding = () => {
             </div>
             <div>
               <h4 className="mb-4 font-medium text-black">Company</h4>
-              {['Contact Us', 'Careers', 'Ethos', 'Help'].map((link, index) => (
+              {companyFooterLinks.map((link) => (
                 <a
-                  key={index}
-                  href="#"
+                  key={link.label}
+                  href={link.href}
                   className="mb-3 block text-sm text-gray-500 transition-colors duration-200 hover:text-black"
                 >
-                  {link}
+                  {link.label}
                 </a>
               ))}
             </div>
             <div>
               <h4 className="mb-4 font-medium text-black">Legal</h4>
-              {['Terms of Service', 'Privacy Policy', 'Acts Notices', 'Labs'].map((link, index) => (
+              {legalFooterLinks.map((link) => (
                 <a
-                  key={index}
-                  href="#"
+                  key={link.label}
+                  href={link.href}
                   className="mb-3 block text-sm text-gray-500 transition-colors duration-200 hover:text-black"
                 >
-                  {link}
+                  {link.label}
                 </a>
               ))}
             </div>
