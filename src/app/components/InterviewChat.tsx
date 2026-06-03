@@ -23,6 +23,7 @@ import { AI_BASE, API_BASE } from '../services/api'
 import { getAuthHeaders } from '../services/authToken'
 import { getAudioUploadFilename } from '../services/audioUpload'
 import { confirmSessionExpired, notifySessionExpired } from '../services/authSession'
+import { playAiMessageSound } from '../services/chatNotificationSound'
 import { useAuth } from '../context/AuthContext'
 import {
   COMMUNICATION_CATEGORY_LABELS,
@@ -33,7 +34,6 @@ import {
 import { getUserFacingErrorMessage } from '../lib/userFacingErrors'
 import { AUREON_NAME } from '../lib/modelConfig'
 import { getAureonVoicePersona, type AISessionState } from '../lib/voicePersonasConfig'
-import { cancelActiveSpeech, speakWithVoicePersona } from '../services/voiceService'
 
 interface InterviewChatProps {
   interview: Interview
@@ -373,9 +373,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const initialPromptSpokenRef = useRef<string | null>(null)
+  const notifiedMessageIdsRef = useRef<Set<string> | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [showTranscription, setShowTranscription] = useState(false)
+  const [showTranscription, setShowTranscription] = useState(true)
   const [cameraOn, setCameraOn] = useState(true)
   const [aiState, setAiState] = useState<AISessionState>('idle')
   const [gradingResult, setGradingResult] = useState<GradingResult | null>(null)
@@ -410,11 +410,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   useEffect(() => {
     setExpandedTranscriptIds([])
     setAiState('idle')
-    initialPromptSpokenRef.current = null
-    cancelActiveSpeech()
+    notifiedMessageIdsRef.current = null
   }, [interview.id])
-
-  useEffect(() => () => cancelActiveSpeech(), [])
 
   useEffect(() => {
     setGradingResult(
@@ -467,7 +464,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
     if (interview.messages.length > 0) return
 
     const welcomeContent = isBehavioralSession
-      ? 'Welcome to your behavioral interview. Click the microphone to begin speaking your answers.'
+      ? 'Welcome to your behavioral interview. Use the microphone when you are ready to answer.'
       : 'Welcome to your communication drill. Record one focused answer when you are ready.'
 
     const welcome: Message = {
@@ -483,35 +480,26 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   }, [interview, isBehavioralSession, modelLabel, onUpdateInterview])
 
   useEffect(() => {
-    if (interview.status === 'completed') return
-    if (interview.messages.some((message) => message.role === 'candidate')) return
+    const aiMessages = interview.messages.filter(
+      (message) => message.role === 'interviewer' && !message.isThinking && message.content.trim()
+    )
 
-    const initialPrompt = [...interview.messages]
-      .reverse()
-      .find((message) => message.role === 'interviewer' && !message.isThinking && message.content.trim())
-
-    if (!initialPrompt || initialPromptSpokenRef.current === initialPrompt.id) return
-
-    initialPromptSpokenRef.current = initialPrompt.id
-    let cancelled = false
-
-    const speakInitialPrompt = async () => {
-      setIsProcessing(true)
-      setAiState('speaking')
-      await speakWithVoicePersona(initialPrompt.content, aureonVoice)
-
-      if (!cancelled) {
-        setIsProcessing(false)
-        setAiState('idle')
+    if (!notifiedMessageIdsRef.current) {
+      notifiedMessageIdsRef.current = new Set(interview.messages.map((message) => message.id))
+      if (
+        interview.status !== 'completed' &&
+        !interview.messages.some((message) => message.role === 'candidate') &&
+        aiMessages.length > 0
+      ) {
+        playAiMessageSound()
       }
+      return
     }
 
-    void speakInitialPrompt()
-
-    return () => {
-      cancelled = true
-    }
-  }, [aureonVoice, interview.id, interview.messages, interview.status])
+    const newAiMessage = aiMessages.find((message) => !notifiedMessageIdsRef.current?.has(message.id))
+    notifiedMessageIdsRef.current = new Set(interview.messages.map((message) => message.id))
+    if (newAiMessage && interview.status !== 'completed') playAiMessageSound()
+  }, [interview.messages, interview.status])
 
   useEffect(() => {
     if (!isTimerRunning || timer <= 0) {
@@ -626,11 +614,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
     isThinking: true,
   })
 
-  const speakAsAureon = async (text: string) => {
-    setAiState('speaking')
-    await speakWithVoicePersona(text, aureonVoice)
-  }
-
   const handleTechnicalDrillUpload = async (audioBlob: Blob) => {
     stopTimer()
     setIsProcessing(true)
@@ -694,7 +677,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         const updatedMessages = [...messagesWithoutThinking, followUpMessage]
         onUpdateInterview({ ...interview, messages: updatedMessages })
         await persistMessages(updatedMessages)
-        await speakAsAureon(followUpMessage.content)
         return
       }
 
@@ -733,7 +715,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         })
       }
 
-      await speakAsAureon(summaryMessage.content)
     } catch (error) {
       const message = getUserFacingErrorMessage('drillEvaluation', error)
       console.error('Failed to evaluate drill:', error)
@@ -827,7 +808,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         const updatedMessages = [...messagesWithoutThinking, followUpMessage]
         onUpdateInterview({ ...interview, messages: updatedMessages })
         await persistMessages(updatedMessages)
-        await speakAsAureon(followUpMessage.content)
         return
       }
 
@@ -886,8 +866,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       } catch (error) {
         console.error('Failed to update current question index:', error)
       }
-
-      await speakAsAureon(`${acknowledgementMessage.content} ${closingMessage.content}`)
 
       if (isLastQuestion) {
         setAiState('thinking')
@@ -1058,6 +1036,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
             ai={{
               initials: aureonVoice.initials,
               avatarClassName: aureonVoice.avatarClassName,
+              name: modelLabel,
             }}
             aiState={aiState}
             resolvedTheme={resolvedTheme}
@@ -1294,25 +1273,21 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
                   onRecordingStop={stopTimer}
                   onRecordingError={setRecordingError}
                   maxDuration={maxRecordingDuration}
-                  disabled={isProcessing || gradingLoading || aiState === 'thinking' || aiState === 'speaking'}
+                  disabled={isProcessing || gradingLoading || aiState === 'thinking'}
                   idleText={
                     isBehavioralSession
                       ? 'Click the microphone to answer the current question.'
                       : 'Click the microphone to answer this drill.'
                   }
                   processingText={
-                    aiState === 'speaking'
-                      ? `${modelLabel} is speaking...`
-                      : isProcessing
-                        ? `${modelLabel} is reviewing your answer...`
-                        : 'Processing...'
+                    isProcessing
+                      ? `${modelLabel} is reviewing your answer...`
+                      : 'Processing...'
                   }
                   disabledText={
-                    aiState === 'speaking'
-                      ? `${modelLabel} is speaking...`
-                      : aiState === 'thinking'
-                        ? `${modelLabel} is gathering a response...`
-                        : 'Please wait...'
+                    aiState === 'thinking'
+                      ? `${modelLabel} is gathering a response...`
+                      : 'Please wait...'
                   }
                   wrapperClassName="flex flex-col items-center gap-3"
                   statusClassName="text-center text-sm text-gray-600"

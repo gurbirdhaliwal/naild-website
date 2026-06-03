@@ -12,6 +12,7 @@ import { AI_BASE } from '../services/api'
 import { getAuthHeaders } from '../services/authToken'
 import { getAudioUploadFilename } from '../services/audioUpload'
 import { interviewService } from '../services/interviewService'
+import { playAiMessageSound } from '../services/chatNotificationSound'
 import { Interview, Message, TechChatRecap } from '../types/Interview'
 import {
   TECH_CHAT_ACTIVE_WINDOW_MESSAGE_COUNT,
@@ -22,7 +23,6 @@ import {
   serializeTechChatMemoryState,
 } from '../lib/techChatConfig'
 import { getTechChatVoicePersona, type AISessionState } from '../lib/voicePersonasConfig'
-import { cancelActiveSpeech, speakWithVoicePersona } from '../services/voiceService'
 
 interface TechChatSessionProps {
   interview: Interview
@@ -87,8 +87,8 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
   const endRequestedRef = useRef(false)
   const latestInterviewRef = useRef(interview)
   const responseGenerationRef = useRef(0)
-  const initialPromptSpokenRef = useRef<string | null>(null)
-  const [showTranscription, setShowTranscription] = useState(false)
+  const notifiedMessageIdsRef = useRef<Set<string> | null>(null)
+  const [showTranscription, setShowTranscription] = useState(true)
   const [cameraOn, setCameraOn] = useState(true)
   const [aiState, setAiState] = useState<AISessionState>('idle')
   const [timer, setTimer] = useState(MAX_RECORDING_DURATION)
@@ -116,13 +116,10 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
     setRecordingError(null)
     setTimer(MAX_RECORDING_DURATION)
     setAiState('idle')
-    initialPromptSpokenRef.current = null
-    cancelActiveSpeech()
+    notifiedMessageIdsRef.current = null
     setIsTimerRunning(false)
     if (timerRef.current) clearTimeout(timerRef.current)
   }, [interview.id])
-
-  useEffect(() => () => cancelActiveSpeech(), [])
 
   useEffect(() => {
     if (!isTimerRunning || timer <= 0) {
@@ -140,35 +137,22 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
   }, [isTimerRunning, timer])
 
   useEffect(() => {
-    if (isCompleted) return
-    if (interview.messages.some((message) => message.role === 'candidate')) return
+    const aiMessages = interview.messages.filter(
+      (message) => message.role === 'interviewer' && !message.isThinking && message.content.trim()
+    )
 
-    const initialPrompt = [...interview.messages]
-      .reverse()
-      .find((message) => message.role === 'interviewer' && !message.isThinking && message.content.trim())
-
-    if (!initialPrompt || initialPromptSpokenRef.current === initialPrompt.id) return
-
-    initialPromptSpokenRef.current = initialPrompt.id
-    let cancelled = false
-
-    const speakInitialPrompt = async () => {
-      setIsProcessing(true)
-      setAiState('speaking')
-      await speakWithVoicePersona(initialPrompt.content, voicePersona)
-
-      if (!cancelled) {
-        setIsProcessing(false)
-        setAiState('idle')
+    if (!notifiedMessageIdsRef.current) {
+      notifiedMessageIdsRef.current = new Set(interview.messages.map((message) => message.id))
+      if (!isCompleted && !interview.messages.some((message) => message.role === 'candidate') && aiMessages.length > 0) {
+        playAiMessageSound()
       }
+      return
     }
 
-    void speakInitialPrompt()
-
-    return () => {
-      cancelled = true
-    }
-  }, [interview.id, interview.messages, isCompleted, voicePersona])
+    const newAiMessage = aiMessages.find((message) => !notifiedMessageIdsRef.current?.has(message.id))
+    notifiedMessageIdsRef.current = new Set(interview.messages.map((message) => message.id))
+    if (newAiMessage && !isCompleted) playAiMessageSound()
+  }, [interview.messages, isCompleted])
 
   useEffect(() => {
     let activeStream: MediaStream | null = null
@@ -361,9 +345,6 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
       await interviewService.updateInterviewMessages(Number(currentInterview.id), { messages: nextMessages }).catch(() => undefined)
       void maybeCompressMemory(currentInterview, nextMessages)
 
-      setAiState('speaking')
-      await speakWithVoicePersona(aiText, voicePersona)
-
       if (shouldEnd || endRequestedRef.current) {
         endRequestedRef.current = false
         await completeSession(nextMessages)
@@ -486,19 +467,13 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
 
   const finishSession = async () => {
     setEndConfirmOpen(false)
-    if (isResponding || (isProcessing && aiState !== 'speaking')) {
+    if (isResponding || isProcessing) {
       endRequestedRef.current = true
       return
-    }
-    if (aiState === 'speaking') {
-      cancelActiveSpeech()
-      setIsProcessing(false)
-      setAiState('idle')
     }
     responseGenerationRef.current += 1
     setIsResponding(false)
     setAiState('idle')
-    cancelActiveSpeech()
     await completeSession(latestInterviewRef.current.messages.filter((message) => !message.isThinking))
   }
 
@@ -653,6 +628,7 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
             ai={{
               initials: voicePersona.initials,
               avatarClassName: voicePersona.avatarClassName,
+              name: persona.name,
             }}
             aiState={aiState}
             resolvedTheme={resolvedTheme}
@@ -674,11 +650,9 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
             ) : (
               <div className="flex min-h-[180px] flex-col items-center justify-center px-4 py-6">
                 <div className="mb-4 max-w-xl text-center text-sm text-gray-600">
-                  {aiState === 'speaking'
-                    ? `${persona.name} is speaking...`
-                    : isResponding || aiState === 'thinking'
-                      ? `${persona.name} is gathering a response...`
-                      : 'Pick up the thread when you are ready.'}
+                  {isResponding || aiState === 'thinking'
+                    ? `${persona.name} is gathering a response...`
+                    : 'Pick up the thread when you are ready.'}
                 </div>
                 <CustomMicRecorder
                   onAudioRecorded={handleAudioRecorded}
@@ -686,23 +660,17 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
                   onRecordingStop={stopTimer}
                   onRecordingError={setRecordingError}
                   maxDuration={MAX_RECORDING_DURATION}
-                  disabled={isProcessing || isResponding || ending || aiState === 'thinking' || aiState === 'speaking'}
+                  disabled={isProcessing || isResponding || ending || aiState === 'thinking'}
                   idleText="Click the microphone to continue the conversation."
                   recordingText="Recording..."
                   processingText={
-                    aiState === 'speaking'
-                      ? `${persona.name} is speaking...`
-                      : isResponding || aiState === 'thinking'
-                        ? `${persona.name} is gathering a response...`
-                        : isProcessing
-                          ? `${persona.name} is listening...`
-                          : 'Processing...'
+                    isResponding || aiState === 'thinking'
+                      ? `${persona.name} is gathering a response...`
+                      : isProcessing
+                        ? `${persona.name} is listening...`
+                        : 'Processing...'
                   }
-                  disabledText={
-                    aiState === 'speaking'
-                      ? `${persona.name} is speaking...`
-                      : `${persona.name} is gathering a response...`
-                  }
+                  disabledText={`${persona.name} is gathering a response...`}
                   wrapperClassName="flex flex-col items-center gap-3"
                   statusClassName="text-center text-sm text-gray-600"
                 />

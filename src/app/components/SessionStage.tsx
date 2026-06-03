@@ -5,6 +5,7 @@ import type { AISessionState } from '../lib/voicePersonasConfig'
 interface AIPresenceProfile {
   initials: string
   avatarClassName: string
+  name: string
 }
 
 interface SessionStageProps {
@@ -21,7 +22,7 @@ const AI_STATE_LABEL: Record<AISessionState, string> = {
   idle: 'AI is ready',
   listening: 'AI is listening',
   thinking: 'AI is processing',
-  speaking: 'AI is speaking',
+  speaking: 'AI is ready',
 }
 const SessionStage: React.FC<SessionStageProps> = ({
   cameraOn,
@@ -87,6 +88,9 @@ const SessionStage: React.FC<SessionStageProps> = ({
         aria-label={AI_STATE_LABEL[aiState]}
         aria-live="polite"
       >
+        <div className="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-xs font-medium text-white backdrop-blur">
+          {ai.name}
+        </div>
         <div className="relative flex h-full flex-col items-center justify-center px-6 text-center">
           <div className="ai-presence-ring relative flex h-32 w-32 items-center justify-center rounded-full border border-emerald-200/70">
             <div className="ai-presence-core absolute h-24 w-24 rounded-full bg-emerald-100/65" />
