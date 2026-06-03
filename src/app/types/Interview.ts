@@ -100,6 +100,11 @@ export interface Interview {
   gradingResult?: GradingResult | null
 }
 
+export interface TrashedInterview {
+  interview: Interview
+  deletedAt: Date
+}
+
 export interface InterviewConfig {
   role: string;
   languages: string[];

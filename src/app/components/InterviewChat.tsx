@@ -39,6 +39,8 @@ interface InterviewChatProps {
   interview: Interview
   onUpdateInterview: (interview: Interview) => void
   resolvedTheme: 'light' | 'dark'
+  trashPreviewMode?: boolean
+  onRestoreFromTrash?: () => void
 }
 
 const EXPECTED_QUESTION_COUNT = 5
@@ -364,6 +366,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   interview,
   onUpdateInterview,
   resolvedTheme,
+  trashPreviewMode = false,
+  onRestoreFromTrash,
 }) => {
   const { user } = useAuth()
   const isBehavioralSession = (interview.sessionType ?? 'behavioral-interview') === 'behavioral-interview'
@@ -461,6 +465,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   }, [interview.id, interview.status, isBehavioralSession])
 
   useEffect(() => {
+    if (trashPreviewMode) return
     if (interview.messages.length > 0) return
 
     const welcomeContent = isBehavioralSession
@@ -477,7 +482,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
     }
 
     onUpdateInterview({ ...interview, messages: [welcome] })
-  }, [interview, isBehavioralSession, modelLabel, onUpdateInterview])
+  }, [interview, isBehavioralSession, modelLabel, onUpdateInterview, trashPreviewMode])
 
   useEffect(() => {
     const aiMessages = interview.messages.filter(
@@ -1044,6 +1049,24 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
           />
 
           <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-10">
+            {trashPreviewMode && (interview.status === 'completed' || shouldShowGrading) ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/90 px-6 py-5 text-center">
+                <div className="text-sm font-semibold text-amber-950">This session is in the Trash Bin</div>
+                <p className="mt-2 text-sm leading-6 text-amber-900">
+                  Restore this session to your workspace before using it again.
+                </p>
+                {onRestoreFromTrash ? (
+                  <button
+                    type="button"
+                    onClick={onRestoreFromTrash}
+                    className="mt-4 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                  >
+                    Restore session
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
             {recordingError ? (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {recordingError}
@@ -1259,6 +1282,22 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
             ) : isGradingErrorResult(gradingResult) ? (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
                 {gradingResult.error}
+              </div>
+            ) : trashPreviewMode ? (
+              <div className="flex min-h-[180px] flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/90 px-6 py-8 text-center">
+                <div className="text-sm font-semibold text-amber-950">This session is in the Trash Bin</div>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-amber-900">
+                  Restore this session to your workspace before using the microphone or continuing the session.
+                </p>
+                {onRestoreFromTrash ? (
+                  <button
+                    type="button"
+                    onClick={onRestoreFromTrash}
+                    className="mt-4 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                  >
+                    Restore session
+                  </button>
+                ) : null}
               </div>
             ) : interview.status !== 'completed' ? (
               <div className="flex min-h-[180px] flex-col items-center justify-center px-4 py-6">

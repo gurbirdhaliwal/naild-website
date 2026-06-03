@@ -16,8 +16,11 @@ import {
   Check,
   X,
   BarChart3,
+  RotateCcw,
+  Clock,
+  MoreHorizontal,
 } from 'lucide-react';
-import { Interview } from '../types/Interview';
+import { Interview, TrashedInterview } from '../types/Interview';
 import Link from 'next/link';
 import MetricsDashboard from './MetricsDashboard';
 import { LIBRARY_SECTIONS, type LibrarySectionId } from './Library';
@@ -38,6 +41,12 @@ interface SidebarProps {
   onSelectInterview: (interview: Interview) => void;
   onDeleteInterview: (interviewId: string) => void;
   onRenameInterview: (interviewId: string, title: string) => Promise<void> | void;
+  trashedInterviews: TrashedInterview[];
+  onRestoreTrashedInterview: (interviewId: string) => void;
+  onPermanentlyDeleteTrashedInterview: (interviewId: string) => Promise<void> | void;
+  onDeleteAllTrashedInterviews: () => Promise<void> | void;
+  getTrashDaysLeft: (deletedAt: Date) => number;
+  onPreviewTrashedInterview: (interview: Interview) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
   userInitial: string;
@@ -61,6 +70,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectInterview,
   onDeleteInterview,
   onRenameInterview,
+  trashedInterviews,
+  onRestoreTrashedInterview,
+  onPermanentlyDeleteTrashedInterview,
+  onDeleteAllTrashedInterviews,
+  getTrashDaysLeft,
+  onPreviewTrashedInterview,
   collapsed,
   onToggleCollapse,
   userInitial,
@@ -77,6 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [metricsOpen, setMetricsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,6 +100,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [editingTitle, setEditingTitle] = useState('');
   const [savingRenameId, setSavingRenameId] = useState<string | null>(null);
   const [interviewPendingDelete, setInterviewPendingDelete] = useState<Interview | null>(null);
+  const [trashActionLoading, setTrashActionLoading] = useState<string | null>(null);
+  const [trashMenuOpenId, setTrashMenuOpenId] = useState<string | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
@@ -111,6 +129,13 @@ const Sidebar: React.FC<SidebarProps> = ({
     });
   }, [interviews, normalizedSearchQuery]);
 
+  const sortedTrashItems = useMemo(
+    () =>
+      [...trashedInterviews].sort(
+        (a, b) => b.deletedAt.getTime() - a.deletedAt.getTime()
+      ),
+    [trashedInterviews]
+  );
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!accountMenuRef.current?.contains(event.target as Node)) {
@@ -126,6 +151,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     const handleGlobalEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (searchOpen) setSearchOpen(false);
+      if (trashOpen) {
+        setTrashOpen(false);
+        setTrashMenuOpenId(null);
+      }
       if (metricsOpen) setMetricsOpen(false);
       if (libraryOpen) setLibraryOpen(false);
       if (interviewPendingDelete) setInterviewPendingDelete(null);
@@ -137,23 +166,34 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     document.addEventListener('keydown', handleGlobalEscape);
     return () => document.removeEventListener('keydown', handleGlobalEscape);
-  }, [searchOpen, metricsOpen, libraryOpen, interviewPendingDelete, editingInterviewId]);
+  }, [searchOpen, trashOpen, metricsOpen, libraryOpen, interviewPendingDelete, editingInterviewId]);
 
   const openSearchModal = () => {
     setSearchQuery('');
+    setTrashOpen(false);
     setMetricsOpen(false);
     setLibraryOpen(false);
     setSearchOpen(true);
   };
 
+  const openTrashModal = () => {
+    setSearchOpen(false);
+    setMetricsOpen(false);
+    setLibraryOpen(false);
+    setTrashMenuOpenId(null);
+    setTrashOpen(true);
+  };
+
   const openMetricsModal = () => {
     setSearchOpen(false);
+    setTrashOpen(false);
     setLibraryOpen(false);
     setMetricsOpen(true);
   };
 
   const openLibraryChooser = () => {
     setSearchOpen(false);
+    setTrashOpen(false);
     setMetricsOpen(false);
     setLibraryOpen(true);
   };
@@ -247,6 +287,42 @@ const Sidebar: React.FC<SidebarProps> = ({
       .finally(() => {
         setInterviewPendingDelete(null);
       });
+  };
+
+  const restoreTrashItem = async (interviewId: string) => {
+    setTrashActionLoading(`restore-${interviewId}`);
+    try {
+      await Promise.resolve(onRestoreTrashedInterview(interviewId));
+      setTrashMenuOpenId(null);
+    } finally {
+      setTrashActionLoading(null);
+    }
+  };
+
+  const permanentlyDeleteTrashItem = async (interviewId: string) => {
+    setTrashActionLoading(`delete-${interviewId}`);
+    try {
+      await Promise.resolve(onPermanentlyDeleteTrashedInterview(interviewId));
+      setTrashMenuOpenId(null);
+    } finally {
+      setTrashActionLoading(null);
+    }
+  };
+
+  const deleteAllTrashItems = async () => {
+    setTrashActionLoading('delete-all');
+    try {
+      await Promise.resolve(onDeleteAllTrashedInterviews());
+      setTrashMenuOpenId(null);
+    } finally {
+      setTrashActionLoading(null);
+    }
+  };
+
+  const previewTrashItem = (item: TrashedInterview) => {
+    onPreviewTrashedInterview(item.interview);
+    setTrashMenuOpenId(null);
+    setTrashOpen(false);
   };
 
   return (
@@ -502,7 +578,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         Delete session?
                       </h2>
                       <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-                        This action cannot be undone.
+                        You can restore it from the Trash Bin for 30 days.
                       </p>
                     </div>
                   </div>
@@ -527,7 +603,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
                       autoFocus
                     >
-                      Delete
+                      Move to trash
                     </button>
                   </div>
                 </div>
@@ -597,6 +673,157 @@ const Sidebar: React.FC<SidebarProps> = ({
                     ))
                   )}
                 </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {trashOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 pt-20"
+              onClick={() => setTrashOpen(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                className="w-full max-w-2xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between gap-4 border-b border-gray-200 p-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                      <Trash2 size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-sm font-semibold text-gray-900 sm:text-base">Trash Bin</h2>
+                      <p className="mt-1 text-xs text-gray-500 sm:text-sm">
+                        Deleted sessions are permanently removed after 30 days.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {sortedTrashItems.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => void deleteAllTrashItems()}
+                        disabled={trashActionLoading !== null}
+                        className="rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60 sm:text-sm"
+                      >
+                        {trashActionLoading === 'delete-all' ? 'Deleting...' : 'Delete All'}
+                      </button>
+                    ) : null}
+                    <button
+                      onClick={() => setTrashOpen(false)}
+                      className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                      title="Close trash"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {sortedTrashItems.length === 0 ? (
+                  <div className="px-4 py-12 text-center">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+                      <Trash2 size={20} />
+                    </div>
+                    <p className="mt-3 text-sm font-medium text-gray-900">Trash Bin is empty</p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Deleted sessions will appear here before they are permanently removed.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="max-h-[420px] overflow-y-auto py-2">
+                    {sortedTrashItems.map((item) => {
+                      const daysLeft = getTrashDaysLeft(item.deletedAt);
+
+                      return (
+                        <div
+                          key={`trash-${item.interview.id}`}
+                          className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => previewTrashItem(item)}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <div className="truncate text-sm font-medium text-gray-900">
+                              {item.interview.title}
+                            </div>
+                            <div className="mt-1 truncate text-xs text-gray-500">
+                              {getSessionSubtitle(item.interview)}
+                              {getSessionFocusSummary(item.interview)
+                                ? ` • ${getSessionFocusSummary(item.interview)}`
+                                : ''}
+                            </div>
+                          </button>
+
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800">
+                              <Clock size={12} />
+                              {daysLeft === 1 ? '1 day left' : `${daysLeft} days left`}
+                            </span>
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setTrashMenuOpenId((prev) =>
+                                    prev === item.interview.id ? null : item.interview.id
+                                  );
+                                }}
+                                className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                                title="Trash actions"
+                                aria-haspopup="menu"
+                                aria-expanded={trashMenuOpenId === item.interview.id}
+                              >
+                                <MoreHorizontal size={16} />
+                              </button>
+
+                              {trashMenuOpenId === item.interview.id ? (
+                                <div
+                                  role="menu"
+                                  className="absolute right-0 top-9 z-20 w-48 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                                >
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => void restoreTrashItem(item.interview.id)}
+                                    disabled={trashActionLoading !== null}
+                                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60"
+                                  >
+                                    <RotateCcw size={14} />
+                                    {trashActionLoading === `restore-${item.interview.id}`
+                                      ? 'Restoring...'
+                                      : 'Restore'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => void permanentlyDeleteTrashItem(item.interview.id)}
+                                    disabled={trashActionLoading !== null}
+                                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60"
+                                  >
+                                    <Trash2 size={14} />
+                                    {trashActionLoading === `delete-${item.interview.id}`
+                                      ? 'Deleting...'
+                                      : 'Delete permanently'}
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </motion.div>
             </motion.div>
           )}
@@ -766,6 +993,16 @@ const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Settings size={18} />
                 Settings
+              </button>
+              <button
+                onClick={() => {
+                  setAccountMenuOpen(false);
+                  openTrashModal();
+                }}
+                className="dropdown-link py-4"
+              >
+                <Trash2 size={18} />
+                Trash Bin
               </button>
               <button
                 onClick={() => {

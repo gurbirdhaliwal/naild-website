@@ -15,6 +15,7 @@ import {
   GeneratedPrompt,
   Interview,
   InterviewConfig,
+  TrashedInterview,
 } from '../types/Interview'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
@@ -60,6 +61,8 @@ type ProfileToastType = 'success' | 'error'
 type WorkspaceLandingView = 'home' | 'communication' | 'behavioral' | 'tech-chat' | 'notes'
 
 const SETTINGS_STORAGE_KEY = 'knappi.settings.preferences.v1'
+const TRASH_STORAGE_KEY = 'knappi.interview.trash.v1'
+const TRASH_RETENTION_DAYS = 30
 const WORKSPACE_TUTORIAL_STORAGE_KEY = 'knappi.interview.workspace.tutorial.v2'
 const WORKSPACE_EXAMPLE_TYPING_STEP_MS = 26
 const WORKSPACE_EXAMPLE_DELETING_STEP_MS = 18
@@ -182,6 +185,108 @@ const WORKSPACE_TUTORIAL_STEPS: WorkspaceTutorialStep[] = [
 const getWorkspaceTutorialStorageKey = (email: string) =>
   `${WORKSPACE_TUTORIAL_STORAGE_KEY}:${email.trim().toLowerCase()}`
 
+const getTrashStorageKey = (email: string) =>
+  `${TRASH_STORAGE_KEY}:${email.trim().toLowerCase()}`
+
+const getTrashExpiresAt = (deletedAt: Date) => {
+  const expiresAt = new Date(deletedAt)
+  expiresAt.setDate(expiresAt.getDate() + TRASH_RETENTION_DAYS)
+  return expiresAt
+}
+
+const getTrashDaysLeft = (deletedAt: Date) => {
+  const remainingMs = getTrashExpiresAt(deletedAt).getTime() - Date.now()
+  return Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)))
+}
+
+const serializeDate = (date: Date, fallback = new Date()) =>
+  Number.isNaN(date.getTime()) ? fallback.toISOString() : date.toISOString()
+
+const serializeTrashItems = (items: TrashedInterview[]) =>
+  JSON.stringify(
+    items.map((item) => ({
+      ...item,
+      deletedAt: serializeDate(item.deletedAt),
+      interview: {
+        ...item.interview,
+        createdAt: serializeDate(item.interview.createdAt),
+        messages: item.interview.messages.map((message) => ({
+          ...message,
+          timestamp: serializeDate(message.timestamp),
+        })),
+      },
+    }))
+  )
+
+const parseTrashItems = (value: string | null): TrashedInterview[] => {
+  if (!value) return []
+
+  try {
+    const parsed = JSON.parse(value)
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
+      .map((item): TrashedInterview | null => {
+        if (!item || typeof item !== 'object') return null
+        const raw = item as { interview?: Partial<Interview>; deletedAt?: unknown }
+        const interview = raw.interview
+        if (!interview || typeof interview.id !== 'string') return null
+
+        const deletedAt =
+          typeof raw.deletedAt === 'string' || typeof raw.deletedAt === 'number'
+            ? new Date(raw.deletedAt)
+            : new Date()
+        const createdAt =
+          typeof interview.createdAt === 'string' || typeof interview.createdAt === 'number'
+            ? new Date(interview.createdAt)
+            : new Date()
+
+        if (Number.isNaN(deletedAt.getTime())) return null
+
+        return {
+          deletedAt,
+          interview: {
+            id: interview.id,
+            title: typeof interview.title === 'string' ? interview.title : 'Practice Session',
+            role: typeof interview.role === 'string' ? interview.role : 'Software Engineer',
+            languages: Array.isArray(interview.languages) ? interview.languages : [],
+            difficulty: typeof interview.difficulty === 'string' ? interview.difficulty : 'mid',
+            sessionType: interview.sessionType ?? 'behavioral-interview',
+            practiceMode: interview.practiceMode ?? null,
+            audience: interview.audience ?? null,
+            topic: interview.topic ?? null,
+            promptContext: interview.promptContext ?? null,
+            generatedPrompt: interview.generatedPrompt ?? null,
+            createdAt: Number.isNaN(createdAt.getTime()) ? new Date() : createdAt,
+            messages: Array.isArray(interview.messages)
+              ? interview.messages.map((message, index) => ({
+                  id: typeof message.id === 'string' ? message.id : `message-${index}`,
+                  role: message.role === 'candidate' ? 'candidate' : 'interviewer',
+                  content: typeof message.content === 'string' ? message.content : '',
+                  timestamp:
+                    message.timestamp instanceof Date
+                      ? message.timestamp
+                      : typeof message.timestamp === 'string' || typeof message.timestamp === 'number'
+                        ? new Date(message.timestamp)
+                        : new Date(),
+                  transcription: typeof message.transcription === 'string' ? message.transcription : '',
+                  isThinking: Boolean(message.isThinking),
+                }))
+              : [],
+            status: typeof interview.status === 'string' ? interview.status : 'active',
+            questions: Array.isArray(interview.questions) ? interview.questions : [],
+            currentQuestionIndex:
+              typeof interview.currentQuestionIndex === 'number' ? interview.currentQuestionIndex : 0,
+            gradingResult: interview.gradingResult ?? null,
+          },
+        }
+      })
+      .filter((item): item is TrashedInterview => Boolean(item))
+  } catch {
+    return []
+  }
+}
+
 const isThemePreference = (value: unknown): value is ThemePreference =>
   value === 'system' || value === 'light' || value === 'dark'
 
@@ -198,7 +303,9 @@ const resolveThemePreference = (
 
 export default function InterviewPage() {
   const [interviews, setInterviews] = useState<Interview[]>([])
+  const [trashedInterviews, setTrashedInterviews] = useState<TrashedInterview[]>([])
   const [currentInterview, setCurrentInterview] = useState<Interview | null>(null)
+  const [trashPreviewInterviewId, setTrashPreviewInterviewId] = useState<string | null>(null)
   const [activeLandingView, setActiveLandingView] = useState<WorkspaceLandingView>('home')
   const [selectedLibrarySectionId, setSelectedLibrarySectionId] = useState<LibrarySectionId>(
     LIBRARY_SECTIONS[0].id
@@ -246,6 +353,7 @@ export default function InterviewPage() {
   const workspaceTutorialStorageKey = user?.email
     ? getWorkspaceTutorialStorageKey(user.email)
     : null
+  const trashStorageKey = user?.email ? getTrashStorageKey(user.email) : null
 
   // Handle authentication redirect
   useEffect(() => {
@@ -253,6 +361,64 @@ export default function InterviewPage() {
       router.push('/')
     }
   }, [loading, user, router])
+
+  useEffect(() => {
+    if (!trashStorageKey) {
+      setTrashedInterviews([])
+      return
+    }
+
+    const loadedTrash = parseTrashItems(localStorage.getItem(trashStorageKey))
+    const activeTrash = loadedTrash.filter((item) => getTrashDaysLeft(item.deletedAt) > 0)
+    const expiredTrash = loadedTrash.filter((item) => getTrashDaysLeft(item.deletedAt) <= 0)
+
+    setTrashedInterviews(activeTrash)
+    localStorage.setItem(trashStorageKey, serializeTrashItems(activeTrash))
+
+    expiredTrash.forEach((item) => {
+      if (!Number.isNaN(Number(item.interview.id))) {
+        void interviewService.deleteInterview(Number(item.interview.id)).catch((error) => {
+          console.error('Failed to permanently delete expired trash item:', error)
+        })
+      }
+    })
+  }, [trashStorageKey])
+
+  useEffect(() => {
+    if (!trashStorageKey) return
+    localStorage.setItem(trashStorageKey, serializeTrashItems(trashedInterviews))
+  }, [trashStorageKey, trashedInterviews])
+
+  useEffect(() => {
+    if (trashedInterviews.length === 0) return
+
+    const permanentlyDeleteExpiredItems = () => {
+      setTrashedInterviews((prev) => {
+        const activeItems = prev.filter((item) => getTrashDaysLeft(item.deletedAt) > 0)
+        const expiredItems = prev.filter((item) => getTrashDaysLeft(item.deletedAt) <= 0)
+
+        expiredItems.forEach((item) => {
+          if (!Number.isNaN(Number(item.interview.id))) {
+            void interviewService.deleteInterview(Number(item.interview.id)).catch((error) => {
+              console.error('Failed to permanently delete expired trash item:', error)
+            })
+          }
+        })
+
+        return activeItems
+      })
+    }
+
+    const nextExpirationMs = Math.min(
+      ...trashedInterviews.map((item) => getTrashExpiresAt(item.deletedAt).getTime() - Date.now())
+    )
+    const timeoutId = window.setTimeout(
+      permanentlyDeleteExpiredItems,
+      Math.max(0, Math.min(nextExpirationMs, 2_147_483_647))
+    )
+
+    return () => window.clearTimeout(timeoutId)
+  }, [trashedInterviews])
 
   useEffect(() => {
     if (!user) return
@@ -440,9 +606,10 @@ export default function InterviewPage() {
       console.log('Loading saved interviews...');
       const savedInterviews = await interviewService.getUserInterviews();
       console.log('Received interviews:', savedInterviews);
+      const trashedIds = new Set(trashedInterviews.map((item) => item.interview.id))
       const convertedInterviews = savedInterviews.map(response => 
         interviewService.convertToInterview(response)
-      );
+      ).filter((interview) => !trashedIds.has(interview.id));
       console.log('Converted interviews:', convertedInterviews);
       setInterviews(convertedInterviews);
     } catch (error) {
@@ -460,7 +627,7 @@ export default function InterviewPage() {
       setLoadingInterviews(false);
       setHasLoadedInterviewHistory(true);
     }
-  }, [showWorkspaceToast])
+  }, [showWorkspaceToast, trashedInterviews])
 
   // Load saved interviews when user is authenticated
   useEffect(() => {
@@ -954,18 +1121,72 @@ export default function InterviewPage() {
   }
 
   const handleDeleteInterview = async (interviewId: string) => {
+    const interviewToTrash = interviews.find((interview) => interview.id === interviewId)
+    if (!interviewToTrash) return
+
+    setTrashedInterviews((prev) => [
+      { interview: interviewToTrash, deletedAt: new Date() },
+      ...prev.filter((item) => item.interview.id !== interviewId),
+    ])
+    setTrashPreviewInterviewId(null)
+    setInterviews((prev) => prev.filter((i) => i.id !== interviewId))
+    if (currentInterview?.id === interviewId) {
+      setCurrentInterview(null)
+      setActiveLandingView('home')
+    }
+    showWorkspaceToast('success', 'Session moved to Trash Bin.')
+  }
+
+  const handleRestoreTrashedInterview = (interviewId: string) => {
+    const trashedItem = trashedInterviews.find((item) => item.interview.id === interviewId)
+    if (!trashedItem) return
+
+    setTrashedInterviews((prev) => prev.filter((item) => item.interview.id !== interviewId))
+    setInterviews((prev) => [trashedItem.interview, ...prev.filter((interview) => interview.id !== interviewId)])
+    setTrashPreviewInterviewId(null)
+    setCurrentInterview(trashedItem.interview)
+    showWorkspaceToast('success', 'Session restored to your workspace.')
+  }
+
+  const handlePermanentlyDeleteTrashedInterview = async (interviewId: string) => {
     try {
-      if (!isNaN(Number(interviewId))) {
-        await interviewService.deleteInterview(Number(interviewId));
+      if (!Number.isNaN(Number(interviewId))) {
+        await interviewService.deleteInterview(Number(interviewId))
       }
-      setInterviews((prev) => prev.filter((i) => i.id !== interviewId));
-      if (currentInterview?.id === interviewId) {
-        setCurrentInterview(null);
+      setTrashedInterviews((prev) => prev.filter((item) => item.interview.id !== interviewId))
+      if (trashPreviewInterviewId === interviewId) {
+        setTrashPreviewInterviewId(null)
+        setCurrentInterview(null)
         setActiveLandingView('home')
       }
+      showWorkspaceToast('success', 'Session permanently deleted.')
     } catch (error) {
-      console.error('Failed to delete interview from backend:', error);
-      showWorkspaceToast('error', 'Unable to delete this session right now.')
+      console.error('Failed to permanently delete trashed interview:', error)
+      showWorkspaceToast('error', 'Unable to permanently delete this session right now.')
+      throw error
+    }
+  }
+
+  const handleDeleteAllTrashedInterviews = async () => {
+    const trashSnapshot = trashedInterviews
+    try {
+      await Promise.all(
+        trashSnapshot.map((item) =>
+          Number.isNaN(Number(item.interview.id))
+            ? Promise.resolve()
+            : interviewService.deleteInterview(Number(item.interview.id))
+        )
+      )
+      setTrashedInterviews([])
+      if (trashPreviewInterviewId) {
+        setTrashPreviewInterviewId(null)
+        setCurrentInterview(null)
+        setActiveLandingView('home')
+      }
+      showWorkspaceToast('success', 'Trash Bin emptied.')
+    } catch (error) {
+      console.error('Failed to empty trash:', error)
+      showWorkspaceToast('error', 'Unable to empty the Trash Bin right now.')
       throw error
     }
   }
@@ -998,6 +1219,13 @@ export default function InterviewPage() {
 
   const handleSelectInterview = (interview: Interview) => {
     setActiveLandingView('home')
+    setTrashPreviewInterviewId(null)
+    setCurrentInterview(interview)
+  }
+
+  const handlePreviewTrashedInterview = (interview: Interview) => {
+    setActiveLandingView('home')
+    setTrashPreviewInterviewId(interview.id)
     setCurrentInterview(interview)
   }
 
@@ -1315,6 +1543,12 @@ export default function InterviewPage() {
         onSelectInterview={handleSelectInterview}
         onDeleteInterview={handleDeleteInterview}
         onRenameInterview={handleRenameInterview}
+        trashedInterviews={trashedInterviews}
+        onRestoreTrashedInterview={handleRestoreTrashedInterview}
+        onPermanentlyDeleteTrashedInterview={handlePermanentlyDeleteTrashedInterview}
+        onDeleteAllTrashedInterviews={handleDeleteAllTrashedInterviews}
+        getTrashDaysLeft={getTrashDaysLeft}
+        onPreviewTrashedInterview={handlePreviewTrashedInterview}
         collapsed={sidebarCollapsed}
         onToggleCollapse={handleSidebarToggle}
         userInitial={user.firstname?.charAt(0).toUpperCase() || 'U'}
@@ -1342,12 +1576,16 @@ export default function InterviewPage() {
                 onUpdateInterview={handleUpdate}
                 onStartAnother={openTechChatSetup}
                 resolvedTheme={resolvedTheme}
+                trashPreviewMode={trashPreviewInterviewId === currentInterview.id}
+                onRestoreFromTrash={() => handleRestoreTrashedInterview(currentInterview.id)}
               />
             ) : (
               <InterviewChat
                 interview={currentInterview}
                 onUpdateInterview={handleUpdate}
                 resolvedTheme={resolvedTheme}
+                trashPreviewMode={trashPreviewInterviewId === currentInterview.id}
+                onRestoreFromTrash={() => handleRestoreTrashedInterview(currentInterview.id)}
               />
             )
           ) : activeLandingView === 'notes' ? (

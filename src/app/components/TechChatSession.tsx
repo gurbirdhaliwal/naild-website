@@ -29,6 +29,8 @@ interface TechChatSessionProps {
   onUpdateInterview: (interview: Interview) => void
   onStartAnother: () => void
   resolvedTheme: 'light' | 'dark'
+  trashPreviewMode?: boolean
+  onRestoreFromTrash?: () => void
 }
 
 const MAX_TRANSCRIPT_PREVIEW_LENGTH = 220
@@ -78,6 +80,8 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
   onUpdateInterview,
   onStartAnother,
   resolvedTheme,
+  trashPreviewMode = false,
+  onRestoreFromTrash,
 }) => {
   const persona = getTechChatPersona(interview.audience)
   const voicePersona = getTechChatVoicePersona(persona.id)
@@ -549,13 +553,17 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
                 </div>
               </section>
 
-              <button
-                type="button"
-                onClick={onStartAnother}
-                className="mt-6 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
-              >
-                Start another session
-              </button>
+              {trashPreviewMode ? (
+                <TrashPreviewNotice onRestoreFromTrash={onRestoreFromTrash} />
+              ) : (
+                <button
+                  type="button"
+                  onClick={onStartAnother}
+                  className="mt-6 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                >
+                  Start another session
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -600,19 +608,23 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
               >
                 {showTranscription ? 'Hide' : 'Show'} Transcript
               </button>
-              <button
-                type="button"
-                onClick={handleManualEnd}
-                disabled={ending}
-                className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm transition-colors hover:bg-gray-200 disabled:opacity-60"
-              >
-                {ending ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
-                End
-              </button>
-              <div className="flex items-center gap-2 text-green-500">
-                <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-                <span className="text-sm">Live</span>
-              </div>
+              {!trashPreviewMode ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleManualEnd}
+                    disabled={ending}
+                    className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm transition-colors hover:bg-gray-200 disabled:opacity-60"
+                  >
+                    {ending ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
+                    End
+                  </button>
+                  <div className="flex items-center gap-2 text-green-500">
+                    <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+                    <span className="text-sm">Live</span>
+                  </div>
+                </>
+              ) : null}
             </div>
           </div>
         </div>
@@ -647,13 +659,10 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
                 <Loader2 className="mb-4 animate-spin text-emerald-500" size={40} />
                 <div className="text-lg font-medium text-emerald-700">Wrapping up...</div>
               </div>
+            ) : trashPreviewMode ? (
+              <TrashPreviewNotice onRestoreFromTrash={onRestoreFromTrash} />
             ) : (
               <div className="flex min-h-[180px] flex-col items-center justify-center px-4 py-6">
-                <div className="mb-4 max-w-xl text-center text-sm text-gray-600">
-                  {isResponding || aiState === 'thinking'
-                    ? `${persona.name} is gathering a response...`
-                    : 'Pick up the thread when you are ready.'}
-                </div>
                 <CustomMicRecorder
                   onAudioRecorded={handleAudioRecorded}
                   onRecordingStart={startTimer}
@@ -705,6 +714,28 @@ interface EndSessionConfirmProps {
   onCancel: () => void
   onConfirm: () => void
 }
+
+interface TrashPreviewNoticeProps {
+  onRestoreFromTrash?: () => void
+}
+
+const TrashPreviewNotice: React.FC<TrashPreviewNoticeProps> = ({ onRestoreFromTrash }) => (
+  <div className="mt-6 flex min-h-[180px] flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/90 px-6 py-8 text-center">
+    <div className="text-sm font-semibold text-amber-950">This session is in the Trash Bin</div>
+    <p className="mt-2 max-w-xl text-sm leading-6 text-amber-900">
+      Restore this session to your workspace before using the microphone or continuing the session.
+    </p>
+    {onRestoreFromTrash ? (
+      <button
+        type="button"
+        onClick={onRestoreFromTrash}
+        className="mt-4 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+      >
+        Restore session
+      </button>
+    ) : null}
+  </div>
+)
 
 const EndSessionConfirm: React.FC<EndSessionConfirmProps> = ({
   ending,
