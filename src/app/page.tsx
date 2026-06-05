@@ -184,6 +184,86 @@ const howItWorksSteps = [
   },
 ] as const;
 
+const whyKnappiReasons = [
+  {
+    phase: '01',
+    title: 'Deliberate practice in a safe environment.',
+    description:
+      'Rehearse high-stakes communication scenarios like interviews, stakeholder meetings, and design discussions without real consequences. Experiment, fumble, and improve before explaining to an actual hiring manager or VP.',
+  },
+  {
+    phase: '02',
+    title: 'Adaptive simulation.',
+    description:
+      'Knappi role-plays a specific audience, which is the hard part of real technical communication. Explaining a database index to a recruiter is different from explaining it to a senior engineer, so users learn to adapt instead of recite.',
+  },
+  {
+    phase: '03',
+    title: 'Structured feedback and skill measurement.',
+    description:
+      'Post-session grading closes the loop. By scoring each session, Knappi turns vague practice time into measurable skill progression, helping users track whether they are actually getting better.',
+  },
+] as const;
+
+type WhyKnappiVideoKey =
+  | 'phase1'
+  | 'phase1-2transition'
+  | 'phase2'
+  | 'phase2-3transition'
+  | 'phase3';
+
+type WhyKnappiPhaseIndex = 0 | 1 | 2;
+
+const whyKnappiVideos: Record<WhyKnappiVideoKey, { src: string; isTransition: boolean }> = {
+  phase1: {
+    src: '/landing_page_scroll_animation/phase1.mov',
+    isTransition: false,
+  },
+  'phase1-2transition': {
+    src: '/landing_page_scroll_animation/phase1-2transition.mov',
+    isTransition: true,
+  },
+  phase2: {
+    src: '/landing_page_scroll_animation/phase2.mov',
+    isTransition: false,
+  },
+  'phase2-3transition': {
+    src: '/landing_page_scroll_animation/phase2-3transition.mov',
+    isTransition: true,
+  },
+  phase3: {
+    src: '/landing_page_scroll_animation/phase3.mov',
+    isTransition: false,
+  },
+};
+
+const whyKnappiPhaseVideos: Record<WhyKnappiPhaseIndex, WhyKnappiVideoKey> = {
+  0: 'phase1',
+  1: 'phase2',
+  2: 'phase3',
+};
+
+function getWhyKnappiPhaseIndex(progress: number): WhyKnappiPhaseIndex {
+  if (progress < 0.34) {
+    return 0;
+  }
+
+  if (progress < 0.67) {
+    return 1;
+  }
+
+  return 2;
+}
+
+function getWhyKnappiTransitionVideo(
+  fromPhase: WhyKnappiPhaseIndex,
+  toPhase: WhyKnappiPhaseIndex
+): WhyKnappiVideoKey {
+  return Math.min(fromPhase, toPhase) === 0
+    ? 'phase1-2transition'
+    : 'phase2-3transition';
+}
+
 function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
   const [transitionState, setTransitionState] = useState({
     surfaceProgress: 0,
@@ -352,6 +432,327 @@ function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boo
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WhyKnappiSection({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
+  const [targetPhaseIndex, setTargetPhaseIndex] = useState<WhyKnappiPhaseIndex>(0);
+  const [visiblePhaseIndex, setVisiblePhaseIndex] = useState<WhyKnappiPhaseIndex>(0);
+  const [visibleVideoKey, setVisibleVideoKey] = useState<WhyKnappiVideoKey>('phase1');
+  const [transitionStep, setTransitionStep] = useState(0);
+  const [sectionProgress, setSectionProgress] = useState(0);
+  const [typedReason, setTypedReason] = useState<{ title: string; description: string }>({
+    title: whyKnappiReasons[0].title,
+    description: whyKnappiReasons[0].description,
+  });
+  const [isTypingReason, setIsTypingReason] = useState(false);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const currentPhaseRef = useRef<WhyKnappiPhaseIndex>(0);
+  const targetPhaseRef = useRef<WhyKnappiPhaseIndex>(0);
+  const reverseFrameRef = useRef<number | null>(null);
+  const activeReason = whyKnappiReasons[visiblePhaseIndex];
+  const activePhaseScale = [0.738, 0.864, 0.972][visiblePhaseIndex];
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setTypedReason({
+        title: activeReason.title,
+        description: activeReason.description,
+      });
+      setIsTypingReason(false);
+      return;
+    }
+
+    setTypedReason({ title: '', description: '' });
+    setIsTypingReason(true);
+
+    let titleIndex = 0;
+    let descriptionIndex = 0;
+    let descriptionIntervalId: ReturnType<typeof setInterval> | undefined;
+
+    const titleIntervalId = setInterval(() => {
+      titleIndex += 1;
+      setTypedReason((currentReason) => ({
+        ...currentReason,
+        title: activeReason.title.slice(0, titleIndex),
+      }));
+
+      if (titleIndex >= activeReason.title.length) {
+        clearInterval(titleIntervalId);
+
+        descriptionIntervalId = setInterval(() => {
+          descriptionIndex += 1;
+          setTypedReason((currentReason) => ({
+            ...currentReason,
+            description: activeReason.description.slice(0, descriptionIndex),
+          }));
+
+          if (descriptionIndex >= activeReason.description.length) {
+            if (descriptionIntervalId !== undefined) {
+              clearInterval(descriptionIntervalId);
+            }
+            setIsTypingReason(false);
+          }
+        }, 9);
+      }
+    }, 22);
+
+    return () => {
+      clearInterval(titleIntervalId);
+      if (descriptionIntervalId !== undefined) {
+        clearInterval(descriptionIntervalId);
+      }
+    };
+  }, [activeReason.description, activeReason.title, prefersReducedMotion]);
+
+  useEffect(() => {
+    let frameId: number | null = null;
+
+    const updateScrollState = () => {
+      const section = sectionRef.current;
+
+      if (!section) {
+        return;
+      }
+
+      const sectionRect = section.getBoundingClientRect();
+      const viewportHeight = Math.max(window.innerHeight, 1);
+      const totalScrollable = Math.max(sectionRect.height - viewportHeight, 1);
+      const progress = prefersReducedMotion
+        ? 1
+        : Math.min(1, Math.max(0, -sectionRect.top / totalScrollable));
+
+      setSectionProgress(progress);
+      setTargetPhaseIndex(getWhyKnappiPhaseIndex(progress));
+      frameId = null;
+    };
+
+    const handleViewportChange = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      frameId = window.requestAnimationFrame(updateScrollState);
+    };
+
+    handleViewportChange();
+    window.addEventListener('scroll', handleViewportChange, { passive: true });
+    document.addEventListener('scroll', handleViewportChange, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener('resize', handleViewportChange);
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      window.removeEventListener('scroll', handleViewportChange);
+      document.removeEventListener('scroll', handleViewportChange, true);
+      window.removeEventListener('resize', handleViewportChange);
+    };
+  }, [prefersReducedMotion]);
+
+  useEffect(() => {
+    targetPhaseRef.current = targetPhaseIndex;
+
+    if (reverseFrameRef.current !== null) {
+      window.cancelAnimationFrame(reverseFrameRef.current);
+      reverseFrameRef.current = null;
+    }
+
+    const completePhase = (phaseIndex: WhyKnappiPhaseIndex) => {
+      currentPhaseRef.current = phaseIndex;
+      setVisiblePhaseIndex(phaseIndex);
+      setVisibleVideoKey(whyKnappiPhaseVideos[phaseIndex]);
+    };
+
+    if (prefersReducedMotion) {
+      completePhase(targetPhaseIndex);
+      return;
+    }
+
+    const fromPhase = currentPhaseRef.current;
+
+    if (fromPhase === targetPhaseIndex) {
+      completePhase(targetPhaseIndex);
+      return;
+    }
+
+    const toPhase = (fromPhase + (targetPhaseIndex > fromPhase ? 1 : -1)) as WhyKnappiPhaseIndex;
+    const transitionVideoKey = getWhyKnappiTransitionVideo(fromPhase, toPhase);
+    const transitionVideo = videoRefs.current[transitionVideoKey];
+
+    setVisiblePhaseIndex(toPhase);
+    setVisibleVideoKey(transitionVideoKey);
+
+    if (!transitionVideo) {
+      completePhase(toPhase);
+      return;
+    }
+
+    const continueTowardTarget = () => {
+      completePhase(toPhase);
+
+      if (targetPhaseRef.current !== toPhase) {
+        setTransitionStep((currentStep) => currentStep + 1);
+      }
+    };
+
+    const playForward = () => {
+      transitionVideo.pause();
+      transitionVideo.currentTime = 0;
+      transitionVideo.playbackRate = 1;
+      transitionVideo.play().catch(() => undefined);
+    };
+
+    const playReverse = () => {
+      const duration = Number.isFinite(transitionVideo.duration)
+        ? transitionVideo.duration
+        : 0;
+
+      if (duration <= 0) {
+        return;
+      }
+
+      const animationDurationMs = Math.max(duration * 1000, 450);
+      const startTime = performance.now();
+      transitionVideo.pause();
+      transitionVideo.currentTime = Math.max(duration - 0.05, 0);
+
+      const step = (timestamp: number) => {
+        const progress = Math.min(1, (timestamp - startTime) / animationDurationMs);
+        transitionVideo.currentTime = Math.max((1 - progress) * duration, 0);
+
+        if (progress < 1) {
+          reverseFrameRef.current = window.requestAnimationFrame(step);
+          return;
+        }
+
+        reverseFrameRef.current = null;
+        continueTowardTarget();
+      };
+
+      reverseFrameRef.current = window.requestAnimationFrame(step);
+    };
+
+    const handleMetadataReady = () => {
+      if (toPhase > fromPhase) {
+        playForward();
+      } else {
+        playReverse();
+      }
+    };
+
+    if (toPhase > fromPhase) {
+      transitionVideo.addEventListener('ended', continueTowardTarget, { once: true });
+    }
+
+    if (Number.isFinite(transitionVideo.duration) && transitionVideo.duration > 0) {
+      handleMetadataReady();
+    } else {
+      transitionVideo.addEventListener('loadedmetadata', handleMetadataReady, { once: true });
+    }
+
+    return () => {
+      transitionVideo.pause();
+      transitionVideo.removeEventListener('ended', continueTowardTarget);
+      transitionVideo.removeEventListener('loadedmetadata', handleMetadataReady);
+
+      if (reverseFrameRef.current !== null) {
+        window.cancelAnimationFrame(reverseFrameRef.current);
+        reverseFrameRef.current = null;
+      }
+    };
+  }, [prefersReducedMotion, targetPhaseIndex, transitionStep]);
+
+  return (
+    <section
+      ref={sectionRef}
+      className="relative z-20 bg-white"
+      style={{ height: prefersReducedMotion ? 'auto' : '380vh' }}
+    >
+      <div className="sticky top-0 h-screen overflow-hidden bg-white px-5 py-6 text-left md:py-8">
+        <div className="mx-auto grid h-full max-w-7xl items-center gap-6 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:gap-10">
+          <div>
+            <div className="mb-3 text-xs font-medium uppercase tracking-[0.22em] text-emerald-700 md:text-sm">
+              Why Knappi?
+            </div>
+            <h2 className="max-w-xl text-4xl font-normal leading-tight text-black md:text-[3.5rem]">
+              Turn knowing into saying.
+            </h2>
+
+            <div className="mt-8 flex gap-5 py-7 md:mt-10 md:gap-6 md:py-8">
+              <div
+                className="relative mt-1 h-36 w-px shrink-0 overflow-hidden rounded-full bg-black/10 md:h-44"
+                aria-hidden="true"
+              >
+                <div
+                  className="absolute left-0 top-0 w-full rounded-full bg-emerald-500"
+                  style={{ height: `${sectionProgress * 100}%` }}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-start gap-3 text-black">
+                  <span className="pt-1 text-xs font-medium text-emerald-700 md:text-sm">
+                    {activeReason.phase}
+                  </span>
+                  <h3
+                    aria-label={activeReason.title}
+                    className="min-h-[4rem] text-2xl font-normal leading-tight md:min-h-[4.5rem] md:text-3xl"
+                  >
+                    <span aria-hidden="true">
+                      {typedReason.title}
+                      {isTypingReason && typedReason.description.length === 0 ? (
+                        <span className="ml-1 inline-block h-[0.85em] w-px translate-y-1 animate-pulse bg-black align-middle" />
+                      ) : null}
+                    </span>
+                  </h3>
+                </div>
+                <p
+                  aria-label={activeReason.description}
+                  className="mt-4 min-h-[10.5rem] max-w-xl pl-8 text-base leading-7 text-gray-600 md:min-h-[11rem] md:text-lg"
+                >
+                  <span aria-hidden="true">
+                    {typedReason.description}
+                    {isTypingReason && typedReason.description.length > 0 ? (
+                      <span className="ml-1 inline-block h-[0.85em] w-px translate-y-1 animate-pulse bg-gray-600 align-middle" />
+                    ) : null}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative h-[38vh] min-h-[16rem] overflow-hidden bg-white md:h-auto md:max-h-[72vh] md:aspect-[16/10]">
+            {(Object.entries(whyKnappiVideos) as [WhyKnappiVideoKey, (typeof whyKnappiVideos)[WhyKnappiVideoKey]][]).map(
+              ([key, video]) => (
+                <video
+                  key={key}
+                  ref={(element) => {
+                    videoRefs.current[key] = element;
+                  }}
+                  className={`absolute inset-0 h-full w-full object-cover ${
+                    key === visibleVideoKey ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  style={{ transform: `scale(${activePhaseScale})` }}
+                  src={video.src}
+                  muted
+                  playsInline
+                  preload="auto"
+                  autoPlay={!video.isTransition}
+                  loop={!video.isTransition}
+                  aria-hidden={key !== visibleVideoKey}
+                />
+              )
+            )}
           </div>
         </div>
       </div>
@@ -736,6 +1137,9 @@ const KnappiLanding = () => {
           </div>
         </div>
       </section>
+
+      {/* ── Why Knappi scroll animation ── */}
+      <WhyKnappiSection prefersReducedMotion={prefersReducedMotion} />
 
       {/* ── Founders showcase ── */}
       <FoundersShowcaseSection prefersReducedMotion={prefersReducedMotion} />
