@@ -12,6 +12,8 @@ import {
 } from './services/authSession';
 
 const heroHeadline = 'Tech talk, made clear.';
+const mediaBlurDataUrl =
+  'data:image/webp;base64,UklGRlIAAABXRUJQVlA4IEYAAABwAgCdASoQABAABUB8JbACdLoB+AADsAD+8r0M3L7JZV0z8x8Dz6nK8ptq6g4VtAAAAA==';
 const universityLogos = [
   {
     name: 'Wilfrid Laurier University',
@@ -61,7 +63,7 @@ const planCards = [
     name: 'Starter',
     price: '$0/mo',
     ctaLabel: null,
-    imageSrc: '/knappi_starter.png',
+    imageSrc: '/media-optimized/knappi_starter.webp',
     imageAlt: 'Starter tier illustration',
     imageWidth: 343,
     imageHeight: 350,
@@ -71,7 +73,7 @@ const planCards = [
     name: 'Growth',
     price: '$15/mo',
     ctaLabel: 'Coming Soon',
-    imageSrc: '/knappi_growth.png',
+    imageSrc: '/media-optimized/knappi_growth.webp',
     imageAlt: 'Growth tier illustration',
     imageWidth: 387,
     imageHeight: 384,
@@ -81,7 +83,7 @@ const planCards = [
     name: 'Teams',
     price: '$25/mo',
     ctaLabel: 'Coming Soon',
-    imageSrc: '/knappi_teams.png',
+    imageSrc: '/media-optimized/knappi_teams.webp',
     imageAlt: 'Teams tier illustration',
     imageWidth: 375,
     imageHeight: 384,
@@ -97,7 +99,7 @@ const founderProfiles = [
   {
     id: 'cofounder-01',
     name: 'Gurbir Dhaliwal',
-    imageSrc: '/GurbirDhaliwal.png',
+    imageSrc: '/media-optimized/GurbirDhaliwal.webp',
     imageAlt: 'Portrait of Gurbir Dhaliwal',
     imagePosition: 'center 18%',
     linkedinUrl: 'https://www.linkedin.com/in/gurbir-dhaliwal-575995275/',
@@ -105,7 +107,7 @@ const founderProfiles = [
   {
     id: 'cofounder-02',
     name: 'Asvin Eswarathas',
-    imageSrc: '/AssvinEswarathas.png',
+    imageSrc: '/media-optimized/AssvinEswarathas.webp',
     imageAlt: 'Portrait of Asvin Eswarathas',
     imagePosition: 'center 12%',
     linkedinUrl: 'https://www.linkedin.com/in/asvin-eswarathas-739b6a238/',
@@ -214,25 +216,38 @@ type WhyKnappiVideoKey =
 
 type WhyKnappiPhaseIndex = 0 | 1 | 2;
 
-const whyKnappiVideos: Record<WhyKnappiVideoKey, { src: string; isTransition: boolean }> = {
+const whyKnappiVideos: Record<
+  WhyKnappiVideoKey,
+  { mp4Src: string; webmSrc: string; posterSrc: string; isTransition: boolean }
+> = {
   phase1: {
-    src: '/landing_page_scroll_animation/phase1.mov',
+    mp4Src: '/media-optimized/landing_page_scroll_animation/phase1.mp4',
+    webmSrc: '/media-optimized/landing_page_scroll_animation/phase1.webm',
+    posterSrc: '/media-optimized/landing_page_scroll_animation/phase1-poster.webp',
     isTransition: false,
   },
   'phase1-2transition': {
-    src: '/landing_page_scroll_animation/phase1-2transition.mov',
+    mp4Src: '/media-optimized/landing_page_scroll_animation/phase1-2transition.mp4',
+    webmSrc: '/media-optimized/landing_page_scroll_animation/phase1-2transition.webm',
+    posterSrc: '/media-optimized/landing_page_scroll_animation/phase1-2transition-poster.webp',
     isTransition: true,
   },
   phase2: {
-    src: '/landing_page_scroll_animation/phase2.mov',
+    mp4Src: '/media-optimized/landing_page_scroll_animation/phase2.mp4',
+    webmSrc: '/media-optimized/landing_page_scroll_animation/phase2.webm',
+    posterSrc: '/media-optimized/landing_page_scroll_animation/phase2-poster.webp',
     isTransition: false,
   },
   'phase2-3transition': {
-    src: '/landing_page_scroll_animation/phase2-3transition.mov',
+    mp4Src: '/media-optimized/landing_page_scroll_animation/phase2-3transition.mp4',
+    webmSrc: '/media-optimized/landing_page_scroll_animation/phase2-3transition.webm',
+    posterSrc: '/media-optimized/landing_page_scroll_animation/phase2-3transition-poster.webp',
     isTransition: true,
   },
   phase3: {
-    src: '/landing_page_scroll_animation/phase3.mov',
+    mp4Src: '/media-optimized/landing_page_scroll_animation/phase3.mp4',
+    webmSrc: '/media-optimized/landing_page_scroll_animation/phase3.webm',
+    posterSrc: '/media-optimized/landing_page_scroll_animation/phase3-poster.webp',
     isTransition: false,
   },
 };
@@ -413,6 +428,8 @@ function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boo
                         width={plan.imageWidth}
                         height={plan.imageHeight}
                         sizes="(min-width: 768px) 19rem, 70vw"
+                        placeholder="blur"
+                        blurDataURL={mediaBlurDataUrl}
                         className={`h-auto object-contain ${plan.imageClassName}`}
                       />
                     </div>
@@ -440,6 +457,7 @@ function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boo
 }
 
 function WhyKnappiSection({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
+  const [shouldLoadVideos, setShouldLoadVideos] = useState(Boolean(prefersReducedMotion));
   const [targetPhaseIndex, setTargetPhaseIndex] = useState<WhyKnappiPhaseIndex>(0);
   const [visiblePhaseIndex, setVisiblePhaseIndex] = useState<WhyKnappiPhaseIndex>(0);
   const [visibleVideoKey, setVisibleVideoKey] = useState<WhyKnappiVideoKey>('phase1');
@@ -457,6 +475,33 @@ function WhyKnappiSection({ prefersReducedMotion }: { prefersReducedMotion: bool
   const reverseFrameRef = useRef<number | null>(null);
   const activeReason = whyKnappiReasons[visiblePhaseIndex];
   const activePhaseScale = [0.738, 0.864, 0.972][visiblePhaseIndex];
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setShouldLoadVideos(true);
+      return;
+    }
+
+    const section = sectionRef.current;
+
+    if (!section || shouldLoadVideos) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldLoadVideos(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '600px 0px', threshold: 0.01 }
+    );
+
+    observer.observe(section);
+
+    return () => observer.disconnect();
+  }, [prefersReducedMotion, shouldLoadVideos]);
 
   useEffect(() => {
     if (prefersReducedMotion) {
@@ -561,6 +606,10 @@ function WhyKnappiSection({ prefersReducedMotion }: { prefersReducedMotion: bool
 
   useEffect(() => {
     targetPhaseRef.current = targetPhaseIndex;
+
+    if (!shouldLoadVideos) {
+      return;
+    }
 
     if (reverseFrameRef.current !== null) {
       window.cancelAnimationFrame(reverseFrameRef.current);
@@ -670,7 +719,25 @@ function WhyKnappiSection({ prefersReducedMotion }: { prefersReducedMotion: bool
         reverseFrameRef.current = null;
       }
     };
-  }, [prefersReducedMotion, targetPhaseIndex, transitionStep]);
+  }, [prefersReducedMotion, shouldLoadVideos, targetPhaseIndex, transitionStep]);
+
+  useEffect(() => {
+    if (!shouldLoadVideos) {
+      return;
+    }
+
+    const visibleVideo = videoRefs.current[visibleVideoKey];
+
+    Object.entries(videoRefs.current).forEach(([key, video]) => {
+      if (video && key !== visibleVideoKey && !whyKnappiVideos[key as WhyKnappiVideoKey].isTransition) {
+        video.pause();
+      }
+    });
+
+    if (visibleVideo && !whyKnappiVideos[visibleVideoKey].isTransition) {
+      visibleVideo.play().catch(() => undefined);
+    }
+  }, [shouldLoadVideos, visibleVideoKey]);
 
   return (
     <section
@@ -743,14 +810,21 @@ function WhyKnappiSection({ prefersReducedMotion }: { prefersReducedMotion: bool
                     key === visibleVideoKey ? 'opacity-100' : 'opacity-0'
                   }`}
                   style={{ transform: `scale(${activePhaseScale})` }}
-                  src={video.src}
+                  poster={video.posterSrc}
                   muted
                   playsInline
-                  preload="auto"
-                  autoPlay={!video.isTransition}
+                  preload={shouldLoadVideos && key === visibleVideoKey ? 'metadata' : 'none'}
+                  autoPlay={shouldLoadVideos && key === visibleVideoKey && !video.isTransition}
                   loop={!video.isTransition}
                   aria-hidden={key !== visibleVideoKey}
-                />
+                >
+                  {shouldLoadVideos ? (
+                    <>
+                      <source src={video.webmSrc} type="video/webm" />
+                      <source src={video.mp4Src} type="video/mp4" />
+                    </>
+                  ) : null}
+                </video>
               )
             )}
           </div>
@@ -880,6 +954,8 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
                   alt={founder.imageAlt}
                   fill
                   sizes="(min-width: 768px) 25.5rem, 100vw"
+                  placeholder="blur"
+                  blurDataURL={mediaBlurDataUrl}
                   className="object-cover"
                   style={{ objectPosition: founder.imagePosition }}
                 />
@@ -908,7 +984,6 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
 // ─── Main Landing Page ─────────────────────────────────────────────────────────
 
 const KnappiLanding = () => {
-  const [isVideoMuted, setIsVideoMuted] = useState(true);
   const [isRedirectingToInterview, setIsRedirectingToInterview] = useState(false);
   const [typedHeroHeadline, setTypedHeroHeadline] = useState('');
   const [activeHowItWorksStepId, setActiveHowItWorksStepId] =
@@ -1006,13 +1081,14 @@ const KnappiLanding = () => {
         </div>
         <div className="relative aspect-[1881/560] w-full overflow-hidden">
           <Image
-            src="/knappiherosectionpicture.png"
+            src="/media-optimized/knappiherosectionpicture.webp"
             alt="Knappi technical communication practice interface"
             width={1881}
             height={836}
             priority
-            quality={100}
             sizes="100vw"
+            placeholder="blur"
+            blurDataURL={mediaBlurDataUrl}
             className="absolute left-1/2 top-1/2 h-auto w-full -translate-x-1/2 -translate-y-1/2 object-contain"
           />
         </div>
@@ -1025,13 +1101,6 @@ const KnappiLanding = () => {
             Better communication starts with speaking more.
           </h2>
           <div className="relative mx-auto mb-16 flex aspect-video max-w-4xl items-center justify-center overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-gray-300">
-            <button
-              onClick={() => setIsVideoMuted(!isVideoMuted)}
-              className="absolute left-5 top-5 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 transition-all duration-200 hover:bg-white"
-              aria-label="Toggle video sound"
-            >
-              {isVideoMuted ? '🔇' : '🔊'}
-            </button>
             <div className="flex h-full w-full items-center justify-center bg-slate-300 text-lg text-slate-600">
               Technical Communication Demo Placeholder
             </div>

@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import mimetypes
 import os
 import time
 from collections import defaultdict, deque
@@ -12,6 +13,7 @@ from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, 
 from fastapi.middleware.cors import CORSMiddleware
 from faster_whisper import WhisperModel
 from faster_whisper.audio import decode_audio
+from starlette.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -145,6 +147,21 @@ ALLOWED_AUDIO_CONTENT_TYPES = {
     "audio/flac",
 }
 ALLOWED_AUDIO_EXTENSIONS = {".webm", ".wav", ".mp3", ".m4a", ".mp4", ".ogg", ".flac"}
+MEDIA_ROOT = Path(
+    _get_env("MEDIA_ROOT", str(Path(__file__).resolve().parents[1] / "public"))
+).resolve()
+MEDIA_STREAM_CHUNK_SIZE_BYTES = int(_get_env("MEDIA_STREAM_CHUNK_SIZE_BYTES", str(1024 * 1024)))
+ALLOWED_MEDIA_EXTENSIONS = {
+    ".mp4",
+    ".webm",
+    ".mov",
+    ".m4v",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+}
 AUDIO_EXTENSION_BY_CONTENT_TYPE = {
     "audio/webm": ".webm",
     "audio/wav": ".wav",
@@ -1078,6 +1095,84 @@ require_tech_chat_user = _rate_limited_auth_dependency(
 )
 
 
+def _resolve_media_path(media_path: str):
+    requested_path = (MEDIA_ROOT / media_path).resolve()
+
+    try:
+        requested_path.relative_to(MEDIA_ROOT)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Media asset not found.",
+        )
+
+    if not requested_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Media asset not found.",
+        )
+
+    if requested_path.suffix.lower() not in ALLOWED_MEDIA_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unsupported media type.",
+        )
+
+    return requested_path
+
+
+def _parse_range_header(range_header: str | None, file_size: int):
+    if not range_header:
+        return 0, file_size - 1, status.HTTP_200_OK
+
+    if not range_header.startswith("bytes=") or "," in range_header:
+        raise HTTPException(
+            status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+            detail="Invalid Range header.",
+            headers={"Content-Range": f"bytes */{file_size}"},
+        )
+
+    raw_start, _, raw_end = range_header.removeprefix("bytes=").partition("-")
+
+    try:
+        if raw_start:
+            start = int(raw_start)
+            end = int(raw_end) if raw_end else file_size - 1
+        else:
+            suffix_length = int(raw_end)
+            if suffix_length <= 0:
+                raise ValueError
+            start = max(file_size - suffix_length, 0)
+            end = file_size - 1
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+            detail="Invalid Range header.",
+            headers={"Content-Range": f"bytes */{file_size}"},
+        )
+
+    if start < 0 or end < start or start >= file_size:
+        raise HTTPException(
+            status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+            detail="Requested range is not satisfiable.",
+            headers={"Content-Range": f"bytes */{file_size}"},
+        )
+
+    return start, min(end, file_size - 1), status.HTTP_206_PARTIAL_CONTENT
+
+
+def _iter_media_bytes(path: Path, start: int, end: int):
+    remaining = end - start + 1
+    with path.open("rb") as media_file:
+        media_file.seek(start)
+        while remaining > 0:
+            chunk = media_file.read(min(MEDIA_STREAM_CHUNK_SIZE_BYTES, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+            yield chunk
+
+
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
@@ -1093,6 +1188,36 @@ def readyz():
         "whisper_model": assistant.model_size,
         "whisper_compute_type": assistant.compute_type,
     }
+
+
+@app.get("/media/{media_path:path}")
+async def stream_media(media_path: str, request: Request):
+    media_file = _resolve_media_path(media_path)
+    file_size = media_file.stat().st_size
+
+    if file_size <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Media asset not found.",
+        )
+
+    start, end, response_status = _parse_range_header(request.headers.get("range"), file_size)
+    content_type = mimetypes.guess_type(media_file.name)[0] or "application/octet-stream"
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(end - start + 1),
+        "Cache-Control": "public, max-age=31536000, immutable",
+    }
+
+    if response_status == status.HTTP_206_PARTIAL_CONTENT:
+        headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+
+    return StreamingResponse(
+        _iter_media_bytes(media_file, start, end),
+        status_code=response_status,
+        media_type=content_type,
+        headers=headers,
+    )
 
 
 @app.post("/transcription")

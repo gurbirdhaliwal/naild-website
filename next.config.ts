@@ -59,10 +59,14 @@ const publicAiBase = readPublicEnv("NEXT_PUBLIC_AI_BASE", "http://localhost:8081
 const apiBaseOrigin = toOrigin(publicApiBase);
 const apiOrigin = toOrigin(publicApiOrigin);
 const aiBaseOrigin = toOrigin(publicAiBase);
+const mediaOrigin = toOrigin(process.env.NEXT_PUBLIC_MEDIA_ORIGIN);
 
 if (apiBaseOrigin) connectSrc.add(apiBaseOrigin);
 if (apiOrigin) connectSrc.add(apiOrigin);
 if (aiBaseOrigin) connectSrc.add(aiBaseOrigin);
+
+const mediaSrc = new Set(["'self'", "blob:"]);
+if (mediaOrigin) mediaSrc.add(mediaOrigin);
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -71,7 +75,7 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   `connect-src ${Array.from(connectSrc).join(" ")}`,
-  "media-src 'self' blob:",
+  `media-src ${Array.from(mediaSrc).join(" ")}`,
   "object-src 'none'",
   "base-uri 'self'",
   "frame-ancestors 'none'",
