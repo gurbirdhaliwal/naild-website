@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { User } from '../types/Users';
 import { API_BASE } from '../services/api';
 import {
@@ -15,6 +16,50 @@ type AuthSessionResponse = {
   sessionDurationSeconds: number;
 };
 
+const PUBLIC_ROUTES = new Set([
+  '/',
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/terms',
+  '/privacy',
+  '/cookies',
+  '/ai-disclaimer',
+]);
+const PUBLIC_ASSET_PREFIXES = [
+  '/_next',
+  '/media-optimized',
+  '/favicon.ico',
+  '/robots.txt',
+  '/sitemap.xml',
+];
+const PUBLIC_AUTH_TIMEOUT_MS = 1500;
+const PROTECTED_AUTH_TIMEOUT_MS = 5000;
+
+const isPublicPath = (pathname: string | null): boolean => {
+  if (!pathname) return false;
+  return (
+    PUBLIC_ROUTES.has(pathname) ||
+    PUBLIC_ASSET_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  );
+};
+
+async function fetchAuthSession(timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(`${API_BASE}/auth/me`, {
+      credentials: 'include',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -28,8 +73,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const pathname = usePathname();
+  const isPublicRoute = isPublicPath(pathname);
   const [user, setUserState] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isPublicRoute);
+  const [checkedPath, setCheckedPath] = useState<string | null>(isPublicRoute ? pathname : null);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [expiredUser, setExpiredUser] = useState<User | null>(null);
   const [sessionExpiresAt, setSessionExpiresAt] = useState<string | null>(null);
@@ -60,11 +108,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const refreshSession = useCallback(async (): Promise<User | null> => {
+    const authCheckPath = window.location.pathname;
+    const authCheckIsPublic = isPublicPath(authCheckPath);
+
     try {
-      const response = await fetch(`${API_BASE}/auth/me`, {
-        credentials: 'include',
-        cache: 'no-store',
-      });
+      const response = await fetchAuthSession(
+        authCheckIsPublic ? PUBLIC_AUTH_TIMEOUT_MS : PROTECTED_AUTH_TIMEOUT_MS
+      );
 
       if (!response.ok) {
         if (userRef.current || sessionExpiredRef.current) {
@@ -72,18 +122,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           applyUnauthenticatedState();
         }
+        setCheckedPath(authCheckPath);
         return null;
       }
 
       const session = (await response.json()) as AuthSessionResponse;
       applyAuthenticatedSession(session);
+      setCheckedPath(authCheckPath);
       return session.user;
     } catch {
+      if (authCheckIsPublic) {
+        applyUnauthenticatedState();
+        setCheckedPath(authCheckPath);
+        return null;
+      }
+
       if (userRef.current || sessionExpiredRef.current) {
         markSessionExpired();
       } else {
         applyUnauthenticatedState();
       }
+      setCheckedPath(authCheckPath);
       return null;
     }
   }, [applyAuthenticatedSession, applyUnauthenticatedState, markSessionExpired]);
@@ -102,8 +161,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
+    setCheckedPath(isPublicRoute ? pathname : null);
+    setLoading(!isPublicRoute);
     void refreshSession();
-  }, [refreshSession]);
+  }, [isPublicRoute, pathname, refreshSession]);
 
   useEffect(() => {
     userRef.current = user;
@@ -177,11 +238,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [refreshSession, sessionExpired, user]);
 
+  const routeLoading =
+    !isPublicRoute && checkedPath !== pathname ? true : loading;
+
   return (
     <AuthContext.Provider
       value={{
         user,
-        loading,
+        loading: routeLoading,
         sessionExpired,
         expiredUser,
         sessionExpiresAt,

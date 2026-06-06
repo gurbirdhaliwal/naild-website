@@ -1036,12 +1036,11 @@ const KnappiLanding = () => {
   }, [prefersReducedMotion]);
 
   const handleGetStarted = () => {
-    if (loading) return;
     window.history.pushState({}, '', '/');
     router.push('/login?redirect=/interview');
   };
 
-  if (loading || isRedirectingToInterview) {
+  if (isRedirectingToInterview) {
     return <div className="min-h-screen bg-white" />;
   }
 

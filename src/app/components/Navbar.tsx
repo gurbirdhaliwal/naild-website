@@ -29,7 +29,7 @@ export default function Navbar() {
 
           {/* Auth Section */}
           <div className="hidden sm:flex sm:items-center sm:space-x-4 relative -mr-20">
-            {!loading && !user ? (
+            {loading || !user ? (
               <>
                 <Link href="/login" className="nav-link font-['Space_Grotesk'] px-6 py-2 bg-gray-200 border border-gray-400 rounded-full">Log in</Link>
                 <Link
