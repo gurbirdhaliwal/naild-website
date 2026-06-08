@@ -1614,7 +1614,7 @@ export default function InterviewPage() {
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
               transition={{ duration: 0.18 }}
               data-workspace-tour="session-type-modal"
-              className="w-full max-w-md rounded-[28px] border border-emerald-100 bg-white p-6 shadow-[0_28px_80px_-28px_rgba(15,23,42,0.45)]"
+              className="w-full max-w-4xl rounded-[28px] border border-emerald-100 bg-white p-6 shadow-[0_28px_80px_-28px_rgba(15,23,42,0.45)]"
               onClick={(event) => event.stopPropagation()}
               role="dialog"
               aria-modal="true"
@@ -1642,16 +1642,25 @@ export default function InterviewPage() {
                 </button>
               </div>
 
-              <div className="mt-6 space-y-3">
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
                 <button
                   type="button"
                   onClick={openCommunicationSetup}
-                  className="flex w-full flex-col rounded-3xl border border-emerald-200 bg-emerald-50/70 px-5 py-4 text-left transition-colors hover:bg-emerald-50"
+                  className="group flex w-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white text-left transition-colors hover:border-emerald-200 hover:bg-emerald-50/80"
                 >
-                  <span className="text-sm font-semibold text-gray-900">
+                  <span className="px-5 pt-4 text-sm font-semibold text-gray-900">
                     Role-specific speaking drill
                   </span>
-                  <span className="mt-1 text-sm leading-5 text-gray-600">
+                  <span className="relative mt-3 aspect-[16/7] w-full overflow-hidden bg-gray-100">
+                    <Image
+                      src="/media-optimized/role-based-drill.webp"
+                      alt=""
+                      fill
+                      sizes="(max-width: 768px) calc(100vw - 4rem), 260px"
+                      className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                    />
+                  </span>
+                  <span className="px-5 pb-4 pt-3 text-sm leading-5 text-gray-600">
                     Practice a technical explanation for a specific role, audience, and topic.
                   </span>
                 </button>
@@ -1659,12 +1668,21 @@ export default function InterviewPage() {
                 <button
                   type="button"
                   onClick={openBehavioralSetup}
-                  className="flex w-full flex-col rounded-3xl border border-gray-200 bg-white px-5 py-4 text-left transition-colors hover:bg-gray-50"
+                  className="group flex w-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white text-left transition-colors hover:border-emerald-200 hover:bg-emerald-50/80"
                 >
-                  <span className="text-sm font-semibold text-gray-900">
+                  <span className="px-5 pt-4 text-sm font-semibold text-gray-900">
                     Behavioral interview
                   </span>
-                  <span className="mt-1 text-sm leading-5 text-gray-600">
+                  <span className="relative mt-3 aspect-[16/7] w-full overflow-hidden bg-gray-100">
+                    <Image
+                      src="/media-optimized/behavioral-interview.webp"
+                      alt=""
+                      fill
+                      sizes="(max-width: 768px) calc(100vw - 4rem), 260px"
+                      className="scale-[1.2] object-cover transition-transform duration-300 group-hover:scale-[1.22]"
+                    />
+                  </span>
+                  <span className="px-5 pb-4 pt-3 text-sm leading-5 text-gray-600">
                     Run a story-based interview round with classic behavioral prompts.
                   </span>
                 </button>
@@ -1672,12 +1690,21 @@ export default function InterviewPage() {
                 <button
                   type="button"
                   onClick={openTechChatSetup}
-                  className="flex w-full flex-col rounded-3xl border border-gray-200 bg-white px-5 py-4 text-left transition-colors hover:bg-gray-50"
+                  className="group flex w-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white text-left transition-colors hover:border-emerald-200 hover:bg-emerald-50/80"
                 >
-                  <span className="text-sm font-semibold text-gray-900">
+                  <span className="px-5 pt-4 text-sm font-semibold text-gray-900">
                     Tech Chat
                   </span>
-                  <span className="mt-1 text-sm leading-5 text-gray-600">
+                  <span className="relative mt-3 aspect-[16/7] w-full overflow-hidden bg-gray-100">
+                    <Image
+                      src="/media-optimized/tech-chat.webp"
+                      alt=""
+                      fill
+                      sizes="(max-width: 768px) calc(100vw - 4rem), 260px"
+                      className="scale-[1.2] object-cover transition-transform duration-300 group-hover:scale-[1.22]"
+                    />
+                  </span>
+                  <span className="px-5 pb-4 pt-3 text-sm leading-5 text-gray-600">
                     Have a casual technical conversation with a colleague-style persona.
                   </span>
                 </button>
