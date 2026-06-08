@@ -106,8 +106,8 @@ Create these GitHub Actions variables in the Spring repo:
 - `CLOUD_RUN_SERVICE_ACCOUNT`, optional runtime service account email
 - `CLOUD_SQL_INSTANCE_CONNECTION_NAME`, optional, default `naild-491922:us-central1:knappi-user`
 - `WEB_ORIGIN`, currently `https://knappi.ca`
-- `SPRING_DATASOURCE_URL`, use `jdbc:mysql:///knappi_db?cloudSqlInstance=naild-491922:us-central1:knappi-user&socketFactory=com.google.cloud.sql.mysql.SocketFactory&useSSL=false`
-- `SPRING_DATASOURCE_USERNAME`, use `knappi_user`
+- `SPRING_DATASOURCE_URL`, use `jdbc:mysql:///naild_db?cloudSqlInstance=naild-491922:us-central1:naild-mysql&socketFactory=com.google.cloud.sql.mysql.SocketFactory&useSSL=false`
+- `SPRING_DATASOURCE_USERNAME`, use `naild_user`
 - `GOOGLE_OAUTH_CLIENT_ID`
 - `APP_PASSWORD_RESET_BASE_URL`, currently `https://knappi.ca/reset-password`
 - `APP_OAUTH_SUCCESS_REDIRECT_URL`, currently `https://knappi.ca/interview`
