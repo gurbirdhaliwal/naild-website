@@ -18,6 +18,7 @@ import {
 } from '../types/Interview'
 import CustomMicRecorder from './CustomMicRecorder'
 import SessionStage from './SessionStage'
+import TypingTranscriptText from './TypingTranscriptText'
 import { interviewService } from '../services/interviewService'
 import { AI_BASE, API_BASE } from '../services/api'
 import { getAuthHeaders } from '../services/authToken'
@@ -86,6 +87,9 @@ const getTranscriptPreview = (transcription: string) => {
 
   return `${safePreview.trim()}...`
 }
+
+const isAiTranscriptMessage = (message: Message) =>
+  message.role !== 'candidate' && !message.isThinking && Boolean(message.transcription)
 
 const extractCandidateAnswers = (messages: Message[], questions: string[]): string[] => {
   const questionSet = new Set(questions)
@@ -378,6 +382,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const notifiedMessageIdsRef = useRef<Set<string> | null>(null)
+  const transcriptTypingInterviewIdRef = useRef(interview.id)
+  const initializedTranscriptTypingRef = useRef(false)
+  const transcriptTypingStatusRef = useRef<Map<string, boolean>>(new Map())
   const [isProcessing, setIsProcessing] = useState(false)
   const [showTranscription, setShowTranscription] = useState(true)
   const [cameraOn, setCameraOn] = useState(true)
@@ -387,6 +394,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const [loadingExistingGrade, setLoadingExistingGrade] = useState(false)
   const [expandedIndexes, setExpandedIndexes] = useState<number[]>([])
   const [expandedTranscriptIds, setExpandedTranscriptIds] = useState<string[]>([])
+  const [typingTranscriptIds, setTypingTranscriptIds] = useState<string[]>([])
   const [timer, setTimer] = useState<number>(maxRecordingDuration)
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [recordingError, setRecordingError] = useState<string | null>(null)
@@ -413,9 +421,55 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
   useEffect(() => {
     setExpandedTranscriptIds([])
+    setTypingTranscriptIds([])
     setAiState('idle')
     notifiedMessageIdsRef.current = null
+    transcriptTypingInterviewIdRef.current = interview.id
+    initializedTranscriptTypingRef.current = false
+    transcriptTypingStatusRef.current = new Map()
   }, [interview.id])
+
+  useEffect(() => {
+    if (transcriptTypingInterviewIdRef.current !== interview.id) {
+      transcriptTypingInterviewIdRef.current = interview.id
+      transcriptTypingStatusRef.current = new Map(
+        interview.messages.map((message) => [message.id, message.isThinking])
+      )
+      initializedTranscriptTypingRef.current = true
+      setTypingTranscriptIds([])
+      return
+    }
+
+    const nextTypingStatus = new Map<string, boolean>()
+    const nextTypingIds: string[] = []
+
+    interview.messages.forEach((message) => {
+      nextTypingStatus.set(message.id, message.isThinking)
+
+      if (!isAiTranscriptMessage(message)) return
+
+      const previousThinkingStatus = transcriptTypingStatusRef.current.get(message.id)
+      if (
+        initializedTranscriptTypingRef.current &&
+        (previousThinkingStatus === undefined || previousThinkingStatus)
+      ) {
+        nextTypingIds.push(message.id)
+      }
+    })
+
+    transcriptTypingStatusRef.current = nextTypingStatus
+
+    if (!initializedTranscriptTypingRef.current) {
+      initializedTranscriptTypingRef.current = true
+      return
+    }
+
+    if (nextTypingIds.length > 0) {
+      setTypingTranscriptIds((currentIds) =>
+        Array.from(new Set([...currentIds, ...nextTypingIds]))
+      )
+    }
+  }, [interview.id, interview.messages])
 
   useEffect(() => {
     setGradingResult(
@@ -1375,7 +1429,17 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
                       </button>
                     </div>
                   ) : (
-                    <div className="break-words leading-5">{message.transcription}</div>
+                    <div className="break-words leading-5">
+                      <TypingTranscriptText
+                        text={message.transcription}
+                        animate={typingTranscriptIds.includes(message.id)}
+                        onComplete={() =>
+                          setTypingTranscriptIds((currentIds) =>
+                            currentIds.filter((messageId) => messageId !== message.id)
+                          )
+                        }
+                      />
+                    </div>
                   )}
                 </div>
               </div>

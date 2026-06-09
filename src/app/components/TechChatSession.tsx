@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import CustomMicRecorder from './CustomMicRecorder'
 import SessionStage from './SessionStage'
+import TypingTranscriptText from './TypingTranscriptText'
 import { AI_BASE } from '../services/api'
 import { getAuthHeaders } from '../services/authToken'
 import { transcribeAudioBlob } from '../services/transcriptionService'
@@ -75,6 +76,9 @@ const getTranscriptPreview = (transcription: string) => {
   return `${safePreview.trim()}...`
 }
 
+const isAiTranscriptMessage = (message: Message) =>
+  message.role !== 'candidate' && !message.isThinking && Boolean(message.transcription)
+
 const TechChatSession: React.FC<TechChatSessionProps> = ({
   interview,
   onUpdateInterview,
@@ -92,6 +96,9 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
   const latestInterviewRef = useRef(interview)
   const responseGenerationRef = useRef(0)
   const notifiedMessageIdsRef = useRef<Set<string> | null>(null)
+  const transcriptTypingInterviewIdRef = useRef(interview.id)
+  const initializedTranscriptTypingRef = useRef(false)
+  const transcriptTypingStatusRef = useRef<Map<string, boolean>>(new Map())
   const [showTranscription, setShowTranscription] = useState(true)
   const [cameraOn, setCameraOn] = useState(true)
   const [aiState, setAiState] = useState<AISessionState>('idle')
@@ -103,6 +110,7 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
   const [endConfirmOpen, setEndConfirmOpen] = useState(false)
   const [recordingError, setRecordingError] = useState<string | null>(null)
   const [expandedTranscriptIds, setExpandedTranscriptIds] = useState<string[]>([])
+  const [typingTranscriptIds, setTypingTranscriptIds] = useState<string[]>([])
   const isCompleted = interview.status === 'completed'
   const recap = isCompleted ? normalizeRecap(interview.gradingResult) : null
   const softTurnLimit = persona.softTurnLimit || TECH_CHAT_SOFT_TURN_LIMIT
@@ -117,13 +125,59 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
 
   useEffect(() => {
     setExpandedTranscriptIds([])
+    setTypingTranscriptIds([])
     setRecordingError(null)
     setTimer(MAX_RECORDING_DURATION)
     setAiState('idle')
     notifiedMessageIdsRef.current = null
+    transcriptTypingInterviewIdRef.current = interview.id
+    initializedTranscriptTypingRef.current = false
+    transcriptTypingStatusRef.current = new Map()
     setIsTimerRunning(false)
     if (timerRef.current) clearTimeout(timerRef.current)
   }, [interview.id])
+
+  useEffect(() => {
+    if (transcriptTypingInterviewIdRef.current !== interview.id) {
+      transcriptTypingInterviewIdRef.current = interview.id
+      transcriptTypingStatusRef.current = new Map(
+        interview.messages.map((message) => [message.id, message.isThinking])
+      )
+      initializedTranscriptTypingRef.current = true
+      setTypingTranscriptIds([])
+      return
+    }
+
+    const nextTypingStatus = new Map<string, boolean>()
+    const nextTypingIds: string[] = []
+
+    interview.messages.forEach((message) => {
+      nextTypingStatus.set(message.id, message.isThinking)
+
+      if (!isAiTranscriptMessage(message)) return
+
+      const previousThinkingStatus = transcriptTypingStatusRef.current.get(message.id)
+      if (
+        initializedTranscriptTypingRef.current &&
+        (previousThinkingStatus === undefined || previousThinkingStatus)
+      ) {
+        nextTypingIds.push(message.id)
+      }
+    })
+
+    transcriptTypingStatusRef.current = nextTypingStatus
+
+    if (!initializedTranscriptTypingRef.current) {
+      initializedTranscriptTypingRef.current = true
+      return
+    }
+
+    if (nextTypingIds.length > 0) {
+      setTypingTranscriptIds((currentIds) =>
+        Array.from(new Set([...currentIds, ...nextTypingIds]))
+      )
+    }
+  }, [interview.id, interview.messages])
 
   useEffect(() => {
     if (!isTimerRunning || timer <= 0) {
@@ -557,7 +611,13 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
             messages={interview.messages}
             personaName={persona.name}
             expandedTranscriptIds={expandedTranscriptIds}
+            typingTranscriptIds={typingTranscriptIds}
             onToggleTranscript={toggleTranscriptExpand}
+            onTypingComplete={(messageId) =>
+              setTypingTranscriptIds((currentIds) =>
+                currentIds.filter((currentMessageId) => currentMessageId !== messageId)
+              )
+            }
             messagesEndRef={messagesEndRef}
           />
         ) : null}
@@ -679,7 +739,13 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
           messages={interview.messages}
           personaName={persona.name}
           expandedTranscriptIds={expandedTranscriptIds}
+          typingTranscriptIds={typingTranscriptIds}
           onToggleTranscript={toggleTranscriptExpand}
+          onTypingComplete={(messageId) =>
+            setTypingTranscriptIds((currentIds) =>
+              currentIds.filter((currentMessageId) => currentMessageId !== messageId)
+            )
+          }
           messagesEndRef={messagesEndRef}
         />
       ) : null}
@@ -760,7 +826,9 @@ interface TranscriptPanelProps {
   messages: Message[]
   personaName: string
   expandedTranscriptIds: string[]
+  typingTranscriptIds: string[]
   onToggleTranscript: (messageId: string) => void
+  onTypingComplete: (messageId: string) => void
   messagesEndRef: React.RefObject<HTMLDivElement | null>
 }
 
@@ -768,7 +836,9 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   messages,
   personaName,
   expandedTranscriptIds,
+  typingTranscriptIds,
   onToggleTranscript,
+  onTypingComplete,
   messagesEndRef,
 }) => (
   <div className="fixed right-0 top-0 flex h-full w-80 flex-col border-l border-gray-200 bg-white">
@@ -827,7 +897,13 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                 </button>
               </div>
             ) : (
-              <div className="break-words leading-5">{message.transcription}</div>
+              <div className="break-words leading-5">
+                <TypingTranscriptText
+                  text={message.transcription}
+                  animate={typingTranscriptIds.includes(message.id)}
+                  onComplete={() => onTypingComplete(message.id)}
+                />
+              </div>
             )}
           </div>
         </div>
