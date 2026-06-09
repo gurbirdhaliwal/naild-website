@@ -10,7 +10,7 @@ import CustomMicRecorder from './CustomMicRecorder'
 import SessionStage from './SessionStage'
 import { AI_BASE } from '../services/api'
 import { getAuthHeaders } from '../services/authToken'
-import { getAudioUploadFilename } from '../services/audioUpload'
+import { transcribeAudioBlob } from '../services/transcriptionService'
 import { interviewService } from '../services/interviewService'
 import { playAiMessageSound } from '../services/chatNotificationSound'
 import { Interview, Message, TechChatRecap } from '../types/Interview'
@@ -222,22 +222,7 @@ const TechChatSession: React.FC<TechChatSessionProps> = ({
   }
 
   const transcribeAudio = async (audioBlob: Blob) => {
-    const formData = new FormData()
-    formData.append('audio', audioBlob, getAudioUploadFilename(audioBlob, 'recording'))
-
-    const response = await fetch(`${AI_BASE}/transcription`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      credentials: 'include',
-      body: formData,
-    })
-
-    if (!response.ok) throw new Error('Failed to process voice input.')
-
-    const result = await response.json()
-    if (result.error) throw new Error(result.error)
-
-    return result.user_input as string
+    return transcribeAudioBlob(audioBlob, 'recording')
   }
 
   const completeSession = async (messages: Message[]) => {

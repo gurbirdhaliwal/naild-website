@@ -17,9 +17,7 @@ import {
   User,
 } from 'lucide-react'
 import CustomMicRecorder from './CustomMicRecorder'
-import { AI_BASE } from '../services/api'
-import { getAuthHeaders } from '../services/authToken'
-import { getAudioUploadFilename } from '../services/audioUpload'
+import { transcribeAudioBlob } from '../services/transcriptionService'
 import { getUserFacingErrorMessage } from '../lib/userFacingErrors'
 
 export type LibraryTopicId =
@@ -809,27 +807,7 @@ const PracticeDrillPanel: React.FC<{ topic: LibraryTopic }> = ({ topic }) => {
     setTranscriptionError(null)
 
     try {
-      const formData = new FormData()
-      formData.append('audio', audioBlob, getAudioUploadFilename(audioBlob, 'library-practice'))
-
-      const transcriptionResponse = await fetch(`${AI_BASE}/transcription`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        credentials: 'include',
-        body: formData,
-      })
-
-      if (!transcriptionResponse.ok) {
-        throw new Error('Failed to transcribe audio')
-      }
-
-      const result = await transcriptionResponse.json()
-
-      if (result.error || typeof result.user_input !== 'string') {
-        throw new Error(result.error || 'No transcription was returned')
-      }
-
-      const transcript = result.user_input.trim()
+      const transcript = (await transcribeAudioBlob(audioBlob, 'library-practice')).trim()
       setResponse(transcript)
       setEvaluation(evaluatePracticeResponse(topic, transcript))
     } catch (error) {
