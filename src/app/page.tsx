@@ -158,6 +158,7 @@ const howItWorksSteps = [
     title: 'Pick your Scenario.',
     description:
       'Choose the right session for you, ranging from different types of technical communication scenarios.',
+    videoSrc: '/scenario.mp4',
     videoLabel: 'Scenario preview',
   },
   {
@@ -1198,8 +1199,25 @@ const KnappiLanding = () => {
 
               <div className="hidden h-full min-h-64 w-px bg-black/10 lg:block" />
 
-              <div className="flex aspect-[16/10] w-full items-center justify-center rounded-[2.5rem] border border-emerald-100 bg-emerald-50 text-base font-medium text-emerald-900/70">
-                {activeHowItWorksStep.videoLabel}
+              <div className="relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-emerald-50 text-base font-medium text-emerald-900/70">
+                {'videoSrc' in activeHowItWorksStep ? (
+                  <video
+                    key={activeHowItWorksStep.videoSrc}
+                    className="h-full w-full object-cover"
+                    style={{ objectPosition: '65% center' }}
+                    muted
+                    playsInline
+                    autoPlay={!prefersReducedMotion}
+                    loop={!prefersReducedMotion}
+                    preload="metadata"
+                    controls={Boolean(prefersReducedMotion)}
+                    aria-label={activeHowItWorksStep.videoLabel}
+                  >
+                    <source src={activeHowItWorksStep.videoSrc} type="video/mp4" />
+                  </video>
+                ) : (
+                  activeHowItWorksStep.videoLabel
+                )}
               </div>
             </div>
           </div>

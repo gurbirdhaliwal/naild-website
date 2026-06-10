@@ -80,7 +80,7 @@ const SessionStage: React.FC<SessionStageProps> = ({
 
       <section
         data-state={aiState}
-        className={`ai-presence-card relative aspect-video overflow-hidden rounded-[24px] border shadow-lg ${
+        className={`ai-presence-card relative aspect-video overflow-hidden rounded-[24px] border ${
           isDark
             ? 'border-emerald-900/50 bg-[#07120e] text-white'
             : 'border-emerald-100 bg-white text-gray-950'

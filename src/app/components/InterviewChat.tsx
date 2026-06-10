@@ -1350,7 +1350,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
                   disabled={isProcessing || gradingLoading || aiState === 'thinking'}
                   idleText={
                     isBehavioralSession
-                      ? 'Click the microphone to answer the current question.'
+                      ? ''
                       : 'Click the microphone to answer this drill.'
                   }
                   processingText={
