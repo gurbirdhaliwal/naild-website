@@ -471,36 +471,43 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
     const hiddenIds = new Set(hiddenTranscriptIds)
     const activeTypingIds = new Set(typingTranscriptIds)
     const activeTypingIndex = interview.messages.findIndex((message) => activeTypingIds.has(message.id))
-    const shouldDeferConsecutiveAiMessages =
-      isProcessing || aiState === 'thinking' || activeTypingIndex !== -1 || hiddenTranscriptIds.length > 0
+    const knownTypingStatus = transcriptTypingStatusRef.current
+    let hasShownPendingAiMessage = false
 
     return interview.messages.filter((message, index) => {
       if (hiddenIds.has(message.id)) return false
 
       const isActiveTypingMessage = activeTypingIds.has(message.id)
+      const isAiMessage = isAiTranscriptMessage(message)
       if (
         activeTypingIndex !== -1 &&
         index > activeTypingIndex &&
-        isAiTranscriptMessage(message) &&
+        isAiMessage &&
         !isActiveTypingMessage
       ) {
         return false
       }
 
-      const previousMessage = interview.messages[index - 1]
+      const previousTypingStatus = knownTypingStatus.get(message.id)
+      const isPendingAiMessage =
+        isAiMessage &&
+        initializedTranscriptTypingRef.current &&
+        (previousTypingStatus === undefined || previousTypingStatus)
       if (
-        shouldDeferConsecutiveAiMessages &&
-        isAiTranscriptMessage(message) &&
-        previousMessage &&
-        isAiTranscriptMessage(previousMessage) &&
-        !isActiveTypingMessage
+        isPendingAiMessage &&
+        !isActiveTypingMessage &&
+        hasShownPendingAiMessage
       ) {
         return false
+      }
+
+      if (isPendingAiMessage && !isActiveTypingMessage) {
+        hasShownPendingAiMessage = true
       }
 
       return true
     })
-  }, [aiState, hiddenTranscriptIds, interview.messages, isProcessing, typingTranscriptIds])
+  }, [hiddenTranscriptIds, interview.messages, typingTranscriptIds])
 
   useEffect(() => {
     scrollTranscriptToBottom()
