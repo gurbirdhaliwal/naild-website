@@ -467,9 +467,44 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
     })
   }, [interview, maxRecordingDuration])
 
+  const visibleTranscriptMessages = useMemo(() => {
+    const hiddenIds = new Set(hiddenTranscriptIds)
+    const activeTypingIds = new Set(typingTranscriptIds)
+    const activeTypingIndex = interview.messages.findIndex((message) => activeTypingIds.has(message.id))
+    const shouldDeferConsecutiveAiMessages =
+      isProcessing || aiState === 'thinking' || activeTypingIndex !== -1 || hiddenTranscriptIds.length > 0
+
+    return interview.messages.filter((message, index) => {
+      if (hiddenIds.has(message.id)) return false
+
+      const isActiveTypingMessage = activeTypingIds.has(message.id)
+      if (
+        activeTypingIndex !== -1 &&
+        index > activeTypingIndex &&
+        isAiTranscriptMessage(message) &&
+        !isActiveTypingMessage
+      ) {
+        return false
+      }
+
+      const previousMessage = interview.messages[index - 1]
+      if (
+        shouldDeferConsecutiveAiMessages &&
+        isAiTranscriptMessage(message) &&
+        previousMessage &&
+        isAiTranscriptMessage(previousMessage) &&
+        !isActiveTypingMessage
+      ) {
+        return false
+      }
+
+      return true
+    })
+  }, [aiState, hiddenTranscriptIds, interview.messages, isProcessing, typingTranscriptIds])
+
   useEffect(() => {
     scrollTranscriptToBottom()
-  }, [hiddenTranscriptIds, interview.messages, scrollTranscriptToBottom, showTranscription, typingTranscriptIds])
+  }, [scrollTranscriptToBottom, showTranscription, typingTranscriptIds, visibleTranscriptMessages])
 
   useEffect(() => {
     setExpandedTranscriptIds([])
@@ -1443,9 +1478,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
           </div>
 
           <div ref={transcriptScrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
-            {interview.messages
-              .filter((message) => !hiddenTranscriptIds.includes(message.id))
-              .map((message) => (
+            {visibleTranscriptMessages.map((message) => (
               <div key={message.id} className="text-sm">
                 <div className="mb-1 text-xs text-gray-400">{message.timestamp.toLocaleString()}</div>
                 <div
