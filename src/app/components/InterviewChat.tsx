@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
   CheckCircle2,
@@ -385,6 +385,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const transcriptTypingInterviewIdRef = useRef(interview.id)
   const initializedTranscriptTypingRef = useRef(false)
   const transcriptTypingStatusRef = useRef<Map<string, boolean>>(new Map())
+  const transcriptTypingQueueRef = useRef<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [showTranscription, setShowTranscription] = useState(true)
   const [cameraOn, setCameraOn] = useState(true)
@@ -398,6 +399,31 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const [timer, setTimer] = useState<number>(maxRecordingDuration)
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [recordingError, setRecordingError] = useState<string | null>(null)
+
+  const startNextTranscriptTyping = useCallback(() => {
+    setTypingTranscriptIds((currentIds) => {
+      if (currentIds.length > 0) return currentIds
+
+      const [nextId, ...remainingIds] = transcriptTypingQueueRef.current
+      if (!nextId) return currentIds
+
+      transcriptTypingQueueRef.current = remainingIds
+      return [nextId]
+    })
+  }, [])
+
+  const handleTranscriptTypingComplete = useCallback((completedMessageId: string) => {
+    setTypingTranscriptIds((currentIds) => {
+      const remainingActiveIds = currentIds.filter((messageId) => messageId !== completedMessageId)
+      if (remainingActiveIds.length > 0) return remainingActiveIds
+
+      const [nextId, ...remainingQueuedIds] = transcriptTypingQueueRef.current
+      if (!nextId) return remainingActiveIds
+
+      transcriptTypingQueueRef.current = remainingQueuedIds
+      return [nextId]
+    })
+  }, [])
 
   const promptDetails = useMemo(() => {
     const fallbackPrompt = interview.questions?.[0] ?? ''
@@ -427,6 +453,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
     transcriptTypingInterviewIdRef.current = interview.id
     initializedTranscriptTypingRef.current = false
     transcriptTypingStatusRef.current = new Map()
+    transcriptTypingQueueRef.current = []
   }, [interview.id])
 
   useEffect(() => {
@@ -436,6 +463,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         interview.messages.map((message) => [message.id, message.isThinking])
       )
       initializedTranscriptTypingRef.current = true
+      transcriptTypingQueueRef.current = []
       setTypingTranscriptIds([])
       return
     }
@@ -465,11 +493,12 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
     }
 
     if (nextTypingIds.length > 0) {
-      setTypingTranscriptIds((currentIds) =>
-        Array.from(new Set([...currentIds, ...nextTypingIds]))
-      )
+      const queuedIds = new Set(transcriptTypingQueueRef.current)
+      const idsToQueue = nextTypingIds.filter((messageId) => !queuedIds.has(messageId))
+      transcriptTypingQueueRef.current = [...transcriptTypingQueueRef.current, ...idsToQueue]
+      startNextTranscriptTyping()
     }
-  }, [interview.id, interview.messages])
+  }, [interview.id, interview.messages, startNextTranscriptTyping])
 
   useEffect(() => {
     setGradingResult(
@@ -1433,11 +1462,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
                       <TypingTranscriptText
                         text={message.transcription}
                         animate={typingTranscriptIds.includes(message.id)}
-                        onComplete={() =>
-                          setTypingTranscriptIds((currentIds) =>
-                            currentIds.filter((messageId) => messageId !== message.id)
-                          )
-                        }
+                        onComplete={() => handleTranscriptTypingComplete(message.id)}
                       />
                     </div>
                   )}
