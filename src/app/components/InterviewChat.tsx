@@ -378,7 +378,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const maxRecordingDuration = isBehavioralSession ? 60 : 120
   const modelLabel = AUREON_NAME
   const aureonVoice = getAureonVoicePersona(user?.aureonVoiceId)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const transcriptScrollRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const notifiedMessageIdsRef = useRef<Set<string> | null>(null)
@@ -386,6 +386,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const initializedTranscriptTypingRef = useRef(false)
   const transcriptTypingStatusRef = useRef<Map<string, boolean>>(new Map())
   const transcriptTypingQueueRef = useRef<string[]>([])
+  const typingTranscriptIdsRef = useRef<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [showTranscription, setShowTranscription] = useState(true)
   const [cameraOn, setCameraOn] = useState(true)
@@ -396,33 +397,58 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const [expandedIndexes, setExpandedIndexes] = useState<number[]>([])
   const [expandedTranscriptIds, setExpandedTranscriptIds] = useState<string[]>([])
   const [typingTranscriptIds, setTypingTranscriptIds] = useState<string[]>([])
+  const [hiddenTranscriptIds, setHiddenTranscriptIds] = useState<string[]>([])
   const [timer, setTimer] = useState<number>(maxRecordingDuration)
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [recordingError, setRecordingError] = useState<string | null>(null)
 
-  const startNextTranscriptTyping = useCallback(() => {
-    setTypingTranscriptIds((currentIds) => {
-      if (currentIds.length > 0) return currentIds
+  const scrollTranscriptToBottom = useCallback(() => {
+    const scrollElement = transcriptScrollRef.current
+    if (!scrollElement) return
 
-      const [nextId, ...remainingIds] = transcriptTypingQueueRef.current
-      if (!nextId) return currentIds
-
-      transcriptTypingQueueRef.current = remainingIds
-      return [nextId]
+    scrollElement.scrollTop = scrollElement.scrollHeight
+    window.requestAnimationFrame(() => {
+      scrollElement.scrollTop = scrollElement.scrollHeight
     })
   }, [])
 
+  const startNextTranscriptTyping = useCallback(() => {
+    if (typingTranscriptIdsRef.current.length > 0) return
+
+    const [nextId, ...remainingIds] = transcriptTypingQueueRef.current
+    if (!nextId) return
+
+    transcriptTypingQueueRef.current = remainingIds
+    typingTranscriptIdsRef.current = [nextId]
+    setHiddenTranscriptIds((currentHiddenIds) =>
+      currentHiddenIds.filter((messageId) => messageId !== nextId)
+    )
+    setTypingTranscriptIds([nextId])
+  }, [])
+
   const handleTranscriptTypingComplete = useCallback((completedMessageId: string) => {
-    setTypingTranscriptIds((currentIds) => {
-      const remainingActiveIds = currentIds.filter((messageId) => messageId !== completedMessageId)
-      if (remainingActiveIds.length > 0) return remainingActiveIds
+    const remainingActiveIds = typingTranscriptIdsRef.current.filter(
+      (messageId) => messageId !== completedMessageId
+    )
+    if (remainingActiveIds.length > 0) {
+      typingTranscriptIdsRef.current = remainingActiveIds
+      setTypingTranscriptIds(remainingActiveIds)
+      return
+    }
 
-      const [nextId, ...remainingQueuedIds] = transcriptTypingQueueRef.current
-      if (!nextId) return remainingActiveIds
+    const [nextId, ...remainingQueuedIds] = transcriptTypingQueueRef.current
+    if (!nextId) {
+      typingTranscriptIdsRef.current = []
+      setTypingTranscriptIds([])
+      return
+    }
 
-      transcriptTypingQueueRef.current = remainingQueuedIds
-      return [nextId]
-    })
+    transcriptTypingQueueRef.current = remainingQueuedIds
+    typingTranscriptIdsRef.current = [nextId]
+    setHiddenTranscriptIds((currentHiddenIds) =>
+      currentHiddenIds.filter((messageId) => messageId !== nextId)
+    )
+    setTypingTranscriptIds([nextId])
   }, [])
 
   const promptDetails = useMemo(() => {
@@ -442,12 +468,14 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   }, [interview, maxRecordingDuration])
 
   useEffect(() => {
-    scrollToBottom()
-  }, [interview.messages])
+    scrollTranscriptToBottom()
+  }, [hiddenTranscriptIds, interview.messages, scrollTranscriptToBottom, showTranscription, typingTranscriptIds])
 
   useEffect(() => {
     setExpandedTranscriptIds([])
     setTypingTranscriptIds([])
+    setHiddenTranscriptIds([])
+    typingTranscriptIdsRef.current = []
     setAiState('idle')
     notifiedMessageIdsRef.current = null
     transcriptTypingInterviewIdRef.current = interview.id
@@ -464,7 +492,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       )
       initializedTranscriptTypingRef.current = true
       transcriptTypingQueueRef.current = []
+      typingTranscriptIdsRef.current = []
       setTypingTranscriptIds([])
+      setHiddenTranscriptIds([])
       return
     }
 
@@ -494,11 +524,17 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
     if (nextTypingIds.length > 0) {
       const queuedIds = new Set(transcriptTypingQueueRef.current)
-      const idsToQueue = nextTypingIds.filter((messageId) => !queuedIds.has(messageId))
+      const activeIds = new Set(typingTranscriptIds)
+      const idsToQueue = nextTypingIds.filter(
+        (messageId) => !queuedIds.has(messageId) && !activeIds.has(messageId)
+      )
       transcriptTypingQueueRef.current = [...transcriptTypingQueueRef.current, ...idsToQueue]
+      setHiddenTranscriptIds((currentHiddenIds) =>
+        Array.from(new Set([...currentHiddenIds, ...idsToQueue]))
+      )
       startNextTranscriptTyping()
     }
-  }, [interview.id, interview.messages, startNextTranscriptTyping])
+  }, [interview.id, interview.messages, startNextTranscriptTyping, typingTranscriptIds])
 
   useEffect(() => {
     setGradingResult(
@@ -638,10 +674,6 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       }
     }
   }, [cameraOn])
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
 
   const startTimer = () => {
     setAiState('listening')
@@ -1410,8 +1442,10 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
             </div>
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto p-4">
-            {interview.messages.map((message) => (
+          <div ref={transcriptScrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
+            {interview.messages
+              .filter((message) => !hiddenTranscriptIds.includes(message.id))
+              .map((message) => (
               <div key={message.id} className="text-sm">
                 <div className="mb-1 text-xs text-gray-400">{message.timestamp.toLocaleString()}</div>
                 <div
@@ -1463,13 +1497,13 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
                         text={message.transcription}
                         animate={typingTranscriptIds.includes(message.id)}
                         onComplete={() => handleTranscriptTypingComplete(message.id)}
+                        onProgress={scrollTranscriptToBottom}
                       />
                     </div>
                   )}
                 </div>
               </div>
             ))}
-            <div ref={messagesEndRef} />
           </div>
         </div>
       ) : null}
