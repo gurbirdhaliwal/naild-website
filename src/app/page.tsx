@@ -167,6 +167,7 @@ const howItWorksSteps = [
     title: 'Shape your session.',
     description:
       'Set the role, audience, topic, and goal so the session matches the pressure you actually face.',
+    videoSrc: '/customize.mp4',
     videoLabel: 'Customization preview',
   },
   {
@@ -175,6 +176,7 @@ const howItWorksSteps = [
     title: 'Explain it out loud.',
     description:
       'Speak through your answer naturally while Knappi tracks clarity, structure, precision, and audience fit.',
+    videoSrc: '/practice.mp4',
     videoLabel: 'Practice preview',
   },
   {
@@ -183,6 +185,7 @@ const howItWorksSteps = [
     title: 'Get feedback you can act on.',
     description:
       'Review what landed, what was missing, and how to tighten the explanation before the next attempt.',
+    videoSrc: '/grading.mp4',
     videoLabel: 'Grading preview',
   },
 ] as const;
@@ -1200,24 +1203,25 @@ const KnappiLanding = () => {
               <div className="hidden h-full min-h-64 w-px bg-black/10 lg:block" />
 
               <div className="relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-emerald-50 text-base font-medium text-emerald-900/70">
-                {'videoSrc' in activeHowItWorksStep ? (
-                  <video
-                    key={activeHowItWorksStep.videoSrc}
-                    className="h-full w-full object-cover"
-                    style={{ objectPosition: '65% center' }}
-                    muted
-                    playsInline
-                    autoPlay={!prefersReducedMotion}
-                    loop={!prefersReducedMotion}
-                    preload="metadata"
-                    controls={Boolean(prefersReducedMotion)}
-                    aria-label={activeHowItWorksStep.videoLabel}
-                  >
-                    <source src={activeHowItWorksStep.videoSrc} type="video/mp4" />
-                  </video>
-                ) : (
-                  activeHowItWorksStep.videoLabel
-                )}
+                <video
+                  key={activeHowItWorksStep.videoSrc}
+                  className={`h-full w-full object-cover ${
+                    activeHowItWorksStep.id === 'practice' ? 'origin-bottom scale-[1.2]' : ''
+                  }`}
+                  style={{
+                    objectPosition:
+                      activeHowItWorksStep.id === 'practice' ? '65% bottom' : '65% center',
+                  }}
+                  muted
+                  playsInline
+                  autoPlay={!prefersReducedMotion}
+                  loop={!prefersReducedMotion}
+                  preload="metadata"
+                  controls={Boolean(prefersReducedMotion)}
+                  aria-label={activeHowItWorksStep.videoLabel}
+                >
+                  <source src={activeHowItWorksStep.videoSrc} type="video/mp4" />
+                </video>
               </div>
             </div>
           </div>
