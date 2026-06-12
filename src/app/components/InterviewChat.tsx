@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import {
   AlertCircle,
   CheckCircle2,
@@ -77,6 +78,8 @@ const getBarColor = (percent: number) => {
   if (percent >= 50) return 'bg-yellow-400'
   return 'bg-red-400'
 }
+
+const getClampedPercent = (score: number) => Math.min(100, Math.max(0, score))
 
 const getTranscriptPreview = (transcription: string) => {
   if (transcription.length <= MAX_TRANSCRIPT_PREVIEW_LENGTH) return transcription
@@ -778,6 +781,8 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       const currentMessages = [...interview.messages, userMessage, thinkingMessage]
       onUpdateInterview({ ...interview, messages: currentMessages })
       const answerHistory = [...extractDrillAnswerSegments(interview.messages), transcript]
+      setGradingLoading(true)
+      setGradingResult(null)
 
       const evaluationResponse = await fetch(`${AI_BASE}/evaluate_drill`, {
         method: 'POST',
@@ -865,6 +870,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       setGradingResult({ error: message })
     } finally {
       setIsProcessing(false)
+      setGradingLoading(false)
       setAiState('idle')
     }
   }
@@ -1118,6 +1124,11 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
 
   const sessionHeading = isBehavioralSession ? interview.title : 'Communication Drill'
   const shouldShowGrading = interview.status === 'completed' || gradingResult
+  const communicationOverallScore =
+    gradingResult && isCommunicationGradingResult(gradingResult)
+      ? getClampedPercent(gradingResult.overall_score)
+      : 0
+
   return (
     <div className="flex h-full bg-white">
       <div className={`flex flex-1 flex-col items-center justify-start overflow-y-auto ${showTranscription ? 'pr-80' : ''}`}>
@@ -1218,7 +1229,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
             ) : gradingLoading ? (
               <div className="flex min-h-[180px] flex-col items-center justify-center rounded-2xl bg-white p-8 shadow-sm">
                 <Loader2 className="mb-4 animate-spin text-emerald-500" size={40} />
-                <div className="text-lg font-medium text-emerald-700">Reviewing your answer...</div>
+                <div className="text-lg font-medium text-emerald-700">Grading your results...</div>
               </div>
             ) : shouldShowGrading && gradingResult && !isGradingErrorResult(gradingResult) ? (
               isBehavioralSession && isBehavioralGradingResult(gradingResult) ? (
@@ -1352,36 +1363,48 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
                         <div className="mt-1 text-sm text-gray-500">Overall communication score</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-gray-900">{Math.round(gradingResult.overall_score)}%</div>
+                        <div className="text-3xl font-bold text-gray-900">{Math.round(communicationOverallScore)}%</div>
                         <div className="mt-1 text-xs font-medium text-gray-500">
-                          {getScoreLabel(gradingResult.overall_score)}
+                          {getScoreLabel(communicationOverallScore)}
                         </div>
                       </div>
                     </div>
 
                     <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-gray-200">
-                      <div
-                        className={`${getBarColor(gradingResult.overall_score)} h-3 rounded-full`}
-                        style={{ width: `${gradingResult.overall_score}%` }}
+                      <motion.div
+                        className={`${getBarColor(communicationOverallScore)} h-3 rounded-full`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${communicationOverallScore}%` }}
+                        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
                       />
                     </div>
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                      {gradingResult.categories.map((category) => (
-                        <div key={category.key} className="rounded-2xl border border-gray-200 bg-gray-50/80 p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-sm font-semibold text-gray-900">{category.label}</div>
-                            <div className="text-sm font-medium text-gray-600">{category.score}%</div>
+                      {gradingResult.categories.map((category, index) => {
+                        const categoryScore = getClampedPercent(category.score)
+
+                        return (
+                          <div key={category.key} className="rounded-2xl border border-gray-200 bg-gray-50/80 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-sm font-semibold text-gray-900">{category.label}</div>
+                              <div className="text-sm font-medium text-gray-600">{categoryScore}%</div>
+                            </div>
+                            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                              <motion.div
+                                className={`${getBarColor(categoryScore)} h-2 rounded-full`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${categoryScore}%` }}
+                                transition={{
+                                  duration: 0.75,
+                                  delay: 0.12 + index * 0.08,
+                                  ease: [0.22, 1, 0.36, 1],
+                                }}
+                              />
+                            </div>
+                            <p className="mt-3 text-sm leading-6 text-gray-600">{category.feedback}</p>
                           </div>
-                          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                            <div
-                              className={`${getBarColor(category.score)} h-2 rounded-full`}
-                              style={{ width: `${category.score}%` }}
-                            />
-                          </div>
-                          <p className="mt-3 text-sm leading-6 text-gray-600">{category.feedback}</p>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
 
