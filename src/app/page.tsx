@@ -211,6 +211,9 @@ const whyKnappiReasons = [
   },
 ] as const;
 
+const whyKnappiTitleTypingIntervalMs = 14;
+const whyKnappiDescriptionTypingIntervalMs = 5;
+
 type WhyKnappiVideoKey =
   | 'phase1'
   | 'phase1-2transition'
@@ -547,9 +550,9 @@ function WhyKnappiSection({ prefersReducedMotion }: { prefersReducedMotion: bool
             }
             setIsTypingReason(false);
           }
-        }, 9);
+        }, whyKnappiDescriptionTypingIntervalMs);
       }
-    }, 22);
+    }, whyKnappiTitleTypingIntervalMs);
 
     return () => {
       clearInterval(titleIntervalId);
@@ -752,16 +755,13 @@ function WhyKnappiSection({ prefersReducedMotion }: { prefersReducedMotion: bool
       <div className="sticky top-0 h-screen overflow-hidden bg-white px-5 py-6 text-left md:py-8">
         <div className="mx-auto grid h-full max-w-7xl items-center gap-6 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:gap-10">
           <div>
-            <div className="mb-3 text-xs font-medium uppercase tracking-[0.22em] text-emerald-700 md:text-sm">
+            <h2 className="max-w-xl text-[2.7rem] font-normal leading-tight text-black md:text-[4.2rem]">
               Why Knappi?
-            </div>
-            <h2 className="max-w-xl text-4xl font-normal leading-tight text-black md:text-[3.5rem]">
-              Turn knowing into saying.
             </h2>
 
-            <div className="mt-8 flex gap-5 py-7 md:mt-10 md:gap-6 md:py-8">
+            <div className="mt-7 flex gap-4 py-4 md:mt-9 md:gap-6 md:py-6">
               <div
-                className="relative mt-1 h-36 w-px shrink-0 overflow-hidden rounded-full bg-black/10 md:h-44"
+                className="relative mt-2 h-[22rem] w-px shrink-0 overflow-hidden rounded-full bg-black/10 lg:h-[22.5rem]"
                 aria-hidden="true"
               >
                 <div
@@ -770,34 +770,36 @@ function WhyKnappiSection({ prefersReducedMotion }: { prefersReducedMotion: bool
                 />
               </div>
 
-              <div>
-                <div className="flex items-start gap-3 text-black">
-                  <span className="pt-1 text-xs font-medium text-emerald-700 md:text-sm">
-                    {activeReason.phase}
-                  </span>
-                  <h3
-                    aria-label={activeReason.title}
-                    className="min-h-[4rem] text-2xl font-normal leading-tight md:min-h-[4.5rem] md:text-3xl"
+              <div className="relative h-[22rem] w-full max-w-xl px-5 py-5 md:px-6 md:py-6 lg:h-[22.5rem]">
+                <div className="relative z-10">
+                  <div className="flex items-start gap-3 text-black">
+                    <span className="pt-1 text-xs font-medium text-emerald-700 md:text-sm">
+                      {activeReason.phase}
+                    </span>
+                    <h3
+                      aria-label={activeReason.title}
+                      className="min-h-[4.75rem] text-[1.65rem] font-normal leading-tight md:min-h-[5.75rem] md:text-[2.15rem]"
+                    >
+                      <span aria-hidden="true">
+                        {typedReason.title}
+                        {isTypingReason && typedReason.description.length === 0 ? (
+                          <span className="ml-1 inline-block h-[0.85em] w-px translate-y-1 animate-pulse bg-black align-middle" />
+                        ) : null}
+                      </span>
+                    </h3>
+                  </div>
+                  <p
+                    aria-label={activeReason.description}
+                    className="mt-5 min-h-[11rem] max-w-xl pl-8 text-base leading-7 text-gray-600 md:min-h-[12rem] md:text-[1.15rem] md:leading-8"
                   >
                     <span aria-hidden="true">
-                      {typedReason.title}
-                      {isTypingReason && typedReason.description.length === 0 ? (
-                        <span className="ml-1 inline-block h-[0.85em] w-px translate-y-1 animate-pulse bg-black align-middle" />
+                      {typedReason.description}
+                      {isTypingReason && typedReason.description.length > 0 ? (
+                        <span className="ml-1 inline-block h-[0.85em] w-px translate-y-1 animate-pulse bg-gray-600 align-middle" />
                       ) : null}
                     </span>
-                  </h3>
+                  </p>
                 </div>
-                <p
-                  aria-label={activeReason.description}
-                  className="mt-4 min-h-[10.5rem] max-w-xl pl-8 text-base leading-7 text-gray-600 md:min-h-[11rem] md:text-lg"
-                >
-                  <span aria-hidden="true">
-                    {typedReason.description}
-                    {isTypingReason && typedReason.description.length > 0 ? (
-                      <span className="ml-1 inline-block h-[0.85em] w-px translate-y-1 animate-pulse bg-gray-600 align-middle" />
-                    ) : null}
-                  </span>
-                </p>
               </div>
             </div>
           </div>
