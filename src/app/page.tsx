@@ -90,11 +90,6 @@ const planCards = [
     imageClassName: 'w-[16.5rem] md:w-[19rem]',
   },
 ] as const;
-const planCardOffsets = [
-  { x: -20, y: 0 },
-  { x: 0, y: 20 },
-  { x: 20, y: 0 },
-] as const;
 const founderProfiles = [
   {
     id: 'cofounder-01',
@@ -286,176 +281,51 @@ function getWhyKnappiTransitionVideo(
     : 'phase2-3transition';
 }
 
-function HabitDepthSection({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
-  const [transitionState, setTransitionState] = useState({
-    surfaceProgress: 0,
-  });
-  const sectionRef = useRef<HTMLDivElement | null>(null);
-  const surfaceScale = prefersReducedMotion
-    ? 1
-    : 0.9 + transitionState.surfaceProgress * 0.1;
-  const surfaceY = prefersReducedMotion
-    ? 0
-    : (1 - transitionState.surfaceProgress) * 112;
-  const surfaceRadius = prefersReducedMotion
-    ? 0
-    : (1 - transitionState.surfaceProgress) * 56;
-  const cardsVisible = prefersReducedMotion || transitionState.surfaceProgress >= 0.18;
-
-  useEffect(() => {
-    let frameId: number | null = null;
-
-    const updateTransitionState = () => {
-      const section = sectionRef.current;
-
-      if (!section) {
-        return;
-      }
-
-      const sectionRect = section.getBoundingClientRect();
-      const viewportHeight = Math.max(window.innerHeight, 1);
-      const totalScrollable = Math.max(sectionRect.height - viewportHeight, 1);
-      const sectionProgress = Math.min(
-        1,
-        Math.max(0, -sectionRect.top / totalScrollable)
-      );
-      const surfaceProgress = prefersReducedMotion
-        ? 1
-        : Math.min(1, Math.max(0, (sectionProgress - 0.05) / 0.36));
-
-      setTransitionState((currentState) => {
-        const surfaceChanged =
-          Math.abs(currentState.surfaceProgress - surfaceProgress) >= 0.01;
-
-        if (!surfaceChanged) {
-          return currentState;
-        }
-
-        return {
-          surfaceProgress: surfaceChanged
-            ? surfaceProgress
-            : currentState.surfaceProgress,
-        };
-      });
-
-      frameId = null;
-    };
-
-    const handleViewportChange = () => {
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
-      }
-
-      frameId = window.requestAnimationFrame(updateTransitionState);
-    };
-
-    handleViewportChange();
-    window.addEventListener('scroll', handleViewportChange, { passive: true });
-    document.addEventListener('scroll', handleViewportChange, {
-      capture: true,
-      passive: true,
-    });
-    window.addEventListener('resize', handleViewportChange);
-
-    return () => {
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
-      }
-
-      window.removeEventListener('scroll', handleViewportChange);
-      document.removeEventListener('scroll', handleViewportChange, true);
-      window.removeEventListener('resize', handleViewportChange);
-    };
-  }, [prefersReducedMotion]);
-
+function HabitDepthSection() {
   return (
-    <section
-      ref={sectionRef}
-      className="relative z-20 bg-white"
-      style={{ height: '145vh' }}
-    >
-      <div className="sticky top-0 h-screen overflow-hidden bg-white px-5 py-4 md:py-6">
-        <div
-          className="relative h-[calc(100vh-2rem)] overflow-hidden will-change-transform md:h-[calc(100vh-3rem)]"
-          style={{
-            transform: `translate3d(0, ${surfaceY}px, 0) scale(${surfaceScale})`,
-            transformOrigin: 'center top',
-            borderRadius: `${surfaceRadius}px`,
-          }}
-        >
-          <div className="mx-auto flex h-full max-w-6xl flex-col justify-center py-24">
-            <motion.div
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 18 }}
-              animate={
-                prefersReducedMotion
-                  ? { opacity: 1, y: 0 }
-                  : cardsVisible
-                  ? { opacity: 1, y: 0 }
-                  : { opacity: 0, y: 18 }
-              }
-              transition={{
-                duration: prefersReducedMotion ? 0 : 0.45,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-            >
-              <h2 className="mb-4 text-5xl font-normal text-black">
-                Build the habit before the high-stakes conversation.
-              </h2>
-              <p className="mb-10 text-xl font-normal text-gray-500">
-                Whether you are preparing for interviews, design reviews, or stakeholder updates,
-                <br />
-                Knappi gives you a repeatable way to practice out loud.
-              </p>
-            </motion.div>
+    <section className="relative z-20 bg-white px-5 pb-8 pt-20 md:pb-10 md:pt-24">
+      <div className="mx-auto flex max-w-6xl flex-col">
+        <div>
+          <h2 className="mb-4 text-5xl font-normal text-black">
+            Build the habit before the high-stakes conversation.
+          </h2>
+          <p className="mb-10 text-xl font-normal text-gray-500">
+            Whether you are preparing for interviews, design reviews, or stakeholder updates,
+            <br />
+            Knappi gives you a repeatable way to practice out loud.
+          </p>
+        </div>
 
-            <div className="flex justify-center">
-              <div className="grid w-full max-w-4xl grid-cols-1 gap-8 md:grid-cols-3">
-                {planCards.map((plan, index) => (
-                  <motion.div
-                    key={plan.name}
-                    initial={prefersReducedMotion ? false : { opacity: 0, ...planCardOffsets[index] }}
-                    animate={
-                      prefersReducedMotion
-                        ? { opacity: 1, x: 0, y: 0 }
-                        : cardsVisible
-                        ? { opacity: 1, x: 0, y: 0 }
-                        : { opacity: 0, ...planCardOffsets[index] }
-                    }
-                    transition={{
-                      duration: prefersReducedMotion ? 0 : 0.45,
-                      delay: prefersReducedMotion ? 0 : index * 0.08,
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
-                    className="flex flex-col items-center"
-                  >
-                    <div className="flex min-h-[15rem] items-end justify-center md:min-h-[18rem]">
-                      <Image
-                        src={plan.imageSrc}
-                        alt={plan.imageAlt}
-                        width={plan.imageWidth}
-                        height={plan.imageHeight}
-                        sizes="(min-width: 768px) 19rem, 70vw"
-                        placeholder="blur"
-                        blurDataURL={mediaBlurDataUrl}
-                        className={`h-auto object-contain ${plan.imageClassName}`}
-                      />
-                    </div>
-                    <div className="px-3 pt-5 text-center text-gray-700">
-                      <div className="text-xl font-medium">{plan.name}</div>
-                      <div className="mt-2 text-lg font-medium text-gray-900">{plan.price}</div>
-                      {plan.ctaLabel ? (
-                        <button
-                          type="button"
-                          className="mt-4 rounded-full border border-black/10 bg-black px-5 py-2 text-sm font-medium text-white"
-                        >
-                          {plan.ctaLabel}
-                        </button>
-                      ) : null}
-                    </div>
-                  </motion.div>
-                ))}
+        <div className="flex justify-center">
+          <div className="grid w-full max-w-4xl grid-cols-1 gap-8 md:grid-cols-3">
+            {planCards.map((plan) => (
+              <div key={plan.name} className="flex flex-col items-center">
+                <div className="flex min-h-[15rem] items-end justify-center md:min-h-[18rem]">
+                  <Image
+                    src={plan.imageSrc}
+                    alt={plan.imageAlt}
+                    width={plan.imageWidth}
+                    height={plan.imageHeight}
+                    sizes="(min-width: 768px) 19rem, 70vw"
+                    placeholder="blur"
+                    blurDataURL={mediaBlurDataUrl}
+                    className={`h-auto object-contain ${plan.imageClassName}`}
+                  />
+                </div>
+                <div className="px-3 pt-5 text-center text-gray-700">
+                  <div className="text-xl font-medium">{plan.name}</div>
+                  <div className="mt-2 text-lg font-medium text-gray-900">{plan.price}</div>
+                  {plan.ctaLabel ? (
+                    <button
+                      type="button"
+                      className="mt-4 rounded-full border border-black/10 bg-black px-5 py-2 text-sm font-medium text-white"
+                    >
+                      {plan.ctaLabel}
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </div>
@@ -912,7 +782,7 @@ function FoundersShowcaseSection({ prefersReducedMotion }: { prefersReducedMotio
   return (
     <section
       ref={sectionRef}
-      className="relative z-20 bg-white pb-8 pt-20 md:pb-10 md:pt-24"
+      className="relative z-20 bg-white pb-0 pt-20 md:pt-24"
     >
       <div className="relative z-10 mx-auto w-full rounded-[6rem] bg-emerald-50 px-5 py-20 md:px-10 md:py-24">
         <div className="mb-14 text-center">
@@ -1237,7 +1107,7 @@ const KnappiLanding = () => {
       <FoundersShowcaseSection prefersReducedMotion={prefersReducedMotion} />
 
       {/* ── Habit / plan cards ── */}
-      <HabitDepthSection prefersReducedMotion={prefersReducedMotion} />
+      <HabitDepthSection />
 
       {/* ── CTA ── */}
       <section className="bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e6faef_20%,_#c3f3d8_60%,_#b0efcb_100%)] px-5 py-40 text-center md:py-48">
