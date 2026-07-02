@@ -975,10 +975,19 @@ const KnappiLanding = () => {
           <h2 className="mx-auto mb-8 mt-2 text-4xl font-normal leading-tight text-black md:mt-4 md:text-5xl">
             Better communication starts with speaking more.
           </h2>
-          <div className="relative mx-auto mb-16 flex aspect-video max-w-4xl items-center justify-center overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-gray-300">
-            <div className="flex h-full w-full items-center justify-center bg-slate-300 text-lg text-slate-600">
-              Technical Communication Demo Placeholder
-            </div>
+          <div className="relative mx-auto mb-16 aspect-video max-w-4xl overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-gray-900">
+            <video
+              className="h-full w-full object-cover"
+              muted
+              playsInline
+              autoPlay={!prefersReducedMotion}
+              loop={!prefersReducedMotion}
+              controls={Boolean(prefersReducedMotion)}
+              preload="metadata"
+              aria-label="Knappi technical communication demo"
+            >
+              <source src="/Knappi.mp4" type="video/mp4" />
+            </video>
           </div>
 
           <div className="mb-10">
