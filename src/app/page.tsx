@@ -978,11 +978,8 @@ const KnappiLanding = () => {
           <div className="relative mx-auto mb-16 aspect-video max-w-4xl overflow-hidden rounded-[2.5rem] border border-emerald-100 bg-gray-900">
             <video
               className="h-full w-full object-cover"
-              muted
               playsInline
-              autoPlay={!prefersReducedMotion}
-              loop={!prefersReducedMotion}
-              controls={Boolean(prefersReducedMotion)}
+              controls
               preload="metadata"
               aria-label="Knappi technical communication demo"
             >
