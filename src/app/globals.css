@@ -372,15 +372,15 @@ body {
 }
 
 .ai-presence-card[data-state="listening"] .ai-presence-ring {
-  animation: ai-listening-ring 0.72s steps(2, end) infinite;
+  animation: ai-listening-ring 1.6s ease-in-out infinite;
 }
 
 .ai-presence-card[data-state="listening"] .ai-presence-core {
-  animation: ai-listening-core 0.42s steps(2, end) infinite;
+  animation: ai-listening-core 1.6s ease-in-out infinite;
 }
 
 .ai-presence-card[data-state="listening"] .ai-presence-avatar {
-  animation: ai-listening-avatar 0.34s steps(2, end) infinite;
+  animation: ai-listening-avatar 1.6s ease-in-out infinite;
 }
 
 .ai-presence-card[data-state="thinking"] .ai-presence-ring,
@@ -406,55 +406,37 @@ body {
 }
 
 @keyframes ai-listening-ring {
-  0% {
+  0%, 100% {
     box-shadow:
-      0 0 0 0 rgba(16, 185, 129, 0.34),
-      0 0 30px rgba(20, 184, 166, 0.18);
-    transform: translate(-1px, 0) scale(1);
+      0 0 0 0 rgba(16, 185, 129, 0.22),
+      0 0 24px rgba(20, 184, 166, 0.16);
+    transform: scale(1);
   }
-  24% {
+  50% {
     box-shadow:
-      0 0 0 8px rgba(16, 185, 129, 0.16),
-      0 0 36px rgba(20, 184, 166, 0.22);
-    transform: translate(1px, -1px) scale(1.025);
-  }
-  48% {
-    box-shadow:
-      0 0 0 3px rgba(16, 185, 129, 0.28),
-      0 0 28px rgba(20, 184, 166, 0.2);
-    transform: translate(-1px, 1px) scale(0.995);
-  }
-  72% {
-    box-shadow:
-      0 0 0 13px rgba(16, 185, 129, 0.08),
-      0 0 42px rgba(20, 184, 166, 0.25);
-    transform: translate(1px, 0) scale(1.035);
-  }
-  100% {
-    box-shadow:
-      0 0 0 0 rgba(16, 185, 129, 0.28),
-      0 0 30px rgba(20, 184, 166, 0.18);
-    transform: translate(0, -1px) scale(1);
+      0 0 0 14px rgba(16, 185, 129, 0.05),
+      0 0 42px rgba(20, 184, 166, 0.26);
+    transform: scale(1.045);
   }
 }
 
 @keyframes ai-listening-core {
   0%, 100% {
-    opacity: 0.46;
-    transform: translateX(-1px) scale(0.98);
+    opacity: 0.5;
+    transform: scale(1);
   }
   50% {
-    opacity: 0.82;
-    transform: translateX(1px) scale(1.08);
+    opacity: 0.85;
+    transform: scale(1.1);
   }
 }
 
 @keyframes ai-listening-avatar {
   0%, 100% {
-    transform: translate(-1px, 0) scale(1);
+    transform: scale(1);
   }
   50% {
-    transform: translate(1px, -1px) scale(1.025);
+    transform: scale(1.035);
   }
 }
 
