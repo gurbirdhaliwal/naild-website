@@ -111,20 +111,12 @@ const founderProfiles = [
 
 const companyFooterLinks = [
   {
+    label: 'Help',
+    href: '/help',
+  },
+  {
     label: 'Contact Us',
     href: 'mailto:support@knappi.ca',
-  },
-  {
-    label: 'Careers',
-    href: '#',
-  },
-  {
-    label: 'Ethos',
-    href: '#',
-  },
-  {
-    label: 'Help',
-    href: '#',
   },
 ] as const;
 const legalFooterLinks = [
@@ -1133,28 +1125,20 @@ const KnappiLanding = () => {
       {/* ── Footer ── */}
       <footer className="bg-[#b0efcb] px-5 pb-8 pt-12">
         <div className="mx-auto max-w-6xl">
-          <div className="mb-8 grid grid-cols-1 gap-16 text-left md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-10 text-left md:grid-cols-[1fr_auto_auto] md:gap-24">
             <div>
               <h4 className="mb-2 text-lg font-medium text-black">Knappi</h4>
-              <p className="mb-4 text-sm text-gray-500">© 2026 Knappi. Toronto, ON</p>
-              <div className="flex gap-4">
-                {['Discord', 'Twitter', 'YouTube', 'Instagram', 'LinkedIn'].map((social, index) => (
-                  <a
-                    key={index}
-                    href="#"
-                    className="h-6 w-6 rounded bg-gray-500 transition-colors duration-200 hover:bg-black"
-                    aria-label={social}
-                  />
-                ))}
-              </div>
+              <p className="max-w-xs text-sm text-gray-600">
+                Practice explaining technical ideas out loud and get feedback you can act on.
+              </p>
             </div>
             <div>
-              <h4 className="mb-4 font-medium text-black">Company</h4>
+              <h4 className="mb-4 font-medium text-black">Support</h4>
               {companyFooterLinks.map((link) => (
                 <a
                   key={link.label}
                   href={link.href}
-                  className="mb-3 block text-sm text-gray-500 transition-colors duration-200 hover:text-black"
+                  className="mb-3 block text-sm text-gray-600 transition-colors duration-200 hover:text-black"
                 >
                   {link.label}
                 </a>
@@ -1166,12 +1150,15 @@ const KnappiLanding = () => {
                 <a
                   key={link.label}
                   href={link.href}
-                  className="mb-3 block text-sm text-gray-500 transition-colors duration-200 hover:text-black"
+                  className="mb-3 block text-sm text-gray-600 transition-colors duration-200 hover:text-black"
                 >
                   {link.label}
                 </a>
               ))}
             </div>
+          </div>
+          <div className="mt-10 border-t border-black/10 pt-6">
+            <p className="text-sm text-gray-600">© 2026 Knappi. Toronto, ON</p>
           </div>
         </div>
       </footer>
